@@ -1,0 +1,70 @@
+# ASR Invoice Archive System - Render Deployment Configuration
+# Austin Kidwell | ASR Inc / Intellegix
+# Production-ready deployment with PostgreSQL, persistent disk, and cloud storage
+
+databases:
+  - name: invoice-archive-db
+    databaseName: invoice_archive
+    user: invoice_user
+    region: oregon
+
+services:
+  # FastAPI Backend Service
+  - type: web
+    name: asr-invoice-archive
+    runtime: python
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      # Database Configuration
+      - key: DATABASE_URL
+        fromDatabase:
+          name: invoice-archive-db
+          property: connectionString
+
+      # Application Configuration
+      - key: DEBUG
+        value: "false"
+      - key: RENDER
+        value: "true"
+      - key: API_HOST
+        value: "0.0.0.0"
+
+      # Storage Configuration
+      - key: STORAGE_BACKEND
+        value: "render_disk"
+      - key: RENDER_DISK_MOUNT
+        value: "/data"
+
+      # Claude AI Integration (Secret - Set in Render Dashboard)
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+      # Application Settings
+      - key: APP_NAME
+        value: "ASR Invoice Archive System"
+      - key: LOG_LEVEL
+        value: "INFO"
+
+    # Persistent Disk for File Storage
+    disk:
+      name: invoice-files
+      mountPath: /data
+      sizeGB: 20
+
+    # Auto-scaling Configuration
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetMemoryPercent: 80
+      targetCPUPercent: 70
+
+    # Deployment Settings
+    autoDeploy: true
+
+    # Health Check Configuration
+    healthCheckGracePeriodSeconds: 120
+    healthCheckTimeoutSeconds: 30
+    healthCheckIntervalSeconds: 30
