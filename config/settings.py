@@ -102,6 +102,51 @@ class Settings(BaseSettings):
         description="Logging level"
     )
 
+    # Relay Server Configuration
+    RELAY_ENABLED: bool = Field(
+        default=False,
+        env="RELAY_ENABLED",
+        description="Enable relay server for team collaboration"
+    )
+
+    RELAY_PORT: int = Field(
+        default=8001,
+        env="RELAY_PORT",
+        description="Port for relay server (team file uploads)"
+    )
+
+    SHARED_DROPBOX_PATH: str = Field(
+        default="./shared_dropbox",
+        env="SHARED_DROPBOX_PATH",
+        description="Path to shared Dropbox folders for team collaboration"
+    )
+
+    # Network Discovery Configuration
+    DISCOVERY_PORT: int = Field(
+        default=8002,
+        env="DISCOVERY_PORT",
+        description="Port for network discovery broadcasts"
+    )
+
+    BROADCAST_INTERVAL: int = Field(
+        default=30,
+        env="BROADCAST_INTERVAL",
+        description="Interval between discovery broadcasts (seconds)"
+    )
+
+    # Relay Integration Settings
+    RELAY_TIMEOUT: int = Field(
+        default=30,
+        env="RELAY_TIMEOUT",
+        description="Timeout for relay server operations (seconds)"
+    )
+
+    MAIN_APP_PORT: int = Field(
+        default=8000,
+        env="MAIN_APP_PORT",
+        description="Port of main ASR application for relay integration"
+    )
+
     @property
     def get_api_host(self) -> str:
         """Get production-aware API host"""
@@ -114,12 +159,55 @@ class Settings(BaseSettings):
             return Path(self.RENDER_DISK_MOUNT)
         return self.DATA_DIR
 
+    @property
+    def get_shared_dropbox_path(self) -> Path:
+        """Get shared dropbox path as Path object"""
+        return Path(self.SHARED_DROPBOX_PATH).resolve()
+
+    @property
+    def get_relay_server_url(self) -> str:
+        """Get relay server URL for internal communication"""
+        return f"http://localhost:{self.RELAY_PORT}"
+
+    def ensure_shared_folders(self) -> None:
+        """Ensure required shared dropbox folders exist"""
+        if not self.RELAY_ENABLED:
+            return
+
+        dropbox_path = self.get_shared_dropbox_path
+        required_folders = [
+            "scan_inbox",
+            "manual_review",
+            "open_billing",
+            "closed_billing"
+        ]
+
+        for folder in required_folders:
+            folder_path = dropbox_path / folder
+            folder_path.mkdir(parents=True, exist_ok=True)
+
     @model_validator(mode='after')
     def validate_required_secrets(self) -> 'Settings':
         """Validate required environment variables for production"""
         if self.IS_PRODUCTION:
             if not self.ANTHROPIC_API_KEY:
                 raise ValueError("ANTHROPIC_API_KEY environment variable is required for production")
+
+        # Validate relay configuration
+        if self.RELAY_ENABLED:
+            # Ensure relay port doesn't conflict with main app port
+            if self.RELAY_PORT == self.API_PORT:
+                raise ValueError("RELAY_PORT cannot be the same as API_PORT")
+
+            # Ensure discovery port doesn't conflict with other ports
+            if self.DISCOVERY_PORT in [self.API_PORT, self.RELAY_PORT]:
+                raise ValueError("DISCOVERY_PORT cannot conflict with API_PORT or RELAY_PORT")
+
+            # Validate shared dropbox path
+            shared_path = Path(self.SHARED_DROPBOX_PATH)
+            if not shared_path.parent.exists():
+                raise ValueError(f"Parent directory for SHARED_DROPBOX_PATH does not exist: {shared_path.parent}")
+
         return self
 
     class Config:

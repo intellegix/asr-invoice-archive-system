@@ -1,0 +1,1 @@
+export { vendorsAPI } from './VendorService';

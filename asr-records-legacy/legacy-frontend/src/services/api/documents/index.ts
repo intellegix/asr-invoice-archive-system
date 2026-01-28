@@ -1,0 +1,1 @@
+export { documentsAPI } from './DocumentService';
