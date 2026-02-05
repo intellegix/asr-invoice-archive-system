@@ -5,7 +5,7 @@ Production-ready settings with environment variable support
 
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
@@ -119,6 +119,59 @@ class Settings(BaseSettings):
         default="./shared_dropbox",
         env="SHARED_DROPBOX_PATH",
         description="Path to shared Dropbox folders for team collaboration"
+    )
+
+    # Legacy QB Organized Billing Directory Configuration
+    LEGACY_OPEN_BILLING_DIR: Optional[str] = Field(
+        default=None,
+        env="LEGACY_OPEN_BILLING_DIR",
+        description="Legacy path for open billing documents (QB Organized structure)"
+    )
+
+    LEGACY_CLOSED_BILLING_DIR: Optional[str] = Field(
+        default=None,
+        env="LEGACY_CLOSED_BILLING_DIR",
+        description="Legacy path for closed billing documents (QB Organized structure)"
+    )
+
+    # Document Consolidation Configuration
+    CONSOLIDATION_SOURCE_DIRS: List[str] = Field(
+        default_factory=lambda: [
+            "C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell/08_Financial_PayrollOperations/Digital Billing Records",
+            "C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell/08_Financial_PayrollOperations/Digital Billing Apps/ASR Records APP 2.0/ASR Records App/Digital Billing Records"
+        ],
+        env="CONSOLIDATION_SOURCE_DIRS",
+        description="Source directories to consolidate (comma-separated list)"
+    )
+
+    CONSOLIDATION_TARGET_DIR: str = Field(
+        default="C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell/08_Financial_PayrollOperations/Digital Billing Records (QB Organized)",
+        env="CONSOLIDATION_TARGET_DIR",
+        description="Target directory for consolidated documents (QB Organized structure)"
+    )
+
+    CONSOLIDATION_BATCH_SIZE: int = Field(
+        default=50,
+        env="CONSOLIDATION_BATCH_SIZE",
+        description="Number of documents to process in each consolidation batch"
+    )
+
+    CONSOLIDATION_BACKUP_DIR: str = Field(
+        default="./consolidation_backups",
+        env="CONSOLIDATION_BACKUP_DIR",
+        description="Directory for consolidation safety backups"
+    )
+
+    CONSOLIDATION_MAX_WORKERS: int = Field(
+        default=4,
+        env="CONSOLIDATION_MAX_WORKERS",
+        description="Maximum parallel workers for consolidation processing"
+    )
+
+    CONSOLIDATION_SAMPLE_SIZE: int = Field(
+        default=100,
+        env="CONSOLIDATION_SAMPLE_SIZE",
+        description="Sample size for verification quality assurance testing"
     )
 
     # Network Discovery Configuration
