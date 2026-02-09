@@ -1,0 +1,135 @@
+# ASR Invoice Archive System - Docker Compose Orchestration
+# Complete stack: Frontend + Backend + Database
+# Version: 1.0.0
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # ASR Production Server (Backend API)
+  # =============================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: production-server/Dockerfile
+    container_name: asr-backend
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - DEBUG=${DEBUG:-false}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
+      - DATA_DIR=/app/data
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./asr_records.db}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - MULTI_TENANT_ENABLED=${MULTI_TENANT_ENABLED:-false}
+      - SCANNER_API_ENABLED=${SCANNER_API_ENABLED:-true}
+      - MAX_SCANNER_CLIENTS=${MAX_SCANNER_CLIENTS:-10}
+    volumes:
+      - asr-data:/app/data
+      - asr-logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - asr-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # =============================================================================
+  # ASR Frontend (React/Vite)
+  # =============================================================================
+  frontend:
+    build:
+      context: ../asr-records-legacy/legacy-frontend
+      dockerfile: Dockerfile
+    container_name: asr-frontend
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    networks:
+      - asr-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # =============================================================================
+  # PostgreSQL Database (Optional - can use SQLite instead)
+  # =============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: asr-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-asr_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-asr_password_change_me}
+      - POSTGRES_DB=${POSTGRES_DB:-asr_records}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-asr_user} -d ${POSTGRES_DB:-asr_records}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - asr-network
+
+  # =============================================================================
+  # Redis Cache (Optional - for rate limiting and session storage)
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: asr-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - asr-network
+    profiles:
+      - with-redis
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  asr-data:
+    driver: local
+  asr-logs:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  asr-network:
+    driver: bridge
