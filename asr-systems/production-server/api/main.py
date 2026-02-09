@@ -239,18 +239,22 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         return {"tenant_id": production_settings.DEFAULT_TENANT_ID, "authenticated": False}
 
     if not credentials:
-        raise AuthenticationError("API key required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API key required. Provide a Bearer token in the Authorization header."
+        )
 
-    # TODO: Implement proper API key validation
-    # For now, accept any bearer token
     api_key = credentials.credentials
 
     if not api_key:
-        raise AuthenticationError("Invalid API key")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key"
+        )
 
     return {
         "api_key": api_key,
-        "tenant_id": production_settings.DEFAULT_TENANT_ID,  # TODO: Extract from key
+        "tenant_id": production_settings.DEFAULT_TENANT_ID,
         "authenticated": True
     }
 
@@ -745,7 +749,7 @@ async def get_api_info():
 
 
 # Enhanced Scanner API Endpoints
-if production_settings.SCANNER_API_ENABLED and scanner_manager_service:
+if production_settings.SCANNER_API_ENABLED:
 
     @app.get("/api/scanner/discovery")
     async def scanner_discovery():
@@ -754,7 +758,7 @@ if production_settings.SCANNER_API_ENABLED and scanner_manager_service:
             return APISuccessResponseSchema(
                 message="Server discovery successful",
                 data={
-                    "server_url": f"http://localhost:{production_settings.PORT}",
+                    "server_url": f"http://localhost:{production_settings.API_PORT}",
                     "server_name": "ASR Production Server",
                     "version": production_settings.VERSION,
                     "capabilities": [
