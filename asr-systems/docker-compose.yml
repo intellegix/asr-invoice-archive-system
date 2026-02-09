@@ -1,8 +1,11 @@
 # ASR Invoice Archive System - Docker Compose Orchestration
-# Complete stack: Frontend + Backend + Database
-# Version: 1.0.0
-
-version: '3.8'
+# Complete stack: Frontend + Backend + Database (optional)
+#
+# Usage:
+#   Standalone (SQLite):  docker compose up
+#   With PostgreSQL:      docker compose --profile with-postgres up
+#   With Redis:           docker compose --profile with-redis up
+#   Full stack:           docker compose --profile with-postgres --profile with-redis up
 
 services:
   # =============================================================================
@@ -40,12 +43,9 @@ services:
     restart: unless-stopped
     networks:
       - asr-network
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   # =============================================================================
-  # ASR Frontend (React/Vite)
+  # ASR Frontend (React/Vite served by Nginx)
   # =============================================================================
   frontend:
     build:
@@ -70,7 +70,7 @@ services:
         condition: service_healthy
 
   # =============================================================================
-  # PostgreSQL Database (Optional - can use SQLite instead)
+  # PostgreSQL Database (Optional - enable with --profile with-postgres)
   # =============================================================================
   postgres:
     image: postgres:15-alpine
@@ -92,9 +92,11 @@ services:
     restart: unless-stopped
     networks:
       - asr-network
+    profiles:
+      - with-postgres
 
   # =============================================================================
-  # Redis Cache (Optional - for rate limiting and session storage)
+  # Redis Cache (Optional - enable with --profile with-redis)
   # =============================================================================
   redis:
     image: redis:7-alpine

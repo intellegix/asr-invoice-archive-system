@@ -79,4 +79,5 @@ ENV STORAGE_BACKEND=local
 ENV DATA_DIR=/app/data
 
 # Start the production server
-CMD ["python", "-m", "uvicorn", "production-server.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# PYTHONPATH includes /app/production-server so api.main resolves correctly
+CMD ["python", "-m", "uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
