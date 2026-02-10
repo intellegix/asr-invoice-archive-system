@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -e
 
 echo ""
 echo "============================================================"
@@ -8,14 +9,22 @@ echo ""
 
 # Check for Python
 if ! command -v python3 &> /dev/null; then
-    echo "ERROR: Python3 is not installed"
+    echo "ERROR: Python 3 is not installed or not in PATH"
     echo "Please install Python 3.11 or later"
     exit 1
 fi
 
-# Check Python version
+# Check Python version (require 3.11+)
 PYVER=$(python3 --version 2>&1 | cut -d' ' -f2)
+PYMAJOR=$(echo "$PYVER" | cut -d. -f1)
+PYMINOR=$(echo "$PYVER" | cut -d. -f2)
+
 echo "Found Python $PYVER"
+
+if [ "$PYMAJOR" -lt 3 ] || { [ "$PYMAJOR" -eq 3 ] && [ "$PYMINOR" -lt 11 ]; }; then
+    echo "ERROR: Python 3.11+ is required (found $PYVER)"
+    exit 1
+fi
 
 # Check for virtual environment
 if [ -f "venv/bin/activate" ]; then
@@ -54,10 +63,4 @@ else
     echo "Starting ASR Production Server via uvicorn..."
     echo ""
     python -m uvicorn production-server.api.main:app --host 0.0.0.0 --port 8000
-fi
-
-if [ $? -ne 0 ]; then
-    echo ""
-    echo "Server exited with error. Check logs for details."
-    read -p "Press Enter to continue..."
 fi

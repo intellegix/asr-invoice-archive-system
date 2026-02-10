@@ -131,51 +131,54 @@ cd asr-systems
 
 # Copy and configure environment
 copy .env.example .env
-# Edit .env with your settings
+# Edit .env - ANTHROPIC_API_KEY is required
 
-# Start all services
-docker-compose up -d
+# Start all services (backend + frontend with SQLite)
+docker compose up -d
 
 # View logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| backend | 8000 | ASR Production Server API |
-| frontend | 80 | React web interface |
-| postgres | 5432 | PostgreSQL database |
-| redis | 6379 | Cache (optional) |
+| Service | Port | Profile | Description |
+|---------|------|---------|-------------|
+| backend | 8000 | default | ASR Production Server API |
+| frontend | 80 | default | React/Vite web interface (Nginx) |
+| postgres | 5432 | `with-postgres` | PostgreSQL database (optional) |
+| redis | 6379 | `with-redis` | Redis cache (optional) |
 
 ### Commands
 
 ```bash
-# Start services
-docker-compose up -d
+# Start default services (backend + frontend)
+docker compose up -d
 
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f backend
-
-# Rebuild after code changes
-docker-compose build --no-cache
-docker-compose up -d
-
-# Scale backend (if needed)
-docker-compose up -d --scale backend=3
+# Start with PostgreSQL
+docker compose --profile with-postgres up -d
 
 # Start with Redis cache
-docker-compose --profile with-redis up -d
+docker compose --profile with-redis up -d
+
+# Full stack (all services)
+docker compose --profile with-postgres --profile with-redis up -d
+
+# Stop services
+docker compose down
+
+# View logs
+docker compose logs -f backend
+
+# Rebuild after code changes
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ### Building Images Manually
 
 ```bash
-# Build backend image
+# Build backend image (from asr-systems directory)
 docker build -f production-server/Dockerfile -t asr-backend:latest .
 
 # Build frontend image
@@ -238,37 +241,60 @@ start.bat
 - Terraform 1.6+
 - Docker (for building images)
 
-### Infrastructure Setup
+### AWS Infrastructure
 
-```bash
-cd asr-records-legacy/aws-deployment/infrastructure/terraform
-
-# Initialize Terraform
-terraform init
-
-# Review plan
-terraform plan -var-file=environments/prod/prod.tfvars
-
-# Deploy
-terraform apply -var-file=environments/prod/prod.tfvars
-```
+| Resource | Value |
+|----------|-------|
+| **Region** | us-west-2 |
+| **Cluster** | asr-records-legacy-cluster-dev |
+| **ALB URL** | http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com |
+| **Backend ECR** | 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev |
+| **Frontend ECR** | 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-frontend-dev |
+| **Backend Task** | asr-records-backend-working (512 CPU / 1024 MB) |
+| **Frontend Task** | asr-records-frontend-working (256 CPU / 512 MB) |
+| **Log Groups** | /ecs/asr-records-legacy-backend-dev, /ecs/asr-records-legacy-frontend-dev |
 
 ### Building and Pushing Images
 
 ```bash
 # Login to ECR
 aws ecr get-login-password --region us-west-2 | \
-  docker login --username AWS --password-stdin <account>.dkr.ecr.us-west-2.amazonaws.com
+  docker login --username AWS --password-stdin 206362095382.dkr.ecr.us-west-2.amazonaws.com
 
-# Build and push backend
+# Build and push backend (from asr-systems directory)
 docker build -f production-server/Dockerfile -t asr-records-backend .
-docker tag asr-records-backend:latest <account>.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend:latest
-docker push <account>.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend:latest
+docker tag asr-records-backend:latest 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest
+docker push 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest
 
 # Build and push frontend
 docker build -t asr-records-frontend ../asr-records-legacy/legacy-frontend/
-docker tag asr-records-frontend:latest <account>.dkr.ecr.us-west-2.amazonaws.com/asr-records-frontend:latest
-docker push <account>.dkr.ecr.us-west-2.amazonaws.com/asr-records-frontend:latest
+docker tag asr-records-frontend:latest 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-frontend-dev:latest
+docker push 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-frontend-dev:latest
+```
+
+### Update ECS Services
+
+```bash
+# Force new deployment after pushing images
+aws ecs update-service --cluster asr-records-legacy-cluster-dev \
+  --service asr-records-backend-service --force-new-deployment --region us-west-2
+
+aws ecs update-service --cluster asr-records-legacy-cluster-dev \
+  --service asr-records-frontend-service --force-new-deployment --region us-west-2
+```
+
+### ECS Environment Variables
+
+The `ANTHROPIC_API_KEY` must be set in the task definition environment. If missing, the backend container will crash on startup. Update the task definition JSON and re-register:
+
+```bash
+# Register updated task definition
+aws ecs register-task-definition --cli-input-json file://backend-task-def.json --region us-west-2
+
+# Update service to use new task definition
+aws ecs update-service --cluster asr-records-legacy-cluster-dev \
+  --service asr-records-backend-service \
+  --task-definition asr-records-backend-working --region us-west-2
 ```
 
 ### Secrets Configuration
@@ -348,6 +374,33 @@ aws ssm put-parameter \
 ---
 
 ## Troubleshooting
+
+### Health Check from Git Bash (Windows)
+
+Git Bash on Windows converts paths starting with `/` to Windows paths. Use a double-slash to prevent this:
+
+```bash
+# This will fail in Git Bash (converts /health to C:/Program Files/Git/health)
+curl http://localhost:8000/health
+
+# This works in Git Bash
+curl http://localhost:8000//health
+```
+
+### Swagger Docs Not Available
+
+Swagger UI (`/docs`) and ReDoc (`/redoc`) are only available when `DEBUG=true`. In production (`DEBUG=false`), these endpoints are disabled for security.
+
+### ECS Container Keeps Crashing
+
+If the backend container enters a crash loop on ECS, check:
+
+1. **Missing ANTHROPIC_API_KEY**: The server will crash on startup if this env var is empty or missing in the task definition. Update `backend-task-def.json` with your actual key and re-register the task definition.
+
+2. **Check CloudWatch logs**:
+   ```bash
+   aws logs tail /ecs/asr-records-legacy-backend-dev --follow --region us-west-2
+   ```
 
 ### Server Won't Start
 
@@ -451,8 +504,9 @@ curl http://localhost:8000/api/v1/gl-accounts | jq '. | length'
 
 ### API Documentation
 
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8000/docs (requires `DEBUG=true`)
+- ReDoc: http://localhost:8000/redoc (requires `DEBUG=true`)
+- AWS: http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com/health
 
 ---
 
@@ -468,4 +522,4 @@ curl http://localhost:8000/api/v1/gl-accounts | jq '. | length'
 ---
 
 *ASR Invoice Archive System - Enterprise Document Processing*
-*Version 1.0.0*
+*Version 2.0.0*
