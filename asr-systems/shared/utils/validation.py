@@ -6,7 +6,7 @@ Common validation functions for both Production Server and Document Scanner
 import mimetypes
 import re
 from pathlib import Path
-from typing import Tuple, List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     import magic
@@ -14,8 +14,11 @@ except ImportError:
     magic = None
 
 from ..core.constants import (
-    SUPPORTED_DOCUMENT_TYPES, SUPPORTED_EXTENSIONS, MAX_FILE_SIZE_MB,
-    GL_ACCOUNTS, CONFIDENCE_THRESHOLDS
+    CONFIDENCE_THRESHOLDS,
+    GL_ACCOUNTS,
+    MAX_FILE_SIZE_MB,
+    SUPPORTED_DOCUMENT_TYPES,
+    SUPPORTED_EXTENSIONS,
 )
 from ..core.exceptions import ValidationError
 
@@ -89,7 +92,9 @@ def detect_mime_type(file_path: str) -> str:
     return mime_type
 
 
-def validate_file_for_upload(file_path: str) -> Tuple[bool, Optional[str], Dict[str, Any]]:
+def validate_file_for_upload(
+    file_path: str,
+) -> Tuple[bool, Optional[str], Dict[str, Any]]:
     """
     Comprehensive file validation for upload
 
@@ -123,7 +128,11 @@ def validate_file_for_upload(file_path: str) -> Tuple[bool, Optional[str], Dict[
         if not validate_file_size(file_size):
             max_size_mb = MAX_FILE_SIZE_MB
             actual_size_mb = file_size / (1024 * 1024)
-            return False, f"File size {actual_size_mb:.1f}MB exceeds maximum {max_size_mb}MB", {}
+            return (
+                False,
+                f"File size {actual_size_mb:.1f}MB exceeds maximum {max_size_mb}MB",
+                {},
+            )
 
         # Detect MIME type
         try:
@@ -144,8 +153,8 @@ def validate_file_for_upload(file_path: str) -> Tuple[bool, Optional[str], Dict[
             "file_stats": {
                 "created": file_stats.st_ctime,
                 "modified": file_stats.st_mtime,
-                "accessed": file_stats.st_atime
-            }
+                "accessed": file_stats.st_atime,
+            },
         }
 
         return True, None, metadata
@@ -173,16 +182,35 @@ def validate_filename(filename: str) -> Tuple[bool, Optional[str]]:
         return False, "Filename too long (max 255 characters)"
 
     # Check for invalid characters
-    invalid_chars = ['<', '>', ':', '"', '|', '?', '*', '\\', '/']
+    invalid_chars = ["<", ">", ":", '"', "|", "?", "*", "\\", "/"]
     for char in invalid_chars:
         if char in filename:
             return False, f"Filename contains invalid character: {char}"
 
     # Check for reserved names (Windows)
     reserved_names = [
-        'CON', 'PRN', 'AUX', 'NUL',
-        'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
-        'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
     ]
 
     name_without_ext = Path(filename).stem.upper()
@@ -190,13 +218,13 @@ def validate_filename(filename: str) -> Tuple[bool, Optional[str]]:
         return False, f"Filename uses reserved name: {name_without_ext}"
 
     # Check for leading/trailing dots or spaces
-    if filename.startswith('.') and len(filename) == 1:
+    if filename.startswith(".") and len(filename) == 1:
         return False, "Filename cannot be just a dot"
 
-    if filename.startswith('..'):
+    if filename.startswith(".."):
         return False, "Filename cannot start with double dots"
 
-    if filename.endswith(' ') or filename.endswith('.'):
+    if filename.endswith(" ") or filename.endswith("."):
         return False, "Filename cannot end with space or dot"
 
     return True, None
@@ -213,11 +241,11 @@ def sanitize_filename(filename: str) -> str:
         Sanitized filename
     """
     # Replace invalid characters with underscores
-    invalid_chars = ['<', '>', ':', '"', '|', '?', '*', '\\', '/']
+    invalid_chars = ["<", ">", ":", '"', "|", "?", "*", "\\", "/"]
     sanitized = filename
 
     for char in invalid_chars:
-        sanitized = sanitized.replace(char, '_')
+        sanitized = sanitized.replace(char, "_")
 
     # Remove leading/trailing whitespace
     sanitized = sanitized.strip()
@@ -233,13 +261,15 @@ def sanitize_filename(filename: str) -> str:
         sanitized = f"{name}{ext}"
 
     # Add extension if missing
-    if not Path(sanitized).suffix and not sanitized.endswith('.pdf'):
-        sanitized += '.pdf'
+    if not Path(sanitized).suffix and not sanitized.endswith(".pdf"):
+        sanitized += ".pdf"
 
     return sanitized
 
 
-def validate_gl_account(gl_code: str) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
+def validate_gl_account(
+    gl_code: str,
+) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
     """
     Validate GL account code
 
@@ -265,7 +295,9 @@ def validate_gl_account(gl_code: str) -> Tuple[bool, Optional[str], Optional[Dic
     return True, None, gl_info
 
 
-def validate_confidence_score(score: float, threshold_type: str = "PAYMENT_DETECTION_MIN") -> bool:
+def validate_confidence_score(
+    score: float, threshold_type: str = "PAYMENT_DETECTION_MIN"
+) -> bool:
     """
     Validate confidence score against thresholds
 
@@ -297,7 +329,7 @@ def validate_tenant_id(tenant_id: str) -> bool:
         return False
 
     # Check format: alphanumeric, hyphens, underscores only
-    pattern = r'^[a-zA-Z0-9_-]+$'
+    pattern = r"^[a-zA-Z0-9_-]+$"
     if not re.match(pattern, tenant_id):
         return False
 
@@ -326,7 +358,7 @@ def validate_api_key(api_key: str) -> bool:
         return False
 
     # Check format: base64-like characters
-    pattern = r'^[A-Za-z0-9+/=_-]+$'
+    pattern = r"^[A-Za-z0-9+/=_-]+$"
     return bool(re.match(pattern, api_key))
 
 
@@ -383,6 +415,7 @@ def validate_document_metadata(metadata: Dict[str, Any]) -> Tuple[bool, List[str
 
 # Input sanitization functions
 
+
 def sanitize_search_query(query: str) -> str:
     """
     Sanitize search query to prevent injection attacks
@@ -397,20 +430,22 @@ def sanitize_search_query(query: str) -> str:
         return ""
 
     # Remove potentially dangerous characters
-    dangerous_chars = ['<', '>', '"', "'", '&', ';', '(', ')', '|', '`']
+    dangerous_chars = ["<", ">", '"', "'", "&", ";", "(", ")", "|", "`"]
     sanitized = query
 
     for char in dangerous_chars:
-        sanitized = sanitized.replace(char, ' ')
+        sanitized = sanitized.replace(char, " ")
 
     # Normalize whitespace
-    sanitized = ' '.join(sanitized.split())
+    sanitized = " ".join(sanitized.split())
 
     # Limit length
     return sanitized[:500]
 
 
-def validate_sort_parameters(sort_by: str, sort_order: str, allowed_fields: List[str]) -> Tuple[bool, str]:
+def validate_sort_parameters(
+    sort_by: str, sort_order: str, allowed_fields: List[str]
+) -> Tuple[bool, str]:
     """
     Validate sorting parameters
 
@@ -433,9 +468,18 @@ def validate_sort_parameters(sort_by: str, sort_order: str, allowed_fields: List
 
 # Export all validation functions
 __all__ = [
-    "validate_file_extension", "validate_file_size", "detect_mime_type",
-    "validate_file_for_upload", "validate_filename", "sanitize_filename",
-    "validate_gl_account", "validate_confidence_score", "validate_tenant_id",
-    "validate_api_key", "validate_batch_size", "validate_document_metadata",
-    "sanitize_search_query", "validate_sort_parameters"
+    "validate_file_extension",
+    "validate_file_size",
+    "detect_mime_type",
+    "validate_file_for_upload",
+    "validate_filename",
+    "sanitize_filename",
+    "validate_gl_account",
+    "validate_confidence_score",
+    "validate_tenant_id",
+    "validate_api_key",
+    "validate_batch_size",
+    "validate_document_metadata",
+    "sanitize_search_query",
+    "validate_sort_parameters",
 ]

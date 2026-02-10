@@ -7,7 +7,12 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 logger = logging.getLogger(__name__)
@@ -15,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class Base(DeclarativeBase):
     """Base class for all ORM models."""
+
     pass
 
 
@@ -67,7 +73,9 @@ async def init_database(
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    logger.info("Database engine initialized (%s)", "SQLite" if is_sqlite else "PostgreSQL")
+    logger.info(
+        "Database engine initialized (%s)", "SQLite" if is_sqlite else "PostgreSQL"
+    )
 
 
 async def close_database() -> None:

@@ -18,21 +18,22 @@ from typing import Optional
 # Configure logging before importing other modules
 # Use UTF-8 encoding for handlers to support emoji/unicode on Windows
 _stream_handler = logging.StreamHandler(sys.stdout)
-_stream_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-_file_handler = logging.FileHandler('asr_production_server.log', encoding='utf-8')
-_file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[_stream_handler, _file_handler]
+_stream_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 )
 
+_file_handler = logging.FileHandler("asr_production_server.log", encoding="utf-8")
+_file_handler.setFormatter(
+    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+)
+
+logging.basicConfig(level=logging.INFO, handlers=[_stream_handler, _file_handler])
+
 # Force UTF-8 on stdout for Windows console
-if sys.platform == 'win32':
+if sys.platform == "win32":
     try:
-        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, OSError):
         pass
 
@@ -44,18 +45,21 @@ SHARED_DIR = CURRENT_DIR.parent / "shared"
 sys.path.insert(0, str(SHARED_DIR))
 sys.path.insert(0, str(CURRENT_DIR))
 
+from shared.core.constants import VERSION
+
 # Import shared components
 from shared.core.exceptions import ConfigurationError, CriticalSystemError
-from shared.core.constants import VERSION
 
 
 def _import_module(relative_path: str, absolute_path: str):
     """Import a module using relative import first, falling back to absolute for EXE context."""
     import importlib
+
     try:
-        return importlib.import_module(relative_path, package='production_server')
+        return importlib.import_module(relative_path, package="production_server")
     except (ImportError, SystemError):
         return importlib.import_module(absolute_path)
+
 
 # Global shutdown flag
 shutdown_requested = False
@@ -81,6 +85,7 @@ class ASRProductionServerLauncher:
 
     def _setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown"""
+
         def signal_handler(signum, frame):
             global shutdown_requested
             logger.info(f"Received signal {signum}, initiating shutdown...")
@@ -89,7 +94,7 @@ class ASRProductionServerLauncher:
 
         # Register signal handlers
         signal.signal(signal.SIGINT, signal_handler)
-        if hasattr(signal, 'SIGTERM'):
+        if hasattr(signal, "SIGTERM"):
             signal.signal(signal.SIGTERM, signal_handler)
 
     def _initialize_settings(self):
@@ -124,7 +129,9 @@ class ASRProductionServerLauncher:
 
         except Exception as e:
             logger.error(f"Failed to initialize settings: {e}")
-            raise CriticalSystemError(f"Settings initialization failed: {e}", component="settings")
+            raise CriticalSystemError(
+                f"Settings initialization failed: {e}", component="settings"
+            )
 
     def _ensure_directories(self):
         """Ensure required directories exist"""
@@ -142,7 +149,7 @@ class ASRProductionServerLauncher:
                 data_dir / "processed" / "open_receivable",
                 data_dir / "processed" / "closed_receivable",
                 data_dir / "manual_review",
-                data_dir / "backups"
+                data_dir / "backups",
             ]
 
             for dir_path in processing_dirs:
@@ -158,7 +165,9 @@ class ASRProductionServerLauncher:
 
         except Exception as e:
             logger.error(f"Failed to ensure directories: {e}")
-            raise CriticalSystemError(f"Directory initialization failed: {e}", component="directories")
+            raise CriticalSystemError(
+                f"Directory initialization failed: {e}", component="directories"
+            )
 
     async def start_main_api_server(self):
         """Start the main FastAPI application server with sophisticated capabilities"""
@@ -168,6 +177,7 @@ class ASRProductionServerLauncher:
 
             # Import uvicorn and main app
             import uvicorn
+
             try:
                 from .api.main import app
             except (ImportError, SystemError):
@@ -182,7 +192,7 @@ class ASRProductionServerLauncher:
                 access_log=self.settings.DEBUG,
                 workers=1 if self.settings.DEBUG else self.settings.API_WORKERS,
                 timeout_keep_alive=self.settings.API_TIMEOUT,
-                timeout_graceful_shutdown=30
+                timeout_graceful_shutdown=30,
             )
 
             server = uvicorn.Server(config)
@@ -200,7 +210,9 @@ class ASRProductionServerLauncher:
 
         except Exception as e:
             logger.error(f"Production API server failed: {e}")
-            raise CriticalSystemError(f"API server startup failed: {e}", component="api_server")
+            raise CriticalSystemError(
+                f"API server startup failed: {e}", component="api_server"
+            )
 
     async def health_monitor(self):
         """Monitor system health and sophisticated components"""
@@ -214,8 +226,11 @@ class ASRProductionServerLauncher:
                 # Check if main API is responding
                 try:
                     import httpx
+
                     async with httpx.AsyncClient(timeout=5.0) as client:
-                        response = await client.get(f"http://localhost:{self.settings.API_PORT}/health")
+                        response = await client.get(
+                            f"http://localhost:{self.settings.API_PORT}/health"
+                        )
                         if response.status_code == 200:
                             health_data = response.json()
                             logger.debug("✅ Production API is healthy")
@@ -230,7 +245,9 @@ class ASRProductionServerLauncher:
                                 if checks.get("storage") == "configured":
                                     logger.debug("✅ Storage: Configured")
                         else:
-                            logger.warning(f"⚠️ API health check failed: {response.status_code}")
+                            logger.warning(
+                                f"⚠️ API health check failed: {response.status_code}"
+                            )
                 except Exception as e:
                     logger.warning(f"⚠️ API health check error: {e}")
 
@@ -246,20 +263,30 @@ class ASRProductionServerLauncher:
                     if gl_count == 79:
                         logger.debug(f"✅ GL Accounts: {gl_count} loaded")
                     else:
-                        logger.warning(f"⚠️ GL Accounts: Only {gl_count} loaded (expected 79)")
+                        logger.warning(
+                            f"⚠️ GL Accounts: Only {gl_count} loaded (expected 79)"
+                        )
 
                     # Check payment detection system
                     try:
-                        from .services.payment_detection_service import PaymentDetectionService
+                        from .services.payment_detection_service import (
+                            PaymentDetectionService,
+                        )
                     except (ImportError, SystemError):
-                        from services.payment_detection_service import PaymentDetectionService
+                        from services.payment_detection_service import (
+                            PaymentDetectionService,
+                        )
                     payment_service = PaymentDetectionService()
                     methods = payment_service.get_enabled_methods()
-                    logger.debug(f"✅ Payment Detection: {len(methods)} methods enabled")
+                    logger.debug(
+                        f"✅ Payment Detection: {len(methods)} methods enabled"
+                    )
 
                     # Check billing router
                     try:
-                        from .services.billing_router_service import BillingRouterService
+                        from .services.billing_router_service import (
+                            BillingRouterService,
+                        )
                     except (ImportError, SystemError):
                         from services.billing_router_service import BillingRouterService
                     router_service = BillingRouterService()
@@ -296,16 +323,24 @@ class ASRProductionServerLauncher:
             logger.info("🎯 ASR Production Server ONLINE")
             logger.info("=" * 60)
             logger.info(f"🌐 API Endpoint: http://localhost:{self.settings.API_PORT}")
-            logger.info(f"📋 Health Check: http://localhost:{self.settings.API_PORT}/health")
-            logger.info(f"📊 API Status: http://localhost:{self.settings.API_PORT}/api/status")
+            logger.info(
+                f"📋 Health Check: http://localhost:{self.settings.API_PORT}/health"
+            )
+            logger.info(
+                f"📊 API Status: http://localhost:{self.settings.API_PORT}/api/status"
+            )
 
             if self.settings.SCANNER_API_ENABLED:
-                logger.info(f"📱 Scanner API: http://localhost:{self.settings.API_PORT}/api/v1/scanner")
+                logger.info(
+                    f"📱 Scanner API: http://localhost:{self.settings.API_PORT}/api/v1/scanner"
+                )
 
             logger.info("=" * 60)
             logger.info("📁 Sophisticated Capabilities Active:")
             logger.info("   • 79 QuickBooks GL Accounts with keyword matching")
-            logger.info("   • 5-Method Payment Detection (Claude AI + Regex + Keywords + Amount + OCR)")
+            logger.info(
+                "   • 5-Method Payment Detection (Claude AI + Regex + Keywords + Amount + OCR)"
+            )
             logger.info("   • 4 Billing Destinations (Open/Closed Payable/Receivable)")
             logger.info("   • Complete Audit Trail with confidence scoring")
             logger.info("   • Multi-tenant document isolation")
@@ -330,7 +365,9 @@ class ASRProductionServerLauncher:
 
         except Exception as e:
             logger.error(f"Production server startup failed: {e}")
-            raise CriticalSystemError(f"System startup failed: {e}", component="startup")
+            raise CriticalSystemError(
+                f"System startup failed: {e}", component="startup"
+            )
         finally:
             self.running = False
 
@@ -426,7 +463,11 @@ class ASRProductionServerLauncher:
         api_key_configured = bool(self.settings.ANTHROPIC_API_KEY)
         print(f"API Key Configured: {api_key_configured}")
         if api_key_configured:
-            key_preview = self.settings.ANTHROPIC_API_KEY[:10] + "..." if len(self.settings.ANTHROPIC_API_KEY) > 10 else "***"
+            key_preview = (
+                self.settings.ANTHROPIC_API_KEY[:10] + "..."
+                if len(self.settings.ANTHROPIC_API_KEY) > 10
+                else "***"
+            )
             print(f"API Key Preview: {key_preview}")
 
     def run_system_test(self) -> int:
@@ -460,13 +501,16 @@ class ASRProductionServerLauncher:
         total_tests += 1
         try:
             from .services.gl_account_service import GLAccountService
+
             gl_service = GLAccountService()
             accounts = gl_service.get_all_accounts()
             if len(accounts) == 79:
                 print(f"✅ GL Account system test passed (79 accounts loaded)")
                 tests_passed += 1
             else:
-                print(f"❌ GL Account system test failed (only {len(accounts)} accounts)")
+                print(
+                    f"❌ GL Account system test failed (only {len(accounts)} accounts)"
+                )
         except Exception as e:
             print(f"❌ GL Account system test failed: {e}")
 
@@ -474,13 +518,18 @@ class ASRProductionServerLauncher:
         total_tests += 1
         try:
             from .services.payment_detection_service import PaymentDetectionService
+
             payment_service = PaymentDetectionService()
             methods = payment_service.get_enabled_methods()
             if len(methods) >= 5:
-                print(f"✅ Payment detection system test passed ({len(methods)} methods)")
+                print(
+                    f"✅ Payment detection system test passed ({len(methods)} methods)"
+                )
                 tests_passed += 1
             else:
-                print(f"❌ Payment detection system test failed (only {len(methods)} methods)")
+                print(
+                    f"❌ Payment detection system test failed (only {len(methods)} methods)"
+                )
         except Exception as e:
             print(f"❌ Payment detection system test failed: {e}")
 
@@ -488,13 +537,16 @@ class ASRProductionServerLauncher:
         total_tests += 1
         try:
             from .services.billing_router_service import BillingRouterService
+
             router = BillingRouterService()
             destinations = router.get_available_destinations()
             if len(destinations) == 4:
                 print(f"✅ Billing router test passed (4 destinations)")
                 tests_passed += 1
             else:
-                print(f"❌ Billing router test failed (only {len(destinations)} destinations)")
+                print(
+                    f"❌ Billing router test failed (only {len(destinations)} destinations)"
+                )
         except Exception as e:
             print(f"❌ Billing router test failed: {e}")
 

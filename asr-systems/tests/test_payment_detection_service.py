@@ -5,14 +5,14 @@ Claude API methods are excluded — no network calls.
 """
 
 import pytest
-
-from services.payment_detection_service import MethodResult, PaymentDetectionService
 from shared.core.models import PaymentDetectionMethod, PaymentStatus
 
+from services.payment_detection_service import MethodResult, PaymentDetectionService
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 async def pds():
@@ -33,6 +33,7 @@ async def pds():
 # Initialization
 # ---------------------------------------------------------------------------
 
+
 class TestInit:
     @pytest.mark.asyncio
     async def test_initialization(self, pds):
@@ -50,6 +51,7 @@ class TestInit:
 # ---------------------------------------------------------------------------
 # Regex pattern detection
 # ---------------------------------------------------------------------------
+
 
 class TestRegex:
     @pytest.mark.asyncio
@@ -75,6 +77,7 @@ class TestRegex:
 # Keyword detection
 # ---------------------------------------------------------------------------
 
+
 class TestKeywords:
     @pytest.mark.asyncio
     async def test_detect_paid(self, pds):
@@ -90,7 +93,9 @@ class TestKeywords:
 
     @pytest.mark.asyncio
     async def test_detect_unknown(self, pds):
-        result = await pds._detect_keywords("some random text with no payment indicators")
+        result = await pds._detect_keywords(
+            "some random text with no payment indicators"
+        )
         assert result.payment_status == PaymentStatus.UNKNOWN
         assert result.confidence <= 0.3
 
@@ -98,6 +103,7 @@ class TestKeywords:
 # ---------------------------------------------------------------------------
 # Amount analysis
 # ---------------------------------------------------------------------------
+
 
 class TestAmountAnalysis:
     @pytest.mark.asyncio
@@ -126,6 +132,7 @@ class TestAmountAnalysis:
 # ---------------------------------------------------------------------------
 # Consensus
 # ---------------------------------------------------------------------------
+
 
 class TestConsensus:
     def test_agreement_boosts_confidence(self, pds):

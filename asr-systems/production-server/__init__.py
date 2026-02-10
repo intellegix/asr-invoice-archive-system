@@ -34,5 +34,5 @@ __all__ = [
     "ASRProductionServerLauncher",
     "main",
     "ProductionSettings",
-    "production_settings"
+    "production_settings",
 ]

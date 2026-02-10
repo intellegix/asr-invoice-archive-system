@@ -5,14 +5,15 @@ Manages scanner client connections and communication
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Set
 from uuid import uuid4
 
+from shared.core.exceptions import NetworkError, ValidationError
+
 # Import shared components
-from shared.core.models import DocumentMetadata, UploadResult, ScannerConfiguration
-from shared.core.exceptions import ValidationError, NetworkError
+from shared.core.models import DocumentMetadata, ScannerConfiguration, UploadResult
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ConnectedScanner:
     """Connected scanner client information"""
+
     scanner_id: str
     name: str
     version: str
@@ -35,6 +37,7 @@ class ConnectedScanner:
 @dataclass
 class ScannerUploadRequest:
     """Scanner upload request"""
+
     scanner_id: str
     filename: str
     file_content: bytes
@@ -89,7 +92,7 @@ class ScannerManagerService:
         version: str,
         capabilities: List[str],
         ip_address: str,
-        tenant_id: Optional[str] = None
+        tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Register a new scanner client"""
         try:
@@ -98,7 +101,9 @@ class ScannerManagerService:
 
             # Check connection limits
             if len(self.connected_scanners) >= self.max_clients:
-                raise NetworkError(f"Maximum scanner clients exceeded ({self.max_clients})")
+                raise NetworkError(
+                    f"Maximum scanner clients exceeded ({self.max_clients})"
+                )
 
             # Create scanner entry
             scanner = ConnectedScanner(
@@ -111,7 +116,7 @@ class ScannerManagerService:
                 last_heartbeat=datetime.now(),
                 tenant_id=tenant_id,
                 upload_count=0,
-                status="active"
+                status="active",
             )
 
             # Store in connected scanners
@@ -130,17 +135,19 @@ class ScannerManagerService:
                 "upload_endpoints": {
                     "single": "/api/scanner/upload",
                     "batch": "/api/scanner/batch",
-                    "status": "/api/scanner/status"
+                    "status": "/api/scanner/status",
                 },
                 "heartbeat_interval": 30,
-                "max_file_size_mb": 50
+                "max_file_size_mb": 50,
             }
 
         except Exception as e:
             logger.error(f"❌ Scanner registration failed: {e}")
             raise
 
-    async def update_heartbeat(self, scanner_id: str, status_data: Optional[Dict[str, Any]] = None) -> bool:
+    async def update_heartbeat(
+        self, scanner_id: str, status_data: Optional[Dict[str, Any]] = None
+    ) -> bool:
         """Update scanner heartbeat"""
         try:
             if scanner_id not in self.connected_scanners:
@@ -152,8 +159,10 @@ class ScannerManagerService:
 
             # Update scanner status if provided
             if status_data:
-                scanner.upload_count = status_data.get('upload_count', scanner.upload_count)
-                scanner.status = status_data.get('status', scanner.status)
+                scanner.upload_count = status_data.get(
+                    "upload_count", scanner.upload_count
+                )
+                scanner.status = status_data.get("status", scanner.status)
 
             logger.debug(f"💓 Heartbeat updated: {scanner.name}")
             return True
@@ -163,9 +172,7 @@ class ScannerManagerService:
             return False
 
     async def process_scanner_upload(
-        self,
-        upload_request: ScannerUploadRequest,
-        document_processor_service
+        self, upload_request: ScannerUploadRequest, document_processor_service
     ) -> UploadResult:
         """Process document upload from scanner"""
         try:
@@ -184,7 +191,7 @@ class ScannerManagerService:
                 "filename": upload_request.filename,
                 "started_at": datetime.now(),
                 "status": "processing",
-                "tenant_id": scanner.tenant_id
+                "tenant_id": scanner.tenant_id,
             }
 
             logger.info(f"📤 Processing upload from scanner: {scanner.name}")
@@ -200,28 +207,31 @@ class ScannerManagerService:
                     tenant_id=scanner.tenant_id or "default",
                     upload_source="scanner_client",
                     scanner_id=scanner_id,
-                    scanner_metadata=upload_request.scanner_info or {}
+                    scanner_metadata=upload_request.scanner_info or {},
                 )
 
                 # Process document using document processor service
                 result = await document_processor_service.process_document(
-                    file_content=upload_request.file_content,
-                    metadata=metadata
+                    file_content=upload_request.file_content, metadata=metadata
                 )
 
                 # Update upload session
-                self.upload_sessions[session_id].update({
-                    "status": "completed" if result.success else "failed",
-                    "document_id": result.document_id,
-                    "completed_at": datetime.now()
-                })
+                self.upload_sessions[session_id].update(
+                    {
+                        "status": "completed" if result.success else "failed",
+                        "document_id": result.document_id,
+                        "completed_at": datetime.now(),
+                    }
+                )
 
                 # Update scanner stats
                 scanner.upload_count += 1
                 scanner.last_heartbeat = datetime.now()
 
                 if result.success:
-                    logger.info(f"✅ Scanner upload completed: {upload_request.filename}")
+                    logger.info(
+                        f"✅ Scanner upload completed: {upload_request.filename}"
+                    )
                     logger.info(f"   • Document ID: {result.document_id}")
                 else:
                     logger.error(f"❌ Scanner upload failed: {result.error_message}")
@@ -230,26 +240,20 @@ class ScannerManagerService:
 
             except Exception as e:
                 # Update upload session with error
-                self.upload_sessions[session_id].update({
-                    "status": "error",
-                    "error": str(e),
-                    "completed_at": datetime.now()
-                })
+                self.upload_sessions[session_id].update(
+                    {"status": "error", "error": str(e), "completed_at": datetime.now()}
+                )
                 raise
 
         except Exception as e:
             logger.error(f"❌ Scanner upload processing failed: {e}")
-            return UploadResult(
-                success=False,
-                error_message=str(e),
-                document_id=None
-            )
+            return UploadResult(success=False, error_message=str(e), document_id=None)
 
     async def process_batch_upload(
         self,
         scanner_id: str,
         upload_requests: List[ScannerUploadRequest],
-        document_processor_service
+        document_processor_service,
     ) -> List[UploadResult]:
         """Process batch upload from scanner"""
         try:
@@ -264,7 +268,9 @@ class ScannerManagerService:
             tasks = []
             for upload_request in upload_requests:
                 upload_request.scanner_id = scanner_id  # Ensure scanner ID is set
-                task = self.process_scanner_upload(upload_request, document_processor_service)
+                task = self.process_scanner_upload(
+                    upload_request, document_processor_service
+                )
                 tasks.append(task)
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -273,26 +279,27 @@ class ScannerManagerService:
             processed_results = []
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    processed_results.append(UploadResult(
-                        success=False,
-                        error_message=str(result),
-                        document_id=None
-                    ))
+                    processed_results.append(
+                        UploadResult(
+                            success=False, error_message=str(result), document_id=None
+                        )
+                    )
                 else:
                     processed_results.append(result)
 
             successful_uploads = len([r for r in processed_results if r.success])
-            logger.info(f"✅ Batch upload completed: {successful_uploads}/{len(upload_requests)} successful")
+            logger.info(
+                f"✅ Batch upload completed: {successful_uploads}/{len(upload_requests)} successful"
+            )
 
             return processed_results
 
         except Exception as e:
             logger.error(f"❌ Batch upload processing failed: {e}")
-            return [UploadResult(
-                success=False,
-                error_message=str(e),
-                document_id=None
-            ) for _ in upload_requests]
+            return [
+                UploadResult(success=False, error_message=str(e), document_id=None)
+                for _ in upload_requests
+            ]
 
     async def get_upload_status(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Get upload session status"""
@@ -304,8 +311,10 @@ class ScannerManagerService:
 
             # Calculate processing time
             processing_time = None
-            if session.get('completed_at'):
-                processing_time = (session['completed_at'] - session['started_at']).total_seconds()
+            if session.get("completed_at"):
+                processing_time = (
+                    session["completed_at"] - session["started_at"]
+                ).total_seconds()
 
             return {
                 "session_id": session_id,
@@ -313,10 +322,14 @@ class ScannerManagerService:
                 "filename": session["filename"],
                 "status": session["status"],
                 "started_at": session["started_at"].isoformat(),
-                "completed_at": session.get("completed_at", datetime.now()).isoformat() if session.get("completed_at") else None,
+                "completed_at": (
+                    session.get("completed_at", datetime.now()).isoformat()
+                    if session.get("completed_at")
+                    else None
+                ),
                 "processing_time_seconds": processing_time,
                 "document_id": session.get("document_id"),
-                "error": session.get("error")
+                "error": session.get("error"),
             }
 
         except Exception as e:
@@ -328,18 +341,20 @@ class ScannerManagerService:
         try:
             scanners = []
             for scanner in self.connected_scanners.values():
-                scanners.append({
-                    "scanner_id": scanner.scanner_id,
-                    "name": scanner.name,
-                    "version": scanner.version,
-                    "capabilities": scanner.capabilities,
-                    "ip_address": scanner.ip_address,
-                    "connected_at": scanner.connected_at.isoformat(),
-                    "last_heartbeat": scanner.last_heartbeat.isoformat(),
-                    "upload_count": scanner.upload_count,
-                    "status": scanner.status,
-                    "tenant_id": scanner.tenant_id
-                })
+                scanners.append(
+                    {
+                        "scanner_id": scanner.scanner_id,
+                        "name": scanner.name,
+                        "version": scanner.version,
+                        "capabilities": scanner.capabilities,
+                        "ip_address": scanner.ip_address,
+                        "connected_at": scanner.connected_at.isoformat(),
+                        "last_heartbeat": scanner.last_heartbeat.isoformat(),
+                        "upload_count": scanner.upload_count,
+                        "status": scanner.status,
+                        "tenant_id": scanner.tenant_id,
+                    }
+                )
             return scanners
 
         except Exception as e:
@@ -353,11 +368,15 @@ class ScannerManagerService:
                 scanner = self.connected_scanners[scanner_id]
                 del self.connected_scanners[scanner_id]
 
-                logger.info(f"🔌 Scanner disconnected: {scanner.name} (ID: {scanner_id[:8]}...)")
+                logger.info(
+                    f"🔌 Scanner disconnected: {scanner.name} (ID: {scanner_id[:8]}...)"
+                )
                 logger.info(f"   • Connected scanners: {len(self.connected_scanners)}")
                 return True
             else:
-                logger.warning(f"⚠️ Attempted to disconnect unknown scanner: {scanner_id}")
+                logger.warning(
+                    f"⚠️ Attempted to disconnect unknown scanner: {scanner_id}"
+                )
                 return False
 
         except Exception as e:
@@ -374,23 +393,23 @@ class ScannerManagerService:
             "audit_trails",
             "multi_tenant_support",
             "batch_upload",
-            "real_time_status"
+            "real_time_status",
         ]
 
     def _detect_content_type(self, filename: str) -> str:
         """Detect content type from filename"""
-        extension = filename.lower().split('.')[-1] if '.' in filename else ''
+        extension = filename.lower().split(".")[-1] if "." in filename else ""
 
         content_types = {
-            'pdf': 'application/pdf',
-            'jpg': 'image/jpeg',
-            'jpeg': 'image/jpeg',
-            'png': 'image/png',
-            'tiff': 'image/tiff',
-            'gif': 'image/gif'
+            "pdf": "application/pdf",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "png": "image/png",
+            "tiff": "image/tiff",
+            "gif": "image/gif",
         }
 
-        return content_types.get(extension, 'application/octet-stream')
+        return content_types.get(extension, "application/octet-stream")
 
     async def _monitor_heartbeats(self) -> None:
         """Background task to monitor scanner heartbeats"""
@@ -410,7 +429,9 @@ class ScannerManagerService:
                 # Disconnect stale scanners
                 for scanner_id in stale_scanners:
                     scanner = self.connected_scanners[scanner_id]
-                    logger.warning(f"⚠️ Scanner heartbeat timeout: {scanner.name} (ID: {scanner_id[:8]}...)")
+                    logger.warning(
+                        f"⚠️ Scanner heartbeat timeout: {scanner.name} (ID: {scanner_id[:8]}...)"
+                    )
                     self.disconnect_scanner(scanner_id)
 
             except Exception as e:
@@ -437,7 +458,9 @@ class ScannerManagerService:
                     del self.upload_sessions[session_id]
 
                 if stale_sessions:
-                    logger.info(f"🧹 Cleaned up {len(stale_sessions)} stale upload sessions")
+                    logger.info(
+                        f"🧹 Cleaned up {len(stale_sessions)} stale upload sessions"
+                    )
 
             except Exception as e:
                 logger.error(f"❌ Session cleanup error: {e}")
@@ -449,8 +472,13 @@ class ScannerManagerService:
                 return {"status": "not_initialized"}
 
             connected_count = len(self.connected_scanners)
-            active_sessions = len([s for s in self.upload_sessions.values()
-                                if s["status"] == "processing"])
+            active_sessions = len(
+                [
+                    s
+                    for s in self.upload_sessions.values()
+                    if s["status"] == "processing"
+                ]
+            )
 
             return {
                 "status": "healthy",
@@ -458,14 +486,11 @@ class ScannerManagerService:
                 "max_clients": self.max_clients,
                 "active_upload_sessions": active_sessions,
                 "total_upload_sessions": len(self.upload_sessions),
-                "heartbeat_timeout_seconds": self.heartbeat_timeout
+                "heartbeat_timeout_seconds": self.heartbeat_timeout,
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error": str(e)
-            }
+            return {"status": "error", "error": str(e)}
 
     async def cleanup(self) -> None:
         """Cleanup scanner manager service"""

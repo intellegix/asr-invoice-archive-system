@@ -1,0 +1,44 @@
+{
+  "system_info": {
+    "name": "ASR Invoice Archive System",
+    "version": "1.0.0",
+    "description": "Enterprise Document Processing Platform"
+  },
+  "billing_destinations": [
+    {
+      "code": "open_payable",
+      "name": "Open Payable",
+      "description": "Unpaid vendor invoices"
+    },
+    {
+      "code": "closed_payable",
+      "name": "Closed Payable",
+      "description": "Paid vendor invoices"
+    },
+    {
+      "code": "open_receivable",
+      "name": "Open Receivable",
+      "description": "Unpaid customer invoices"
+    },
+    {
+      "code": "closed_receivable",
+      "name": "Closed Receivable",
+      "description": "Paid customer invoices"
+    }
+  ],
+  "payment_methods": [
+    "claude_vision",
+    "claude_text",
+    "regex_patterns",
+    "keyword_detection",
+    "amount_analysis"
+  ],
+  "supported_file_types": [
+    "pdf",
+    "jpg",
+    "jpeg",
+    "png",
+    "tiff",
+    "bmp"
+  ]
+}

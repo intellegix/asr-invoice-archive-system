@@ -6,12 +6,13 @@ Orchestrates comprehensive document processing pipeline
 import asyncio
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from uuid import uuid4
 
-# Import shared components
-from shared.core.models import DocumentMetadata, UploadResult, ProcessingStatus
 from shared.core.exceptions import DocumentError, ValidationError
+
+# Import shared components
+from shared.core.models import DocumentMetadata, ProcessingStatus, UploadResult
 
 # Import production server services (with fallbacks for PyInstaller EXE context)
 try:
@@ -54,7 +55,7 @@ class DocumentProcessorService:
         gl_account_service: GLAccountService,
         payment_detection_service: PaymentDetectionService,
         billing_router_service: BillingRouterService,
-        storage_service: ProductionStorageService
+        storage_service: ProductionStorageService,
     ):
         self.gl_account_service = gl_account_service
         self.payment_detection_service = payment_detection_service
@@ -72,27 +73,27 @@ class DocumentProcessorService:
                 "GL Account Service": self.gl_account_service,
                 "Payment Detection Service": self.payment_detection_service,
                 "Billing Router Service": self.billing_router_service,
-                "Storage Service": self.storage_service
+                "Storage Service": self.storage_service,
             }
 
             for service_name, service in services.items():
-                if not hasattr(service, 'initialized') or not service.initialized:
+                if not hasattr(service, "initialized") or not service.initialized:
                     logger.warning(f"⚠️ {service_name} not properly initialized")
 
             self.initialized = True
 
             logger.info("✅ Document Processor Service initialized:")
             logger.info("   • Complete processing pipeline ready")
-            logger.info("   • 79 GL accounts + 5-method payment detection + 4 billing destinations")
+            logger.info(
+                "   • 79 GL accounts + 5-method payment detection + 4 billing destinations"
+            )
 
         except Exception as e:
             logger.error(f"❌ Failed to initialize Document Processor Service: {e}")
             raise
 
     async def process_document(
-        self,
-        file_content: bytes,
-        metadata: DocumentMetadata
+        self, file_content: bytes, metadata: DocumentMetadata
     ) -> UploadResult:
         """
         Process document through complete pipeline
@@ -116,9 +117,7 @@ class DocumentProcessorService:
             # Step 1: Store document
             logger.info("📁 Step 1: Storing document...")
             storage_result = await self.storage_service.store_document(
-                document_id=document_id,
-                file_content=file_content,
-                metadata=metadata
+                document_id=document_id, file_content=file_content, metadata=metadata
             )
 
             if not storage_result.success:
@@ -126,16 +125,24 @@ class DocumentProcessorService:
 
             # Step 2: Extract text content for classification
             logger.info("📄 Step 2: Extracting document content...")
-            text_content = await self._extract_text_content(file_content, metadata.filename)
+            text_content = await self._extract_text_content(
+                file_content, metadata.filename
+            )
 
             # Step 3: GL Account Classification
             logger.info("🏷️ Step 3: GL Account Classification...")
             gl_result = await self.gl_account_service.classify_document_text(
                 document_text=text_content,
-                vendor_name=metadata.scanner_metadata.get('vendor_name') if metadata.scanner_metadata else None
+                vendor_name=(
+                    metadata.scanner_metadata.get("vendor_name")
+                    if metadata.scanner_metadata
+                    else None
+                ),
             )
 
-            logger.info(f"   • GL Account: {gl_result.gl_account_code} - {gl_result.gl_account_name}")
+            logger.info(
+                f"   • GL Account: {gl_result.gl_account_code} - {gl_result.gl_account_name}"
+            )
             logger.info(f"   • Confidence: {gl_result.confidence:.2%}")
             logger.info(f"   • Method: {gl_result.classification_method}")
 
@@ -144,11 +151,13 @@ class DocumentProcessorService:
             payment_result = await self.payment_detection_service.detect_payment_status(
                 document_text=text_content,
                 document_metadata=metadata,
-                gl_classification=gl_result
+                gl_classification=gl_result,
             )
 
             logger.info(f"   • Payment Status: {payment_result.payment_status}")
-            logger.info(f"   • Consensus Confidence: {payment_result.consensus_confidence:.2%}")
+            logger.info(
+                f"   • Consensus Confidence: {payment_result.consensus_confidence:.2%}"
+            )
             logger.info(f"   • Methods Used: {', '.join(payment_result.methods_used)}")
 
             # Step 5: Billing Destination Routing
@@ -157,7 +166,7 @@ class DocumentProcessorService:
                 document_id=document_id,
                 gl_classification=gl_result,
                 payment_detection=payment_result,
-                document_metadata=metadata
+                document_metadata=metadata,
             )
 
             logger.info(f"   • Destination: {routing_result.destination}")
@@ -180,21 +189,21 @@ class DocumentProcessorService:
                         "confidence": gl_result.confidence,
                         "reasoning": gl_result.reasoning,
                         "keywords_matched": gl_result.keywords_matched,
-                        "method": gl_result.classification_method
+                        "method": gl_result.classification_method,
                     },
                     "payment_detection": {
                         "status": payment_result.payment_status,
                         "confidence": payment_result.consensus_confidence,
                         "methods_used": payment_result.methods_used,
                         "quality_score": payment_result.quality_score,
-                        "method_results": payment_result.method_results
+                        "method_results": payment_result.method_results,
                     },
                     "billing_routing": {
                         "destination": routing_result.destination,
                         "confidence": routing_result.confidence,
                         "reasoning": routing_result.reasoning,
                         "factors": routing_result.factors,
-                        "manual_override": routing_result.manual_override
+                        "manual_override": routing_result.manual_override,
                     },
                     "processing_summary": {
                         "document_id": document_id,
@@ -202,10 +211,10 @@ class DocumentProcessorService:
                         "tenant_id": metadata.tenant_id,
                         "processing_time_ms": processing_time,
                         "storage_path": storage_result.storage_path,
-                        "processed_at": datetime.now().isoformat()
-                    }
+                        "processed_at": datetime.now().isoformat(),
+                    },
                 },
-                processing_time_ms=int(processing_time)
+                processing_time_ms=int(processing_time),
             )
 
             logger.info(f"✅ Document processing completed successfully:")
@@ -228,24 +237,24 @@ class DocumentProcessorService:
                 document_id=document_id,
                 processing_status=ProcessingStatus.FAILED.value,
                 error_message=str(e),
-                processing_time_ms=int(processing_time)
+                processing_time_ms=int(processing_time),
             )
 
     async def _extract_text_content(self, file_content: bytes, filename: str) -> str:
         """Extract text content from document for processing"""
         try:
-            file_extension = filename.lower().split('.')[-1] if '.' in filename else ''
+            file_extension = filename.lower().split(".")[-1] if "." in filename else ""
 
-            if file_extension == 'pdf':
+            if file_extension == "pdf":
                 # PDF text extraction (simplified for now)
                 return await self._extract_pdf_text(file_content)
-            elif file_extension in ['jpg', 'jpeg', 'png', 'tiff']:
+            elif file_extension in ["jpg", "jpeg", "png", "tiff"]:
                 # OCR for image files (simplified for now)
                 return await self._extract_image_text(file_content)
             else:
                 # Try to decode as text
                 try:
-                    return file_content.decode('utf-8')
+                    return file_content.decode("utf-8")
                 except UnicodeDecodeError:
                     return ""
 
@@ -286,7 +295,7 @@ class DocumentProcessorService:
                 "progress_percentage": 100,
                 "current_step": "completed",
                 "estimated_completion": None,
-                "last_updated": datetime.now().isoformat()
+                "last_updated": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -304,8 +313,7 @@ class DocumentProcessorService:
 
             # Reprocess with existing metadata
             return await self.process_document(
-                file_content=document_data.content,
-                metadata=document_data.metadata
+                file_content=document_data.content, metadata=document_data.metadata
             )
 
         except Exception as e:
@@ -314,7 +322,7 @@ class DocumentProcessorService:
                 success=False,
                 document_id=document_id,
                 processing_status=ProcessingStatus.FAILED.value,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def get_processing_statistics(self) -> Dict[str, Any]:
@@ -332,14 +340,14 @@ class DocumentProcessorService:
                 "most_used_gl_accounts": [
                     {"code": "5000", "name": "Materials", "usage_count": 3421},
                     {"code": "6600", "name": "Utilities", "usage_count": 2156},
-                    {"code": "6900", "name": "Fuel", "usage_count": 1875}
+                    {"code": "6900", "name": "Fuel", "usage_count": 1875},
                 ],
                 "billing_destination_distribution": {
                     "open_payable": 45.2,
                     "closed_payable": 38.7,
                     "open_receivable": 12.1,
-                    "closed_receivable": 4.0
-                }
+                    "closed_receivable": 4.0,
+                },
             }
 
         except Exception as e:
@@ -354,10 +362,26 @@ class DocumentProcessorService:
 
             # Check component service health
             component_health = {
-                "gl_account_service": await self.gl_account_service.get_health() if hasattr(self.gl_account_service, 'get_health') else {"status": "unknown"},
-                "payment_detection_service": await self.payment_detection_service.get_health() if hasattr(self.payment_detection_service, 'get_health') else {"status": "unknown"},
-                "billing_router_service": await self.billing_router_service.get_health() if hasattr(self.billing_router_service, 'get_health') else {"status": "unknown"},
-                "storage_service": await self.storage_service.get_health() if hasattr(self.storage_service, 'get_health') else {"status": "unknown"}
+                "gl_account_service": (
+                    await self.gl_account_service.get_health()
+                    if hasattr(self.gl_account_service, "get_health")
+                    else {"status": "unknown"}
+                ),
+                "payment_detection_service": (
+                    await self.payment_detection_service.get_health()
+                    if hasattr(self.payment_detection_service, "get_health")
+                    else {"status": "unknown"}
+                ),
+                "billing_router_service": (
+                    await self.billing_router_service.get_health()
+                    if hasattr(self.billing_router_service, "get_health")
+                    else {"status": "unknown"}
+                ),
+                "storage_service": (
+                    await self.storage_service.get_health()
+                    if hasattr(self.storage_service, "get_health")
+                    else {"status": "unknown"}
+                ),
             }
 
             # Determine overall status
@@ -374,15 +398,12 @@ class DocumentProcessorService:
                     "text_extraction": "operational",
                     "gl_classification": "operational",
                     "payment_detection": "operational",
-                    "billing_routing": "operational"
-                }
+                    "billing_routing": "operational",
+                },
             }
 
         except Exception as e:
-            return {
-                "status": "error",
-                "error": str(e)
-            }
+            return {"status": "error", "error": str(e)}
 
     async def cleanup(self) -> None:
         """Cleanup document processor service"""

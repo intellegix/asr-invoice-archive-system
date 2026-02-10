@@ -3,16 +3,16 @@ ASR Production Server - GL Account Service
 Manages 79 QuickBooks GL Accounts with keyword matching and sophisticated classification
 """
 
-import logging
 import asyncio
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
+import logging
 import re
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
 # Import shared components
-from shared.core.constants import GL_ACCOUNTS, GL_ACCOUNT_CATEGORIES
+from shared.core.constants import GL_ACCOUNT_CATEGORIES, GL_ACCOUNTS
+from shared.core.exceptions import ClassificationError, ValidationError
 from shared.core.models import GLAccount
-from shared.core.exceptions import ValidationError, ClassificationError
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class GLClassificationResult:
     """Result of GL account classification"""
+
     gl_account_code: str
     gl_account_name: str
     category: str
@@ -73,7 +74,7 @@ class GLAccountService:
                 name=account_data["name"],
                 category=account_data["category"],
                 keywords=account_data["keywords"],
-                active=True
+                active=True,
             )
 
     def _build_keyword_index(self):
@@ -104,12 +105,14 @@ class GLAccountService:
                 "name": account.name,
                 "category": account.category,
                 "keywords": account.keywords,
-                "active": account.active
+                "active": account.active,
             }
             for account in self.gl_accounts.values()
         ]
 
-    def get_accounts(self, category: Optional[str] = None, search: Optional[str] = None) -> List[Dict[str, Any]]:
+    def get_accounts(
+        self, category: Optional[str] = None, search: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get GL accounts with filtering"""
         if not self.initialized:
             raise ClassificationError("GL Account service not initialized")
@@ -127,9 +130,14 @@ class GLAccountService:
 
             for account in accounts:
                 # Search in code, name, and keywords
-                if (search_term in account["code"].lower() or
-                    search_term in account["name"].lower() or
-                    any(search_term in keyword.lower() for keyword in account["keywords"])):
+                if (
+                    search_term in account["code"].lower()
+                    or search_term in account["name"].lower()
+                    or any(
+                        search_term in keyword.lower()
+                        for keyword in account["keywords"]
+                    )
+                ):
                     filtered_accounts.append(account)
 
             accounts = filtered_accounts
@@ -150,7 +158,9 @@ class GLAccountService:
 
         return self.category_index.copy()
 
-    async def classify_document_text(self, document_text: str, vendor_name: Optional[str] = None) -> GLClassificationResult:
+    async def classify_document_text(
+        self, document_text: str, vendor_name: Optional[str] = None
+    ) -> GLClassificationResult:
         """
         Classify document using sophisticated keyword matching and vendor analysis
 
@@ -198,10 +208,18 @@ class GLAccountService:
 
                 # Boost confidence if multiple methods agree
                 if len(results) > 1:
-                    same_account_results = [r for r in results if r.gl_account_code == best_result.gl_account_code]
+                    same_account_results = [
+                        r
+                        for r in results
+                        if r.gl_account_code == best_result.gl_account_code
+                    ]
                     if len(same_account_results) > 1:
-                        confidence_boost = min(0.2, 0.1 * (len(same_account_results) - 1))
-                        best_result.confidence = min(1.0, best_result.confidence + confidence_boost)
+                        confidence_boost = min(
+                            0.2, 0.1 * (len(same_account_results) - 1)
+                        )
+                        best_result.confidence = min(
+                            1.0, best_result.confidence + confidence_boost
+                        )
                         best_result.reasoning += f" (Confidence boosted by {len(same_account_results)} matching methods)"
 
                 return best_result
@@ -218,10 +236,12 @@ class GLAccountService:
                         confidence=0.3,
                         reasoning="No specific matches found, defaulted to miscellaneous expense",
                         keywords_matched=[],
-                        classification_method="default"
+                        classification_method="default",
                     )
                 else:
-                    raise ClassificationError("Unable to classify document and default account not available")
+                    raise ClassificationError(
+                        "Unable to classify document and default account not available"
+                    )
 
         except Exception as e:
             logger.error(f"GL classification error: {e}")
@@ -240,7 +260,6 @@ class GLAccountService:
             "abc supply": "5010",
             "beacon": "5010",
             "ferguson": "5010",
-
             # Utilities
             "sdge": "6600",
             "san diego gas": "6600",
@@ -248,27 +267,23 @@ class GLAccountService:
             "verizon": "6600",
             "at&t": "6600",
             "att": "6600",
-
             # Waste Management
             "usa waste": "6600",
             "waste management": "6600",
             "republic": "6600",
             "edco": "6600",
-
             # Fuel
             "shell": "6900",
             "chevron": "6900",
             "mobil": "6900",
             "exxon": "6900",
             "arco": "6900",
-
             # Professional Services
             "attorney": "5700",
             "law firm": "5700",
             "legal": "5700",
             "accountant": "5700",
             "cpa": "5700",
-
             # Insurance
             "insurance": "5500",
             "farmers": "5500",
@@ -287,7 +302,7 @@ class GLAccountService:
                         confidence=0.85,
                         reasoning=f"Vendor '{vendor_name}' matches known pattern '{vendor_pattern}'",
                         keywords_matched=[vendor_pattern],
-                        classification_method="vendor_mapping"
+                        classification_method="vendor_mapping",
                     )
 
         return None
@@ -322,7 +337,7 @@ class GLAccountService:
                     confidence=confidence,
                     reasoning=f"Keywords matched: {', '.join(match_data['keywords'])}",
                     keywords_matched=match_data["keywords"],
-                    classification_method="keyword_matching"
+                    classification_method="keyword_matching",
                 )
 
         return None
@@ -333,27 +348,21 @@ class GLAccountService:
             # Fuel patterns
             (r"\b(?:gallon|gal|diesel|gas|fuel)\b", "6900"): 0.8,
             (r"\b(?:pump|station|fuel up)\b", "6900"): 0.7,
-
             # Utilities patterns
             (r"\b(?:electric|electricity|kwh|utility)\b", "6600"): 0.8,
             (r"\b(?:water|sewer|gas bill)\b", "6600"): 0.8,
             (r"\b(?:phone|internet|cable)\b", "6600"): 0.7,
-
             # Materials patterns
             (r"\b(?:lumber|plywood|drywall|materials)\b", "5000"): 0.8,
             (r"\b(?:tools|hardware|supplies)\b", "5800"): 0.7,
-
             # Professional services patterns
             (r"\b(?:consultation|legal fee|attorney)\b", "5700"): 0.8,
             (r"\b(?:accounting|tax prep|cpa)\b", "5700"): 0.7,
-
             # Vehicle patterns
             (r"\b(?:oil change|maintenance|repair)\b", "6100"): 0.7,
             (r"\b(?:truck|vehicle|auto)\b", "5200"): 0.6,
-
             # Insurance patterns
             (r"\b(?:premium|coverage|policy)\b", "5500"): 0.7,
-
             # Rent patterns
             (r"\b(?:rent|lease|monthly)\b", "6000"): 0.7,
         }
@@ -369,12 +378,14 @@ class GLAccountService:
                         confidence=confidence,
                         reasoning=f"Document pattern matched: {pattern}",
                         keywords_matched=[pattern],
-                        classification_method="pattern_matching"
+                        classification_method="pattern_matching",
                     )
 
         return None
 
-    def _classify_by_category_heuristics(self, text: str) -> Optional[GLClassificationResult]:
+    def _classify_by_category_heuristics(
+        self, text: str
+    ) -> Optional[GLClassificationResult]:
         """Classify using category-level heuristics"""
         # Simple heuristics for common expense types
         if any(term in text for term in ["invoice", "bill", "receipt"]):
@@ -391,7 +402,7 @@ class GLAccountService:
                         confidence=0.4,
                         reasoning="Category heuristic based on common expense patterns",
                         keywords_matched=["invoice", "bill", "receipt"],
-                        classification_method="category_heuristic"
+                        classification_method="category_heuristic",
                     )
 
         return None

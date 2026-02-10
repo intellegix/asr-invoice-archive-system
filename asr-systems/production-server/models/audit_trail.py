@@ -6,7 +6,7 @@ Persistent audit trail records for billing routing decisions.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Index, JSON, String
+from sqlalchemy import JSON, DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 try:

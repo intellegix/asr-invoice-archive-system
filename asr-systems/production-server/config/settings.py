@@ -10,5 +10,5 @@ except (ImportError, SystemError):
 BUILD_INFO = {
     "version": "1.0.0",
     "build_type": "production",
-    "description": "ASR Invoice Archive System - Production Server"
+    "description": "ASR Invoice Archive System - Production Server",
 }

@@ -11,15 +11,20 @@ Sophisticated 5-method consensus system for payment status detection:
 import asyncio
 import logging
 import re
-from typing import Dict, List, Optional, Any, Tuple
+import statistics
 from dataclasses import dataclass
 from datetime import datetime
-import statistics
+from typing import Any, Dict, List, Optional, Tuple
+
+from shared.core.constants import CONFIDENCE_THRESHOLDS, PAYMENT_INDICATORS
+from shared.core.exceptions import CLAUDEAPIError, PaymentDetectionError
 
 # Import shared components
-from shared.core.models import PaymentStatus, PaymentDetectionMethod, PaymentConsensusResult
-from shared.core.constants import PAYMENT_INDICATORS, CONFIDENCE_THRESHOLDS
-from shared.core.exceptions import PaymentDetectionError, CLAUDEAPIError
+from shared.core.models import (
+    PaymentConsensusResult,
+    PaymentDetectionMethod,
+    PaymentStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MethodResult:
     """Result from individual detection method"""
+
     method: PaymentDetectionMethod
     payment_status: PaymentStatus
     confidence: float
@@ -42,7 +48,9 @@ class PaymentDetectionService:
 
     def __init__(self, claude_config: Dict[str, Any], enabled_methods: List[str]):
         self.claude_config = claude_config
-        self.enabled_methods = [PaymentDetectionMethod(method) for method in enabled_methods]
+        self.enabled_methods = [
+            PaymentDetectionMethod(method) for method in enabled_methods
+        ]
         self.initialized = False
 
         # Pattern compilations for efficiency
@@ -77,52 +85,66 @@ class PaymentDetectionService:
 
         except Exception as e:
             logger.error(f"Failed to initialize Payment Detection Service: {e}")
-            raise PaymentDetectionError(f"Payment detection service initialization failed: {e}")
+            raise PaymentDetectionError(
+                f"Payment detection service initialization failed: {e}"
+            )
 
     def _compile_patterns(self):
         """Compile regex patterns for payment detection"""
         # Paid patterns
         paid_keywords = PAYMENT_INDICATORS["PAID_KEYWORDS"]
         self.paid_patterns = [
-            re.compile(rf'\b{re.escape(keyword)}\b', re.IGNORECASE)
+            re.compile(rf"\b{re.escape(keyword)}\b", re.IGNORECASE)
             for keyword in paid_keywords
         ]
 
         # Additional sophisticated paid patterns
-        self.paid_patterns.extend([
-            re.compile(r'\b(?:balance|amount)\s+(?:due|owed)?\s*:?\s*\$?0+\.?0*\b', re.IGNORECASE),
-            re.compile(r'\bzero\s+balance\b', re.IGNORECASE),
-            re.compile(r'\bpaid\s+in\s+full\b', re.IGNORECASE),
-            re.compile(r'\bcheck\s+#?\d+\b', re.IGNORECASE),
-            re.compile(r'\bref\s*#?\s*\d+\b', re.IGNORECASE),
-        ])
+        self.paid_patterns.extend(
+            [
+                re.compile(
+                    r"\b(?:balance|amount)\s+(?:due|owed)?\s*:?\s*\$?0+\.?0*\b",
+                    re.IGNORECASE,
+                ),
+                re.compile(r"\bzero\s+balance\b", re.IGNORECASE),
+                re.compile(r"\bpaid\s+in\s+full\b", re.IGNORECASE),
+                re.compile(r"\bcheck\s+#?\d+\b", re.IGNORECASE),
+                re.compile(r"\bref\s*#?\s*\d+\b", re.IGNORECASE),
+            ]
+        )
 
         # Unpaid patterns
         unpaid_keywords = PAYMENT_INDICATORS["UNPAID_KEYWORDS"]
         self.unpaid_patterns = [
-            re.compile(rf'\b{re.escape(keyword)}\b', re.IGNORECASE)
+            re.compile(rf"\b{re.escape(keyword)}\b", re.IGNORECASE)
             for keyword in unpaid_keywords
         ]
 
         # Additional sophisticated unpaid patterns
-        self.unpaid_patterns.extend([
-            re.compile(r'\b(?:balance|amount)\s+(?:due|owed)\s*:?\s*\$?[1-9]\d*(?:\.\d{2})?\b', re.IGNORECASE),
-            re.compile(r'\btotal\s+due\s*:?\s*\$?[1-9]\d*(?:\.\d{2})?\b', re.IGNORECASE),
-            re.compile(r'\bdue\s+date\b', re.IGNORECASE),
-            re.compile(r'\bplease\s+remit\b', re.IGNORECASE),
-        ])
+        self.unpaid_patterns.extend(
+            [
+                re.compile(
+                    r"\b(?:balance|amount)\s+(?:due|owed)\s*:?\s*\$?[1-9]\d*(?:\.\d{2})?\b",
+                    re.IGNORECASE,
+                ),
+                re.compile(
+                    r"\btotal\s+due\s*:?\s*\$?[1-9]\d*(?:\.\d{2})?\b", re.IGNORECASE
+                ),
+                re.compile(r"\bdue\s+date\b", re.IGNORECASE),
+                re.compile(r"\bplease\s+remit\b", re.IGNORECASE),
+            ]
+        )
 
         # Partial payment patterns
         partial_keywords = PAYMENT_INDICATORS["PARTIAL_KEYWORDS"]
         self.partial_patterns = [
-            re.compile(rf'\b{re.escape(keyword)}\b', re.IGNORECASE)
+            re.compile(rf"\b{re.escape(keyword)}\b", re.IGNORECASE)
             for keyword in partial_keywords
         ]
 
         # Void patterns
         void_keywords = PAYMENT_INDICATORS["VOID_KEYWORDS"]
         self.void_patterns = [
-            re.compile(rf'\b{re.escape(keyword)}\b', re.IGNORECASE)
+            re.compile(rf"\b{re.escape(keyword)}\b", re.IGNORECASE)
             for keyword in void_keywords
         ]
 
@@ -130,16 +152,24 @@ class PaymentDetectionService:
         """Initialize Claude AI client"""
         try:
             import anthropic
+
             self.claude_client = anthropic.AsyncAnthropic(
                 api_key=self.claude_config["api_key"]
             )
             logger.info("✅ Claude AI client initialized")
         except ImportError:
-            logger.warning("❌ Anthropic library not available, Claude AI methods disabled")
+            logger.warning(
+                "❌ Anthropic library not available, Claude AI methods disabled"
+            )
             # Remove Claude methods from enabled methods
             self.enabled_methods = [
-                method for method in self.enabled_methods
-                if method not in [PaymentDetectionMethod.CLAUDE_VISION, PaymentDetectionMethod.CLAUDE_TEXT]
+                method
+                for method in self.enabled_methods
+                if method
+                not in [
+                    PaymentDetectionMethod.CLAUDE_VISION,
+                    PaymentDetectionMethod.CLAUDE_TEXT,
+                ]
             ]
         except Exception as e:
             logger.error(f"Failed to initialize Claude client: {e}")
@@ -153,7 +183,7 @@ class PaymentDetectionService:
         self,
         document_text: str,
         document_image: Optional[bytes] = None,
-        amount_info: Optional[Dict[str, Any]] = None
+        amount_info: Optional[Dict[str, Any]] = None,
     ) -> PaymentConsensusResult:
         """
         Detect payment status using sophisticated 5-method consensus
@@ -179,8 +209,13 @@ class PaymentDetectionService:
                 try:
                     start_time = asyncio.get_event_loop().time()
 
-                    if method == PaymentDetectionMethod.CLAUDE_VISION and document_image:
-                        result = await self._detect_claude_vision(document_image, document_text)
+                    if (
+                        method == PaymentDetectionMethod.CLAUDE_VISION
+                        and document_image
+                    ):
+                        result = await self._detect_claude_vision(
+                            document_image, document_text
+                        )
                     elif method == PaymentDetectionMethod.CLAUDE_TEXT:
                         result = await self._detect_claude_text(document_text)
                     elif method == PaymentDetectionMethod.REGEX_PATTERNS:
@@ -188,7 +223,9 @@ class PaymentDetectionService:
                     elif method == PaymentDetectionMethod.KEYWORD_MATCHING:
                         result = await self._detect_keywords(document_text)
                     elif method == PaymentDetectionMethod.AMOUNT_ANALYSIS:
-                        result = await self._detect_amount_analysis(document_text, amount_info)
+                        result = await self._detect_amount_analysis(
+                            document_text, amount_info
+                        )
                     else:
                         continue  # Skip unavailable methods
 
@@ -196,7 +233,9 @@ class PaymentDetectionService:
                     result.processing_time = processing_time
                     method_results.append(result)
 
-                    logger.debug(f"Method {method.value}: {result.payment_status.value} (confidence: {result.confidence:.2f})")
+                    logger.debug(
+                        f"Method {method.value}: {result.payment_status.value} (confidence: {result.confidence:.2f})"
+                    )
 
                 except Exception as e:
                     logger.warning(f"Method {method.value} failed: {e}")
@@ -205,7 +244,9 @@ class PaymentDetectionService:
             # Calculate consensus
             consensus = self._calculate_consensus(method_results)
 
-            logger.info(f"Payment detection consensus: {consensus.payment_status.value} (confidence: {consensus.confidence:.2f})")
+            logger.info(
+                f"Payment detection consensus: {consensus.payment_status.value} (confidence: {consensus.confidence:.2f})"
+            )
 
             return consensus
 
@@ -213,7 +254,9 @@ class PaymentDetectionService:
             logger.error(f"Payment detection error: {e}")
             raise PaymentDetectionError(f"Failed to detect payment status: {e}")
 
-    async def _detect_claude_vision(self, document_image: bytes, document_text: str) -> MethodResult:
+    async def _detect_claude_vision(
+        self, document_image: bytes, document_text: str
+    ) -> MethodResult:
         """Detect payment status using Claude Vision"""
         if not self.claude_client:
             raise PaymentDetectionError("Claude client not available")
@@ -221,7 +264,8 @@ class PaymentDetectionService:
         try:
             # Convert image to base64
             import base64
-            image_data = base64.b64encode(document_image).decode('utf-8')
+
+            image_data = base64.b64encode(document_image).decode("utf-8")
 
             # Create vision analysis prompt
             prompt = """
@@ -255,21 +299,20 @@ class PaymentDetectionService:
                                 "source": {
                                     "type": "base64",
                                     "media_type": "image/jpeg",
-                                    "data": image_data
-                                }
+                                    "data": image_data,
+                                },
                             },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
+                            {"type": "text", "text": prompt},
+                        ],
                     }
-                ]
+                ],
             )
 
             # Parse Claude response
             response_text = response.content[0].text
-            payment_status, confidence, reasoning = self._parse_claude_response(response_text)
+            payment_status, confidence, reasoning = self._parse_claude_response(
+                response_text
+            )
 
             return MethodResult(
                 method=PaymentDetectionMethod.CLAUDE_VISION,
@@ -277,7 +320,7 @@ class PaymentDetectionService:
                 confidence=confidence,
                 reasoning=reasoning,
                 details={"claude_response": response_text},
-                processing_time=0.0
+                processing_time=0.0,
             )
 
         except Exception as e:
@@ -315,11 +358,13 @@ class PaymentDetectionService:
                 model=self.claude_config["model"],
                 max_tokens=1000,
                 temperature=self.claude_config["temperature"],
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             response_text = response.content[0].text
-            payment_status, confidence, reasoning = self._parse_claude_response(response_text)
+            payment_status, confidence, reasoning = self._parse_claude_response(
+                response_text
+            )
 
             return MethodResult(
                 method=PaymentDetectionMethod.CLAUDE_TEXT,
@@ -327,7 +372,7 @@ class PaymentDetectionService:
                 confidence=confidence,
                 reasoning=reasoning,
                 details={"claude_response": response_text},
-                processing_time=0.0
+                processing_time=0.0,
             )
 
         except Exception as e:
@@ -336,10 +381,18 @@ class PaymentDetectionService:
 
     async def _detect_regex_patterns(self, document_text: str) -> MethodResult:
         """Detect payment status using regex patterns"""
-        paid_matches = sum(1 for pattern in self.paid_patterns if pattern.search(document_text))
-        unpaid_matches = sum(1 for pattern in self.unpaid_patterns if pattern.search(document_text))
-        partial_matches = sum(1 for pattern in self.partial_patterns if pattern.search(document_text))
-        void_matches = sum(1 for pattern in self.void_patterns if pattern.search(document_text))
+        paid_matches = sum(
+            1 for pattern in self.paid_patterns if pattern.search(document_text)
+        )
+        unpaid_matches = sum(
+            1 for pattern in self.unpaid_patterns if pattern.search(document_text)
+        )
+        partial_matches = sum(
+            1 for pattern in self.partial_patterns if pattern.search(document_text)
+        )
+        void_matches = sum(
+            1 for pattern in self.void_patterns if pattern.search(document_text)
+        )
 
         # Determine status based on pattern matches
         max_matches = max(paid_matches, unpaid_matches, partial_matches, void_matches)
@@ -374,9 +427,9 @@ class PaymentDetectionService:
                 "paid_matches": paid_matches,
                 "unpaid_matches": unpaid_matches,
                 "partial_matches": partial_matches,
-                "void_matches": void_matches
+                "void_matches": void_matches,
             },
-            processing_time=0.0
+            processing_time=0.0,
         )
 
     async def _detect_keywords(self, document_text: str) -> MethodResult:
@@ -384,10 +437,26 @@ class PaymentDetectionService:
         text_lower = document_text.lower()
 
         # Count keyword categories
-        paid_score = sum(1 for keyword in PAYMENT_INDICATORS["PAID_KEYWORDS"] if keyword.lower() in text_lower)
-        unpaid_score = sum(1 for keyword in PAYMENT_INDICATORS["UNPAID_KEYWORDS"] if keyword.lower() in text_lower)
-        partial_score = sum(1 for keyword in PAYMENT_INDICATORS["PARTIAL_KEYWORDS"] if keyword.lower() in text_lower)
-        void_score = sum(1 for keyword in PAYMENT_INDICATORS["VOID_KEYWORDS"] if keyword.lower() in text_lower)
+        paid_score = sum(
+            1
+            for keyword in PAYMENT_INDICATORS["PAID_KEYWORDS"]
+            if keyword.lower() in text_lower
+        )
+        unpaid_score = sum(
+            1
+            for keyword in PAYMENT_INDICATORS["UNPAID_KEYWORDS"]
+            if keyword.lower() in text_lower
+        )
+        partial_score = sum(
+            1
+            for keyword in PAYMENT_INDICATORS["PARTIAL_KEYWORDS"]
+            if keyword.lower() in text_lower
+        )
+        void_score = sum(
+            1
+            for keyword in PAYMENT_INDICATORS["VOID_KEYWORDS"]
+            if keyword.lower() in text_lower
+        )
 
         # Determine status based on keyword scores
         max_score = max(paid_score, unpaid_score, partial_score, void_score)
@@ -422,18 +491,20 @@ class PaymentDetectionService:
                 "paid_score": paid_score,
                 "unpaid_score": unpaid_score,
                 "partial_score": partial_score,
-                "void_score": void_score
+                "void_score": void_score,
             },
-            processing_time=0.0
+            processing_time=0.0,
         )
 
-    async def _detect_amount_analysis(self, document_text: str, amount_info: Optional[Dict[str, Any]]) -> MethodResult:
+    async def _detect_amount_analysis(
+        self, document_text: str, amount_info: Optional[Dict[str, Any]]
+    ) -> MethodResult:
         """Detect payment status using amount analysis"""
         # Look for amount patterns in text
         amount_patterns = [
-            r'(?:balance|amount)\s+(?:due|owed)?\s*:?\s*\$?([\d,]+\.?\d*)',
-            r'total\s+(?:due|amount)?\s*:?\s*\$?([\d,]+\.?\d*)',
-            r'(?:payment|paid)\s+(?:amount)?\s*:?\s*\$?([\d,]+\.?\d*)',
+            r"(?:balance|amount)\s+(?:due|owed)?\s*:?\s*\$?([\d,]+\.?\d*)",
+            r"total\s+(?:due|amount)?\s*:?\s*\$?([\d,]+\.?\d*)",
+            r"(?:payment|paid)\s+(?:amount)?\s*:?\s*\$?([\d,]+\.?\d*)",
         ]
 
         amounts_found = []
@@ -443,7 +514,7 @@ class PaymentDetectionService:
             matches = re.findall(pattern, document_text, re.IGNORECASE)
             for match in matches:
                 try:
-                    amount = float(match.replace(',', ''))
+                    amount = float(match.replace(",", ""))
                     amounts_found.append(amount)
                     if amount == 0:
                         zero_balance_found = True
@@ -490,12 +561,14 @@ class PaymentDetectionService:
             details={
                 "amounts_found": amounts_found,
                 "zero_balance_found": zero_balance_found,
-                "amount_info": amount_info
+                "amount_info": amount_info,
             },
-            processing_time=0.0
+            processing_time=0.0,
         )
 
-    def _parse_claude_response(self, response_text: str) -> Tuple[PaymentStatus, float, str]:
+    def _parse_claude_response(
+        self, response_text: str
+    ) -> Tuple[PaymentStatus, float, str]:
         """Parse Claude AI response for payment status"""
         response_lower = response_text.lower()
 
@@ -512,7 +585,7 @@ class PaymentDetectionService:
             status = PaymentStatus.UNKNOWN
 
         # Extract confidence
-        confidence_match = re.search(r'confidence[:\s]+([0-9.]+)', response_lower)
+        confidence_match = re.search(r"confidence[:\s]+([0-9.]+)", response_lower)
         if confidence_match:
             confidence = float(confidence_match.group(1))
             if confidence > 1.0:  # Handle percentage format
@@ -522,7 +595,9 @@ class PaymentDetectionService:
 
         return status, confidence, response_text
 
-    def _calculate_consensus(self, method_results: List[MethodResult]) -> PaymentConsensusResult:
+    def _calculate_consensus(
+        self, method_results: List[MethodResult]
+    ) -> PaymentConsensusResult:
         """Calculate consensus from multiple detection methods"""
         if not method_results:
             return PaymentConsensusResult(
@@ -531,7 +606,7 @@ class PaymentDetectionService:
                 methods_used=[],
                 method_results={},
                 quality_score=0.0,
-                consensus_reached=False
+                consensus_reached=False,
             )
 
         # Group results by status
@@ -555,7 +630,9 @@ class PaymentDetectionService:
         consensus_results = status_groups[consensus_status]
 
         # Calculate consensus confidence
-        consensus_confidence = statistics.mean([r.confidence for r in consensus_results])
+        consensus_confidence = statistics.mean(
+            [r.confidence for r in consensus_results]
+        )
 
         # Boost confidence if multiple methods agree
         if len(consensus_results) > 1:
@@ -578,7 +655,7 @@ class PaymentDetectionService:
                 "confidence": result.confidence,
                 "reasoning": result.reasoning,
                 "processing_time": result.processing_time,
-                "details": result.details
+                "details": result.details,
             }
             for result in method_results
         }
@@ -589,7 +666,7 @@ class PaymentDetectionService:
             methods_used=[r.method for r in method_results],
             method_results=method_results_dict,
             quality_score=quality_score,
-            consensus_reached=consensus_reached
+            consensus_reached=consensus_reached,
         )
 
     async def cleanup(self):

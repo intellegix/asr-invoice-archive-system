@@ -4,10 +4,9 @@ Tests routing to 4 destinations, scoring, fallback, and statistics.
 """
 
 import pytest
-
-from services.billing_router_service import BillingRouterService, DocumentContext
 from shared.core.models import BillingDestination, PaymentStatus
 
+from services.billing_router_service import BillingRouterService, DocumentContext
 
 ALL_DESTINATIONS = [
     "open_payable",
@@ -21,6 +20,7 @@ ALL_DESTINATIONS = [
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 async def router():
     service = BillingRouterService(ALL_DESTINATIONS, confidence_threshold=0.75)
@@ -31,6 +31,7 @@ async def router():
 # ---------------------------------------------------------------------------
 # Initialization
 # ---------------------------------------------------------------------------
+
 
 class TestInit:
     @pytest.mark.asyncio
@@ -47,6 +48,7 @@ class TestInit:
 # ---------------------------------------------------------------------------
 # Routing to each destination
 # ---------------------------------------------------------------------------
+
 
 class TestRouting:
     @pytest.mark.asyncio
@@ -98,12 +100,15 @@ class TestRouting:
 # Scoring
 # ---------------------------------------------------------------------------
 
+
 class TestScoring:
     @pytest.mark.asyncio
     async def test_payment_status_scoring(self, router, make_context):
         """Matching payment status should produce higher total score."""
         ctx_match = make_context(payment_status=PaymentStatus.UNPAID, gl_account="5000")
-        ctx_mismatch = make_context(payment_status=PaymentStatus.PAID, gl_account="5000")
+        ctx_mismatch = make_context(
+            payment_status=PaymentStatus.PAID, gl_account="5000"
+        )
 
         score_match = await router._calculate_destination_score(
             ctx_match, BillingDestination.OPEN_PAYABLE
@@ -132,6 +137,7 @@ class TestScoring:
 # ---------------------------------------------------------------------------
 # Fallback routing
 # ---------------------------------------------------------------------------
+
 
 class TestFallback:
     @pytest.mark.asyncio
@@ -179,6 +185,7 @@ class TestFallback:
 # ---------------------------------------------------------------------------
 # Statistics and override
 # ---------------------------------------------------------------------------
+
 
 class TestStats:
     @pytest.mark.asyncio

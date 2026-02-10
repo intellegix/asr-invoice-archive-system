@@ -9,19 +9,23 @@ Sophisticated routing to 4 billing destinations with comprehensive audit trails:
 
 from __future__ import annotations
 
-import logging
 import asyncio
-from typing import TYPE_CHECKING, Dict, List, Optional, Any, Tuple
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+from shared.core.constants import BILLING_DESTINATION_RULES, CONFIDENCE_THRESHOLDS
+from shared.core.exceptions import RoutingError, ValidationError
 
 # Import shared components
 from shared.core.models import (
-    BillingDestination, PaymentStatus, RoutingDecision, AuditTrailEntry,
-    PaymentConsensusResult
+    AuditTrailEntry,
+    BillingDestination,
+    PaymentConsensusResult,
+    PaymentStatus,
+    RoutingDecision,
 )
-from shared.core.constants import BILLING_DESTINATION_RULES, CONFIDENCE_THRESHOLDS
-from shared.core.exceptions import RoutingError, ValidationError
 
 if TYPE_CHECKING:
     from .audit_trail_service import AuditTrailService
@@ -32,6 +36,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RoutingAnalysis:
     """Analysis result for routing decision"""
+
     destination: BillingDestination
     confidence: float
     reasoning: str
@@ -42,6 +47,7 @@ class RoutingAnalysis:
 @dataclass
 class DocumentContext:
     """Document context for routing analysis"""
+
     document_id: str
     document_type: Optional[str] = None
     vendor_name: Optional[str] = None
@@ -63,7 +69,9 @@ class BillingRouterService:
         confidence_threshold: float,
         audit_trail_service: Optional[AuditTrailService] = None,
     ):
-        self.enabled_destinations = [BillingDestination(dest) for dest in enabled_destinations]
+        self.enabled_destinations = [
+            BillingDestination(dest) for dest in enabled_destinations
+        ]
         self.confidence_threshold = confidence_threshold
         self.audit_trail_service = audit_trail_service
         self.routing_rules = self._load_routing_rules()
@@ -103,46 +111,88 @@ class BillingRouterService:
                 "description": "Unpaid vendor invoices and bills",
                 "criteria": {
                     "payment_status": [PaymentStatus.UNPAID, PaymentStatus.UNKNOWN],
-                    "document_type": ["vendor_invoice", "bill", "purchase_order", "expense"],
+                    "document_type": [
+                        "vendor_invoice",
+                        "bill",
+                        "purchase_order",
+                        "expense",
+                    ],
                     "gl_account_categories": ["EXPENSES"],
-                    "keywords": ["invoice", "bill", "due", "payment terms", "vendor", "supplier"],
-                    "amount_threshold": 0.01  # Minimum amount to be considered
+                    "keywords": [
+                        "invoice",
+                        "bill",
+                        "due",
+                        "payment terms",
+                        "vendor",
+                        "supplier",
+                    ],
+                    "amount_threshold": 0.01,  # Minimum amount to be considered
                 },
-                "priority": 1
+                "priority": 1,
             },
             BillingDestination.CLOSED_PAYABLE: {
                 "description": "Paid vendor invoices and bills",
                 "criteria": {
                     "payment_status": [PaymentStatus.PAID, PaymentStatus.VOID],
-                    "document_type": ["vendor_invoice", "bill", "receipt", "paid_invoice"],
+                    "document_type": [
+                        "vendor_invoice",
+                        "bill",
+                        "receipt",
+                        "paid_invoice",
+                    ],
                     "gl_account_categories": ["EXPENSES"],
-                    "keywords": ["paid", "receipt", "check", "payment received", "settled"],
-                    "amount_threshold": 0.0
+                    "keywords": [
+                        "paid",
+                        "receipt",
+                        "check",
+                        "payment received",
+                        "settled",
+                    ],
+                    "amount_threshold": 0.0,
                 },
-                "priority": 2
+                "priority": 2,
             },
             BillingDestination.OPEN_RECEIVABLE: {
                 "description": "Unpaid customer invoices",
                 "criteria": {
                     "payment_status": [PaymentStatus.UNPAID, PaymentStatus.UNKNOWN],
-                    "document_type": ["customer_invoice", "sales_invoice", "ar_invoice"],
+                    "document_type": [
+                        "customer_invoice",
+                        "sales_invoice",
+                        "ar_invoice",
+                    ],
                     "gl_account_categories": ["REVENUE", "ASSETS"],
-                    "keywords": ["customer", "sales", "invoice", "receivable", "due from"],
-                    "amount_threshold": 0.01
+                    "keywords": [
+                        "customer",
+                        "sales",
+                        "invoice",
+                        "receivable",
+                        "due from",
+                    ],
+                    "amount_threshold": 0.01,
                 },
-                "priority": 3
+                "priority": 3,
             },
             BillingDestination.CLOSED_RECEIVABLE: {
                 "description": "Paid customer invoices",
                 "criteria": {
                     "payment_status": [PaymentStatus.PAID, PaymentStatus.VOID],
-                    "document_type": ["customer_invoice", "sales_invoice", "paid_invoice"],
+                    "document_type": [
+                        "customer_invoice",
+                        "sales_invoice",
+                        "paid_invoice",
+                    ],
                     "gl_account_categories": ["REVENUE", "ASSETS"],
-                    "keywords": ["customer payment", "payment received", "deposit", "cash receipt"],
-                    "amount_threshold": 0.0
+                    "keywords": [
+                        "customer payment",
+                        "payment received",
+                        "deposit",
+                        "cash receipt",
+                    ],
+                    "amount_threshold": 0.0,
                 },
-                "priority": 4
-            }
+                "priority": 4,
+            },
         }
 
         return enhanced_rules
@@ -153,14 +203,16 @@ class BillingRouterService:
             BillingDestination.OPEN_PAYABLE,
             BillingDestination.CLOSED_PAYABLE,
             BillingDestination.OPEN_RECEIVABLE,
-            BillingDestination.CLOSED_RECEIVABLE
+            BillingDestination.CLOSED_RECEIVABLE,
         }
 
         enabled_set = set(self.enabled_destinations)
 
         if not required_destinations.issubset(enabled_set):
             missing = required_destinations - enabled_set
-            raise RoutingError(f"Required destinations not enabled: {[d.value for d in missing]}")
+            raise RoutingError(
+                f"Required destinations not enabled: {[d.value for d in missing]}"
+            )
 
     def _initialize_stats(self):
         """Initialize routing statistics tracking"""
@@ -169,7 +221,7 @@ class BillingRouterService:
                 "total_routed": 0,
                 "avg_confidence": 0.0,
                 "last_routed": None,
-                "manual_overrides": 0
+                "manual_overrides": 0,
             }
 
     def get_available_destinations(self) -> List[str]:
@@ -180,7 +232,7 @@ class BillingRouterService:
         self,
         context: DocumentContext,
         user_override: Optional[BillingDestination] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
     ) -> RoutingDecision:
         """
         Route document to appropriate billing destination with comprehensive analysis
@@ -201,14 +253,18 @@ class BillingRouterService:
 
             # Handle manual override
             if user_override:
-                return await self._handle_manual_override(context, user_override, user_id)
+                return await self._handle_manual_override(
+                    context, user_override, user_id
+                )
 
             # Perform sophisticated routing analysis
             analysis = await self._analyze_routing_options(context)
 
             # Validate routing confidence
             if analysis.confidence < self.confidence_threshold:
-                logger.warning(f"Routing confidence {analysis.confidence:.2f} below threshold {self.confidence_threshold}")
+                logger.warning(
+                    f"Routing confidence {analysis.confidence:.2f} below threshold {self.confidence_threshold}"
+                )
                 # Route to manual review or default destination
                 analysis = await self._handle_low_confidence_routing(context, analysis)
 
@@ -219,7 +275,7 @@ class BillingRouterService:
                 confidence=analysis.confidence,
                 reasoning=analysis.reasoning,
                 factors=analysis.factors,
-                manual_override=False
+                manual_override=False,
             )
 
             # Update statistics
@@ -228,8 +284,10 @@ class BillingRouterService:
             # Create audit trail
             await self._create_audit_trail(context, decision, analysis)
 
-            logger.info(f"Document {context.document_id} routed to {analysis.destination.value} "
-                       f"(confidence: {analysis.confidence:.2f})")
+            logger.info(
+                f"Document {context.document_id} routed to {analysis.destination.value} "
+                f"(confidence: {analysis.confidence:.2f})"
+            )
 
             return decision
 
@@ -237,7 +295,9 @@ class BillingRouterService:
             logger.error(f"Routing error for document {context.document_id}: {e}")
             raise RoutingError(f"Failed to route document: {e}")
 
-    async def _analyze_routing_options(self, context: DocumentContext) -> RoutingAnalysis:
+    async def _analyze_routing_options(
+        self, context: DocumentContext
+    ) -> RoutingAnalysis:
         """Analyze all routing options and select the best match"""
         destination_scores = {}
 
@@ -246,7 +306,9 @@ class BillingRouterService:
             destination_scores[destination] = score
 
         # Select best destination
-        best_destination = max(destination_scores.items(), key=lambda x: x[1]["total_score"])
+        best_destination = max(
+            destination_scores.items(), key=lambda x: x[1]["total_score"]
+        )
         destination = best_destination[0]
         score_data = best_destination[1]
 
@@ -255,13 +317,11 @@ class BillingRouterService:
             confidence=score_data["confidence"],
             reasoning=score_data["reasoning"],
             factors=score_data["factors"],
-            fallback_used=False
+            fallback_used=False,
         )
 
     async def _calculate_destination_score(
-        self,
-        context: DocumentContext,
-        destination: BillingDestination
+        self, context: DocumentContext, destination: BillingDestination
     ) -> Dict[str, Any]:
         """Calculate score for a specific destination"""
         rules = self.routing_rules.get(destination, {})
@@ -316,10 +376,12 @@ class BillingRouterService:
             "total_score": total_score,
             "confidence": confidence,
             "reasoning": reasoning,
-            "factors": factors
+            "factors": factors,
         }
 
-    def _score_payment_status(self, context: DocumentContext, criteria: Dict, factors: Dict) -> float:
+    def _score_payment_status(
+        self, context: DocumentContext, criteria: Dict, factors: Dict
+    ) -> float:
         """Score based on payment status matching"""
         if not context.payment_consensus:
             factors["payment_status"] = "not_available"
@@ -339,7 +401,9 @@ class BillingRouterService:
         else:
             return 0.2  # Partial score for having payment info
 
-    def _score_document_type(self, context: DocumentContext, criteria: Dict, factors: Dict) -> float:
+    def _score_document_type(
+        self, context: DocumentContext, criteria: Dict, factors: Dict
+    ) -> float:
         """Score based on document type matching"""
         if not context.document_type:
             factors["document_type"] = "not_detected"
@@ -362,7 +426,9 @@ class BillingRouterService:
 
         return 0.1
 
-    def _score_gl_account(self, context: DocumentContext, criteria: Dict, factors: Dict) -> float:
+    def _score_gl_account(
+        self, context: DocumentContext, criteria: Dict, factors: Dict
+    ) -> float:
         """Score based on GL account category matching"""
         if not context.gl_account:
             factors["gl_account"] = "not_available"
@@ -380,7 +446,9 @@ class BillingRouterService:
         else:
             return 0.2
 
-    def _score_keywords(self, context: DocumentContext, criteria: Dict, factors: Dict) -> float:
+    def _score_keywords(
+        self, context: DocumentContext, criteria: Dict, factors: Dict
+    ) -> float:
         """Score based on keyword presence in document context"""
         keywords = criteria.get("keywords", [])
         if not keywords:
@@ -401,14 +469,18 @@ class BillingRouterService:
                 matched_keywords.append(keyword)
 
         factors["matched_keywords"] = matched_keywords
-        factors["keyword_match_ratio"] = len(matched_keywords) / len(keywords) if keywords else 0
+        factors["keyword_match_ratio"] = (
+            len(matched_keywords) / len(keywords) if keywords else 0
+        )
 
         if matched_keywords:
             return min(1.0, len(matched_keywords) / len(keywords) + 0.3)
         else:
             return 0.3
 
-    def _score_amount(self, context: DocumentContext, criteria: Dict, factors: Dict) -> float:
+    def _score_amount(
+        self, context: DocumentContext, criteria: Dict, factors: Dict
+    ) -> float:
         """Score based on amount validation"""
         if not context.amount:
             factors["amount"] = "not_available"
@@ -434,15 +506,17 @@ class BillingRouterService:
             return "EQUITY"
         elif gl_account.startswith("4"):
             return "REVENUE"
-        elif gl_account.startswith("5") or gl_account.startswith("6") or gl_account.startswith("7"):
+        elif (
+            gl_account.startswith("5")
+            or gl_account.startswith("6")
+            or gl_account.startswith("7")
+        ):
             return "EXPENSES"
         else:
             return "UNKNOWN"
 
     async def _handle_low_confidence_routing(
-        self,
-        context: DocumentContext,
-        original_analysis: RoutingAnalysis
+        self, context: DocumentContext, original_analysis: RoutingAnalysis
     ) -> RoutingAnalysis:
         """Handle routing when confidence is below threshold"""
         logger.warning(f"Low confidence routing for document {context.document_id}")
@@ -463,17 +537,19 @@ class BillingRouterService:
 
         return RoutingAnalysis(
             destination=destination,
-            confidence=max(0.5, original_analysis.confidence),  # Minimum confidence for fallback
+            confidence=max(
+                0.5, original_analysis.confidence
+            ),  # Minimum confidence for fallback
             reasoning=f"Fallback routing due to low confidence. {original_analysis.reasoning}",
             factors=original_analysis.factors,
-            fallback_used=True
+            fallback_used=True,
         )
 
     async def _handle_manual_override(
         self,
         context: DocumentContext,
         destination: BillingDestination,
-        user_id: Optional[str]
+        user_id: Optional[str],
     ) -> RoutingDecision:
         """Handle manual routing override by user"""
         if destination not in self.enabled_destinations:
@@ -485,17 +561,21 @@ class BillingRouterService:
             confidence=1.0,  # Manual override has full confidence
             reasoning=f"Manual override by user {user_id or 'unknown'}",
             factors={"manual_override": True, "user_id": user_id},
-            manual_override=True
+            manual_override=True,
         )
 
         # Update override statistics
         self.routing_stats[destination]["manual_overrides"] += 1
 
-        logger.info(f"Manual override: Document {context.document_id} routed to {destination.value}")
+        logger.info(
+            f"Manual override: Document {context.document_id} routed to {destination.value}"
+        )
 
         return decision
 
-    async def _update_routing_stats(self, destination: BillingDestination, confidence: float):
+    async def _update_routing_stats(
+        self, destination: BillingDestination, confidence: float
+    ):
         """Update routing statistics"""
         stats = self.routing_stats[destination]
         stats["total_routed"] += 1
@@ -511,7 +591,7 @@ class BillingRouterService:
         self,
         context: DocumentContext,
         decision: RoutingDecision,
-        analysis: RoutingAnalysis
+        analysis: RoutingAnalysis,
     ):
         """Create comprehensive audit trail entry"""
         audit_entry = AuditTrailEntry(
@@ -525,18 +605,22 @@ class BillingRouterService:
                 "routing_analysis": {
                     "fallback_used": analysis.fallback_used,
                     "confidence_threshold": self.confidence_threshold,
-                    "payment_consensus": context.payment_consensus.dict() if context.payment_consensus else None
+                    "payment_consensus": (
+                        context.payment_consensus.dict()
+                        if context.payment_consensus
+                        else None
+                    ),
                 },
                 "document_context": {
                     "vendor_name": context.vendor_name,
                     "customer_name": context.customer_name,
                     "amount": context.amount,
                     "gl_account": context.gl_account,
-                    "document_type": context.document_type
-                }
+                    "document_type": context.document_type,
+                },
             },
             system_component="billing_router_service",
-            tenant_id=context.tenant_id
+            tenant_id=context.tenant_id,
         )
 
         if self.audit_trail_service:
@@ -548,9 +632,11 @@ class BillingRouterService:
         """Get routing statistics for monitoring"""
         return {
             "destinations": dict(self.routing_stats),
-            "total_routed": sum(stats["total_routed"] for stats in self.routing_stats.values()),
+            "total_routed": sum(
+                stats["total_routed"] for stats in self.routing_stats.values()
+            ),
             "confidence_threshold": self.confidence_threshold,
-            "enabled_destinations": [dest.value for dest in self.enabled_destinations]
+            "enabled_destinations": [dest.value for dest in self.enabled_destinations],
         }
 
     async def cleanup(self):

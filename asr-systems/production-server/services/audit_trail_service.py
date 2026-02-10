@@ -8,9 +8,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import delete, select
-
 from shared.core.models import AuditTrailEntry
+from sqlalchemy import delete, select
 
 try:
     from ..config.database import get_async_session
@@ -66,7 +65,9 @@ class AuditTrailService:
                 await session.commit()
                 self._records_written += 1
         except Exception:
-            logger.exception("Failed to persist audit trail entry for document %s", entry.document_id)
+            logger.exception(
+                "Failed to persist audit trail entry for document %s", entry.document_id
+            )
 
     # ------------------------------------------------------------------
     # Read

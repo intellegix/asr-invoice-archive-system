@@ -3,18 +3,19 @@ Unit Tests for Audit Trail Service
 Uses in-memory SQLite via aiosqlite — no disk I/O.
 """
 
-import pytest
 from datetime import datetime, timedelta
 
-from config.database import init_database, close_database
-from models.audit_trail import AuditTrailRecord  # noqa: F401 — registers table
-from services.audit_trail_service import AuditTrailService
+import pytest
 from shared.core.models import AuditTrailEntry
 
+from config.database import close_database, init_database
+from models.audit_trail import AuditTrailRecord  # noqa: F401 — registers table
+from services.audit_trail_service import AuditTrailService
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 async def db():
@@ -50,6 +51,7 @@ def _entry(
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestAuditTrail:
     @pytest.mark.asyncio

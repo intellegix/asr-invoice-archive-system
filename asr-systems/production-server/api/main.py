@@ -8,36 +8,49 @@ Enterprise document processing server with sophisticated capabilities
 • Scanner client API for distributed processing
 """
 
-import os
-import time
-import logging
 import asyncio
-from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Dict, Any, List, Optional
-
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import logging
+import os
 
 # Import shared components
 import sys
+import time
+from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "shared"))
 
-from shared.core.models import (
-    DocumentMetadata, ProcessingStatus, PaymentStatus, BillingDestination,
-    PaymentConsensusResult, SystemHealth, SystemType
+from shared.api.schemas import (
+    APIErrorResponseSchema,
+    APISuccessResponseSchema,
+    ClassificationResponseSchema,
+    DocumentUploadResponseSchema,
+    ScannerHeartbeatSchema,
+    ScannerRegistrationSchema,
+    SystemHealthResponseSchema,
 )
 from shared.core.exceptions import (
-    ASRException, DocumentError, ValidationError, AuthenticationError,
-    handle_exception
+    ASRException,
+    AuthenticationError,
+    DocumentError,
+    ValidationError,
+    handle_exception,
 )
-from shared.api.schemas import (
-    DocumentUploadResponseSchema, ClassificationResponseSchema,
-    SystemHealthResponseSchema, APISuccessResponseSchema, APIErrorResponseSchema,
-    ScannerRegistrationSchema, ScannerHeartbeatSchema
+from shared.core.models import (
+    BillingDestination,
+    DocumentMetadata,
+    PaymentConsensusResult,
+    PaymentStatus,
+    ProcessingStatus,
+    SystemHealth,
+    SystemType,
 )
 
 # Import production server components (with fallbacks for PyInstaller EXE context)
@@ -75,9 +88,15 @@ except (ImportError, SystemError):
     from services.storage_service import ProductionStorageService
 
 try:
-    from ..services.scanner_manager_service import ScannerManagerService, ScannerUploadRequest
+    from ..services.scanner_manager_service import (
+        ScannerManagerService,
+        ScannerUploadRequest,
+    )
 except (ImportError, SystemError):
-    from services.scanner_manager_service import ScannerManagerService, ScannerUploadRequest
+    from services.scanner_manager_service import (
+        ScannerManagerService,
+        ScannerUploadRequest,
+    )
 
 try:
     from ..middleware.tenant_middleware import TenantMiddleware
@@ -90,9 +109,9 @@ except (ImportError, SystemError):
     from middleware.rate_limit_middleware import RateLimitMiddleware
 
 try:
-    from ..config.database import init_database, close_database
+    from ..config.database import close_database, init_database
 except (ImportError, SystemError):
-    from config.database import init_database, close_database
+    from config.database import close_database, init_database
 
 try:
     from ..services.audit_trail_service import AuditTrailService
@@ -100,7 +119,11 @@ except (ImportError, SystemError):
     from services.audit_trail_service import AuditTrailService
 
 # Configure logging
-_log_level = getattr(logging, production_settings.LOG_LEVEL) if production_settings else logging.INFO
+_log_level = (
+    getattr(logging, production_settings.LOG_LEVEL)
+    if production_settings
+    else logging.INFO
+)
 logging.basicConfig(level=_log_level)
 logger = logging.getLogger(__name__)
 
@@ -158,16 +181,20 @@ async def lifespan(app: FastAPI):
         gl_account_service = GLAccountService()
         await gl_account_service.initialize()
         account_count = len(gl_account_service.get_all_accounts())
-        logger.info(f"✅ GL Account Service initialized: {account_count} accounts loaded")
+        logger.info(
+            f"✅ GL Account Service initialized: {account_count} accounts loaded"
+        )
 
         # Initialize Payment Detection Service (5-method consensus)
         payment_detection_service = PaymentDetectionService(
             production_settings.get_claude_config(),
-            production_settings.PAYMENT_DETECTION_METHODS
+            production_settings.PAYMENT_DETECTION_METHODS,
         )
         await payment_detection_service.initialize()
         method_count = len(payment_detection_service.get_enabled_methods())
-        logger.info(f"✅ Payment Detection Service initialized: {method_count} methods enabled")
+        logger.info(
+            f"✅ Payment Detection Service initialized: {method_count} methods enabled"
+        )
 
         # Initialize Billing Router Service (4 destinations)
         billing_router_service = BillingRouterService(
@@ -177,14 +204,16 @@ async def lifespan(app: FastAPI):
         )
         await billing_router_service.initialize()
         destination_count = len(billing_router_service.get_available_destinations())
-        logger.info(f"✅ Billing Router Service initialized: {destination_count} destinations")
+        logger.info(
+            f"✅ Billing Router Service initialized: {destination_count} destinations"
+        )
 
         # Initialize Document Processor Service (orchestrates all processing)
         document_processor_service = DocumentProcessorService(
             gl_account_service=gl_account_service,
             payment_detection_service=payment_detection_service,
             billing_router_service=billing_router_service,
-            storage_service=storage_service
+            storage_service=storage_service,
         )
         await document_processor_service.initialize()
         logger.info("✅ Document Processor Service initialized")
@@ -228,7 +257,7 @@ async def lifespan(app: FastAPI):
     for service in services_to_cleanup:
         if service:
             try:
-                if hasattr(service, 'cleanup'):
+                if hasattr(service, "cleanup"):
                     await service.cleanup()
             except Exception as e:
                 logger.error(f"Error during service cleanup: {e}")
@@ -245,7 +274,7 @@ app = FastAPI(
     version=production_settings.VERSION,
     lifespan=lifespan,
     docs_url="/docs" if production_settings.DEBUG else None,
-    redoc_url="/redoc" if production_settings.DEBUG else None
+    redoc_url="/redoc" if production_settings.DEBUG else None,
 )
 
 # Add middleware
@@ -264,36 +293,38 @@ if production_settings.MULTI_TENANT_ENABLED:
 # Add rate limiting if enabled
 if production_settings.RATE_LIMIT_ENABLED:
     app.add_middleware(
-        RateLimitMiddleware,
-        calls=production_settings.RATE_LIMIT_PER_MINUTE,
-        period=60
+        RateLimitMiddleware, calls=production_settings.RATE_LIMIT_PER_MINUTE, period=60
     )
 
 
 # Authentication dependency
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> Dict[str, Any]:
     """Authenticate API requests"""
     if not production_settings.API_KEYS_REQUIRED:
-        return {"tenant_id": production_settings.DEFAULT_TENANT_ID, "authenticated": False}
+        return {
+            "tenant_id": production_settings.DEFAULT_TENANT_ID,
+            "authenticated": False,
+        }
 
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key required. Provide a Bearer token in the Authorization header."
+            detail="API key required. Provide a Bearer token in the Authorization header.",
         )
 
     api_key = credentials.credentials
 
     if not api_key:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key"
         )
 
     return {
         "api_key": api_key,
         "tenant_id": production_settings.DEFAULT_TENANT_ID,
-        "authenticated": True
+        "authenticated": True,
     }
 
 
@@ -311,10 +342,10 @@ async def root():
                 "payment_methods": len(production_settings.PAYMENT_DETECTION_METHODS),
                 "billing_destinations": len(production_settings.BILLING_DESTINATIONS),
                 "multi_tenant": production_settings.MULTI_TENANT_ENABLED,
-                "scanner_api": production_settings.SCANNER_API_ENABLED
+                "scanner_api": production_settings.SCANNER_API_ENABLED,
             },
-            "status": "online"
-        }
+            "status": "online",
+        },
     )
 
 
@@ -328,7 +359,7 @@ async def health_check():
         components={},
         metrics={},
         uptime_seconds=time.time() - _server_start_time,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
     # Check services
@@ -339,7 +370,7 @@ async def health_check():
             health_status.components["gl_accounts"] = {
                 "status": "healthy",
                 "count": len(accounts),
-                "expected": 79
+                "expected": 79,
             }
         else:
             health_status.components["gl_accounts"] = {"status": "not_initialized"}
@@ -350,10 +381,12 @@ async def health_check():
             health_status.components["payment_detection"] = {
                 "status": "healthy",
                 "methods": len(methods),
-                "enabled_methods": methods
+                "enabled_methods": methods,
             }
         else:
-            health_status.components["payment_detection"] = {"status": "not_initialized"}
+            health_status.components["payment_detection"] = {
+                "status": "not_initialized"
+            }
 
         # Billing Router Service
         if billing_router_service:
@@ -361,7 +394,7 @@ async def health_check():
             health_status.components["billing_router"] = {
                 "status": "healthy",
                 "destinations": len(destinations),
-                "available_destinations": destinations
+                "available_destinations": destinations,
             }
         else:
             health_status.components["billing_router"] = {"status": "not_initialized"}
@@ -369,26 +402,34 @@ async def health_check():
         # Storage Service
         if storage_service:
             storage_health = await storage_service.get_health()
-            storage_healthy = storage_health.get("status") == "healthy" if isinstance(storage_health, dict) else bool(storage_health)
+            storage_healthy = (
+                storage_health.get("status") == "healthy"
+                if isinstance(storage_health, dict)
+                else bool(storage_health)
+            )
             health_status.components["storage"] = {
                 "status": "healthy" if storage_healthy else "unhealthy",
-                "backend": production_settings.STORAGE_BACKEND
+                "backend": production_settings.STORAGE_BACKEND,
             }
         else:
             health_status.components["storage"] = {"status": "not_initialized"}
 
         # Scanner Manager
         if scanner_manager_service and production_settings.SCANNER_API_ENABLED:
-            active_scanners = len(await scanner_manager_service.get_connected_scanners())
+            active_scanners = len(
+                await scanner_manager_service.get_connected_scanners()
+            )
             health_status.components["scanner_manager"] = {
                 "status": "healthy",
                 "active_scanners": active_scanners,
-                "max_scanners": production_settings.MAX_SCANNER_CLIENTS
+                "max_scanners": production_settings.MAX_SCANNER_CLIENTS,
             }
 
         # Audit Trail
         if audit_trail_service:
-            health_status.components["audit_trail"] = audit_trail_service.get_statistics()
+            health_status.components["audit_trail"] = (
+                audit_trail_service.get_statistics()
+            )
         else:
             health_status.components["audit_trail"] = {"status": "not_initialized"}
 
@@ -409,15 +450,14 @@ async def health_check():
 # Document processing endpoints
 @app.post("/api/v1/documents/upload", response_model=DocumentUploadResponseSchema)
 async def upload_document(
-    file: UploadFile = File(...),
-    user: Dict[str, Any] = Depends(get_current_user)
+    file: UploadFile = File(...), user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Upload and process document through sophisticated pipeline"""
     try:
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Document processor service not available"
+                detail="Document processor service not available",
             )
 
         # Validate file
@@ -435,14 +475,14 @@ async def upload_document(
             file_content=file_content,
             content_type=file.content_type or "application/octet-stream",
             tenant_id=user["tenant_id"],
-            uploaded_by=user.get("user_id")
+            uploaded_by=user.get("user_id"),
         )
 
         return DocumentUploadResponseSchema(
             document_id=result.document_id,
             status=result.status,
             message=f"Document uploaded and processing started",
-            processing_time_estimate=result.estimated_processing_time
+            processing_time_estimate=result.estimated_processing_time,
         )
 
     except ASRException as e:
@@ -451,31 +491,28 @@ async def upload_document(
         logger.error(f"Document upload error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process document upload"
+            detail="Failed to process document upload",
         )
 
 
 @app.get("/api/v1/documents/{document_id}/status")
 async def get_document_status(
-    document_id: str,
-    user: Dict[str, Any] = Depends(get_current_user)
+    document_id: str, user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get document processing status"""
     try:
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Document processor service not available"
+                detail="Document processor service not available",
             )
 
         status_info = await document_processor_service.get_document_status(
-            document_id=document_id,
-            tenant_id=user["tenant_id"]
+            document_id=document_id, tenant_id=user["tenant_id"]
         )
 
         return APISuccessResponseSchema(
-            message="Document status retrieved",
-            data=status_info
+            message="Document status retrieved", data=status_info
         )
 
     except DocumentError as e:
@@ -484,26 +521,27 @@ async def get_document_status(
         logger.error(f"Get document status error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve document status"
+            detail="Failed to retrieve document status",
         )
 
 
-@app.post("/api/v1/documents/{document_id}/classify", response_model=ClassificationResponseSchema)
+@app.post(
+    "/api/v1/documents/{document_id}/classify",
+    response_model=ClassificationResponseSchema,
+)
 async def classify_document(
-    document_id: str,
-    user: Dict[str, Any] = Depends(get_current_user)
+    document_id: str, user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger document classification through sophisticated pipeline"""
     try:
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Document processor service not available"
+                detail="Document processor service not available",
             )
 
         result = await document_processor_service.classify_document(
-            document_id=document_id,
-            tenant_id=user["tenant_id"]
+            document_id=document_id, tenant_id=user["tenant_id"]
         )
 
         return ClassificationResponseSchema(
@@ -520,7 +558,7 @@ async def classify_document(
             invoice_date=result.invoice_date,
             processing_time=result.processing_time,
             classification_timestamp=result.classification_timestamp,
-            quality_score=result.quality_score
+            quality_score=result.quality_score,
         )
 
     except DocumentError as e:
@@ -529,7 +567,7 @@ async def classify_document(
         logger.error(f"Document classification error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to classify document"
+            detail="Failed to classify document",
         )
 
 
@@ -538,14 +576,14 @@ async def classify_document(
 async def list_gl_accounts(
     category: Optional[str] = None,
     search: Optional[str] = None,
-    user: Dict[str, Any] = Depends(get_current_user)
+    user: Dict[str, Any] = Depends(get_current_user),
 ):
     """List available GL accounts with filtering"""
     try:
         if not gl_account_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="GL Account service not available"
+                detail="GL Account service not available",
             )
 
         accounts = gl_account_service.get_accounts(category=category, search=search)
@@ -555,15 +593,15 @@ async def list_gl_accounts(
             data={
                 "accounts": accounts,
                 "total_count": len(accounts),
-                "categories": gl_account_service.get_categories()
-            }
+                "categories": gl_account_service.get_categories(),
+            },
         )
 
     except Exception as e:
         logger.error(f"List GL accounts error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve GL accounts"
+            detail="Failed to retrieve GL accounts",
         )
 
 
@@ -573,64 +611,61 @@ if production_settings.SCANNER_API_ENABLED:
     @app.post("/api/v1/scanner/register")
     async def register_scanner(
         request: ScannerRegistrationSchema,
-        user: Dict[str, Any] = Depends(get_current_user)
+        user: Dict[str, Any] = Depends(get_current_user),
     ):
         """Register a new scanner client"""
         try:
             if not scanner_manager_service:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Scanner manager service not available"
+                    detail="Scanner manager service not available",
                 )
 
             result = await scanner_manager_service.register_scanner(
                 scanner_name=request.scanner_name,
                 tenant_id=request.tenant_id,
                 api_key=request.api_key,
-                capabilities=request.capabilities
+                capabilities=request.capabilities,
             )
 
             return APISuccessResponseSchema(
-                message="Scanner registered successfully",
-                data=result
+                message="Scanner registered successfully", data=result
             )
 
         except Exception as e:
             logger.error(f"Scanner registration error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to register scanner"
+                detail="Failed to register scanner",
             )
 
     @app.post("/api/v1/scanner/heartbeat")
     async def scanner_heartbeat(
         request: ScannerHeartbeatSchema,
-        user: Dict[str, Any] = Depends(get_current_user)
+        user: Dict[str, Any] = Depends(get_current_user),
     ):
         """Process scanner heartbeat"""
         try:
             if not scanner_manager_service:
                 raise HTTPException(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Scanner manager service not available"
+                    detail="Scanner manager service not available",
                 )
 
             await scanner_manager_service.process_heartbeat(
                 scanner_id=request.scanner_id,
                 status=request.status,
                 queued_documents=request.queued_documents,
-                metrics=request.metrics
+                metrics=request.metrics,
             )
 
-            return APISuccessResponseSchema(
-                message="Heartbeat processed"
-            )
+            return APISuccessResponseSchema(message="Heartbeat processed")
 
         except Exception as e:
             logger.error(f"Scanner heartbeat error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to process scanner heartbeat"
+                detail="Failed to process scanner heartbeat",
             )
 
 
@@ -641,9 +676,8 @@ async def asr_exception_handler(request, exc: ASRException):
     return JSONResponse(
         status_code=400,
         content=APIErrorResponseSchema(
-            message=exc.message,
-            errors=[exc.to_dict()]
-        ).dict()
+            message=exc.message, errors=[exc.to_dict()]
+        ).dict(),
     )
 
 
@@ -654,8 +688,8 @@ async def validation_exception_handler(request, exc: ValidationError):
         status_code=422,
         content=APIErrorResponseSchema(
             message="Validation error",
-            errors=[{"error_type": "ValidationError", "message": str(exc)}]
-        ).dict()
+            errors=[{"error_type": "ValidationError", "message": str(exc)}],
+        ).dict(),
     )
 
 
@@ -667,9 +701,17 @@ async def not_found_handler(request, exc):
         content={
             "success": False,
             "message": "Endpoint not found",
-            "errors": [{"error_code": "NOT_FOUND", "error_type": "routing", "message": str(exc.detail) if hasattr(exc, 'detail') else "Not found"}],
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "errors": [
+                {
+                    "error_code": "NOT_FOUND",
+                    "error_type": "routing",
+                    "message": (
+                        str(exc.detail) if hasattr(exc, "detail") else "Not found"
+                    ),
+                }
+            ],
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
@@ -682,9 +724,15 @@ async def internal_error_handler(request, exc):
         content={
             "success": False,
             "message": "Internal server error",
-            "errors": [{"error_code": "INTERNAL_ERROR", "error_type": "server", "message": str(exc)}],
-            "timestamp": datetime.utcnow().isoformat()
-        }
+            "errors": [
+                {
+                    "error_code": "INTERNAL_ERROR",
+                    "error_type": "server",
+                    "message": str(exc),
+                }
+            ],
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
@@ -701,24 +749,36 @@ async def api_status():
 
     if payment_detection_service:
         methods = payment_detection_service.get_enabled_methods()
-        services_status["payment_detection"] = {"status": "active", "methods": len(methods)}
+        services_status["payment_detection"] = {
+            "status": "active",
+            "methods": len(methods),
+        }
     else:
         services_status["payment_detection"] = {"status": "not_initialized"}
 
     if billing_router_service:
         destinations = billing_router_service.get_available_destinations()
-        services_status["billing_router"] = {"status": "active", "destinations": len(destinations)}
+        services_status["billing_router"] = {
+            "status": "active",
+            "destinations": len(destinations),
+        }
     else:
         services_status["billing_router"] = {"status": "not_initialized"}
 
     if storage_service:
-        services_status["storage"] = {"status": "active", "backend": production_settings.STORAGE_BACKEND}
+        services_status["storage"] = {
+            "status": "active",
+            "backend": production_settings.STORAGE_BACKEND,
+        }
     else:
         services_status["storage"] = {"status": "not_initialized"}
 
     if scanner_manager_service:
         active = len(await scanner_manager_service.get_connected_scanners())
-        services_status["scanner_manager"] = {"status": "active", "active_scanners": active}
+        services_status["scanner_manager"] = {
+            "status": "active",
+            "active_scanners": active,
+        }
     else:
         services_status["scanner_manager"] = {"status": "not_initialized"}
 
@@ -731,8 +791,12 @@ async def api_status():
             "version": production_settings.VERSION,
             "status": "operational" if all_active else "degraded",
             "services": services_status,
-            "claude_ai": "configured" if production_settings.ANTHROPIC_API_KEY else "not_configured"
-        }
+            "claude_ai": (
+                "configured"
+                if production_settings.ANTHROPIC_API_KEY
+                else "not_configured"
+            ),
+        },
     )
 
 
@@ -748,25 +812,25 @@ async def get_system_info():
             "capabilities": {
                 "gl_accounts": {
                     "total": 79,
-                    "enabled": production_settings.GL_ACCOUNTS_ENABLED
+                    "enabled": production_settings.GL_ACCOUNTS_ENABLED,
                 },
                 "payment_detection": {
                     "methods": production_settings.PAYMENT_DETECTION_METHODS,
-                    "consensus_enabled": True
+                    "consensus_enabled": True,
                 },
                 "billing_router": {
                     "destinations": production_settings.BILLING_DESTINATIONS,
-                    "audit_trails": production_settings.AUDIT_TRAIL_ENABLED
+                    "audit_trails": production_settings.AUDIT_TRAIL_ENABLED,
                 },
                 "multi_tenant": production_settings.MULTI_TENANT_ENABLED,
-                "scanner_api": production_settings.SCANNER_API_ENABLED
+                "scanner_api": production_settings.SCANNER_API_ENABLED,
             },
             "limits": {
                 "max_file_size_mb": production_settings.MAX_FILE_SIZE_MB,
                 "max_batch_size": production_settings.MAX_BATCH_SIZE,
-                "max_scanner_clients": production_settings.MAX_SCANNER_CLIENTS
-            }
-        }
+                "max_scanner_clients": production_settings.MAX_SCANNER_CLIENTS,
+            },
+        },
     )
 
 
@@ -784,11 +848,11 @@ async def get_api_info():
             "billing_routing",
             "scanner_upload",
             "batch_upload",
-            "multi_tenant"
+            "multi_tenant",
         ],
         "gl_accounts_count": 79,
         "supported_formats": ["pdf", "jpg", "jpeg", "png", "tiff", "gif"],
-        "max_file_size_mb": production_settings.MAX_FILE_SIZE_MB
+        "max_file_size_mb": production_settings.MAX_FILE_SIZE_MB,
     }
 
 
@@ -811,29 +875,42 @@ if production_settings.SCANNER_API_ENABLED:
                         "payment_detection",
                         "billing_routing",
                         "scanner_upload",
-                        "batch_upload"
+                        "batch_upload",
                     ],
                     "api_endpoints": {
                         "upload": "/api/scanner/upload",
                         "batch": "/api/scanner/batch",
                         "status": "/api/scanner/status",
                         "register": "/api/v1/scanner/register",
-                        "heartbeat": "/api/v1/scanner/heartbeat"
+                        "heartbeat": "/api/v1/scanner/heartbeat",
                     },
                     "limits": {
                         "max_file_size_mb": production_settings.MAX_FILE_SIZE_MB,
                         "max_batch_size": production_settings.MAX_BATCH_SIZE,
-                        "supported_formats": ["pdf", "jpg", "jpeg", "png", "tiff", "gif"]
+                        "supported_formats": [
+                            "pdf",
+                            "jpg",
+                            "jpeg",
+                            "png",
+                            "tiff",
+                            "gif",
+                        ],
                     },
                     "gl_accounts": {
                         "total": 79,
-                        "categories": ["ASSETS", "LIABILITIES", "EQUITY", "INCOME", "EXPENSES"]
+                        "categories": [
+                            "ASSETS",
+                            "LIABILITIES",
+                            "EQUITY",
+                            "INCOME",
+                            "EXPENSES",
+                        ],
                     },
                     "payment_detection": {
                         "methods": production_settings.PAYMENT_DETECTION_METHODS,
-                        "consensus_enabled": True
-                    }
-                }
+                        "consensus_enabled": True,
+                    },
+                },
             )
         except Exception as e:
             logger.error(f"❌ Scanner discovery failed: {e}")
@@ -842,20 +919,20 @@ if production_settings.SCANNER_API_ENABLED:
     @app.post("/api/scanner/upload")
     async def scanner_upload(
         file: UploadFile = File(...),
-        credentials: HTTPAuthorizationCredentials = Depends(security)
+        credentials: HTTPAuthorizationCredentials = Depends(security),
     ):
         """Document upload endpoint for scanner clients"""
         try:
             # Extract scanner info from form data
             form_data = {}
-            if hasattr(file, 'metadata'):
-                form_data['metadata'] = file.metadata
-            if hasattr(file, 'scanner_info'):
-                form_data['scanner_info'] = file.scanner_info
+            if hasattr(file, "metadata"):
+                form_data["metadata"] = file.metadata
+            if hasattr(file, "scanner_info"):
+                form_data["scanner_info"] = file.scanner_info
 
             # Get scanner ID from scanner_info or generate one
-            scanner_info = form_data.get('scanner_info', {})
-            scanner_id = scanner_info.get('scanner_id', 'unknown_scanner')
+            scanner_info = form_data.get("scanner_info", {})
+            scanner_id = scanner_info.get("scanner_id", "unknown_scanner")
 
             # Read file content
             file_content = await file.read()
@@ -865,14 +942,13 @@ if production_settings.SCANNER_API_ENABLED:
                 scanner_id=scanner_id,
                 filename=file.filename,
                 file_content=file_content,
-                metadata=form_data.get('metadata'),
-                scanner_info=scanner_info
+                metadata=form_data.get("metadata"),
+                scanner_info=scanner_info,
             )
 
             # Process upload
             result = await scanner_manager_service.process_scanner_upload(
-                upload_request,
-                document_processor_service
+                upload_request, document_processor_service
             )
 
             if result.success:
@@ -882,14 +958,11 @@ if production_settings.SCANNER_API_ENABLED:
                         "document_id": result.document_id,
                         "status": result.processing_status,
                         "processing_time_ms": result.processing_time_ms,
-                        "classification": result.classification_result
-                    }
+                        "classification": result.classification_result,
+                    },
                 )
             else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=result.error_message
-                )
+                raise HTTPException(status_code=400, detail=result.error_message)
 
         except HTTPException:
             raise
@@ -899,8 +972,7 @@ if production_settings.SCANNER_API_ENABLED:
 
     @app.get("/api/scanner/status/{session_id}")
     async def get_scanner_upload_status(
-        session_id: str,
-        credentials: HTTPAuthorizationCredentials = Depends(security)
+        session_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)
     ):
         """Get upload status for scanner clients"""
         try:
@@ -908,14 +980,10 @@ if production_settings.SCANNER_API_ENABLED:
 
             if status:
                 return APISuccessResponseSchema(
-                    message="Upload status retrieved",
-                    data=status
+                    message="Upload status retrieved", data=status
                 )
             else:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Upload session not found"
-                )
+                raise HTTPException(status_code=404, detail="Upload session not found")
 
         except HTTPException:
             raise
@@ -926,14 +994,14 @@ if production_settings.SCANNER_API_ENABLED:
     @app.post("/api/scanner/batch")
     async def scanner_batch_upload(
         files: List[UploadFile] = File(...),
-        credentials: HTTPAuthorizationCredentials = Depends(security)
+        credentials: HTTPAuthorizationCredentials = Depends(security),
     ):
         """Batch document upload endpoint for scanner clients"""
         try:
             if len(files) > production_settings.MAX_BATCH_SIZE:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Batch size exceeds limit ({production_settings.MAX_BATCH_SIZE})"
+                    detail=f"Batch size exceeds limit ({production_settings.MAX_BATCH_SIZE})",
                 )
 
             # Create upload requests
@@ -948,15 +1016,13 @@ if production_settings.SCANNER_API_ENABLED:
                     filename=file.filename,
                     file_content=file_content,
                     metadata={},
-                    scanner_info={"batch_upload": True}
+                    scanner_info={"batch_upload": True},
                 )
                 upload_requests.append(upload_request)
 
             # Process batch upload
             results = await scanner_manager_service.process_batch_upload(
-                scanner_id,
-                upload_requests,
-                document_processor_service
+                scanner_id, upload_requests, document_processor_service
             )
 
             # Prepare response
@@ -965,21 +1031,23 @@ if production_settings.SCANNER_API_ENABLED:
                 "batch_size": len(files),
                 "successful_uploads": successful_uploads,
                 "failed_uploads": len(files) - successful_uploads,
-                "results": []
+                "results": [],
             }
 
             for i, result in enumerate(results):
-                response_data["results"].append({
-                    "filename": files[i].filename,
-                    "success": result.success,
-                    "document_id": result.document_id,
-                    "error_message": result.error_message,
-                    "processing_time_ms": result.processing_time_ms
-                })
+                response_data["results"].append(
+                    {
+                        "filename": files[i].filename,
+                        "success": result.success,
+                        "document_id": result.document_id,
+                        "error_message": result.error_message,
+                        "processing_time_ms": result.processing_time_ms,
+                    }
+                )
 
             return APISuccessResponseSchema(
                 message=f"Batch upload completed: {successful_uploads}/{len(files)} successful",
-                data=response_data
+                data=response_data,
             )
 
         except HTTPException:
@@ -990,7 +1058,7 @@ if production_settings.SCANNER_API_ENABLED:
 
     @app.get("/api/scanner/connected")
     async def get_connected_scanners(
-        credentials: HTTPAuthorizationCredentials = Depends(security)
+        credentials: HTTPAuthorizationCredentials = Depends(security),
     ):
         """Get list of connected scanner clients"""
         try:
@@ -998,10 +1066,7 @@ if production_settings.SCANNER_API_ENABLED:
 
             return APISuccessResponseSchema(
                 message="Connected scanners retrieved",
-                data={
-                    "count": len(scanners),
-                    "scanners": scanners
-                }
+                data={"count": len(scanners), "scanners": scanners},
             )
 
         except Exception as e:

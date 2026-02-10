@@ -51,8 +51,8 @@ for sub in ("config", "api", "services", "middleware", "models"):
 # ---------------------------------------------------------------------------
 # Helper fixtures
 # ---------------------------------------------------------------------------
-from shared.core.models import (  # noqa: E402
-    BillingDestination,
+from shared.core.models import BillingDestination  # noqa: E402
+from shared.core.models import (
     DocumentMetadata,
     PaymentConsensusResult,
     PaymentDetectionMethod,
