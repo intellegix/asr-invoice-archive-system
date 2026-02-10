@@ -7,11 +7,13 @@ Sophisticated routing to 4 billing destinations with comprehensive audit trails:
 4. Closed Receivable (paid customer invoices)
 """
 
+from __future__ import annotations
+
 import logging
 import asyncio
-from typing import Dict, List, Optional, Any, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Import shared components
 from shared.core.models import (
@@ -20,6 +22,9 @@ from shared.core.models import (
 )
 from shared.core.constants import BILLING_DESTINATION_RULES, CONFIDENCE_THRESHOLDS
 from shared.core.exceptions import RoutingError, ValidationError
+
+if TYPE_CHECKING:
+    from .audit_trail_service import AuditTrailService
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +61,7 @@ class BillingRouterService:
         self,
         enabled_destinations: List[str],
         confidence_threshold: float,
-        audit_trail_service: Optional[Any] = None,
+        audit_trail_service: Optional[AuditTrailService] = None,
     ):
         self.enabled_destinations = [BillingDestination(dest) for dest in enabled_destinations]
         self.confidence_threshold = confidence_threshold
@@ -494,7 +499,7 @@ class BillingRouterService:
         """Update routing statistics"""
         stats = self.routing_stats[destination]
         stats["total_routed"] += 1
-        stats["last_routed"] = datetime.utcnow()
+        stats["last_routed"] = datetime.now(timezone.utc)
 
         # Update average confidence
         current_avg = stats["avg_confidence"]

@@ -4,7 +4,7 @@ Persistent audit trail records for billing routing decisions.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Index, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -29,7 +29,7 @@ class AuditTrailRecord(Base):
     user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     system_component: Mapped[str] = mapped_column(String(100))
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, index=True
+        DateTime, default=lambda: datetime.now(timezone.utc), index=True
     )
     tenant_id: Mapped[str] = mapped_column(String(255), index=True)
 

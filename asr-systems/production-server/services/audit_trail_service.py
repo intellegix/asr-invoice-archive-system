@@ -5,7 +5,7 @@ propagate — audit recording must not break the document routing pipeline.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import delete, select
@@ -120,7 +120,7 @@ class AuditTrailService:
 
     async def purge_expired(self) -> int:
         """Delete records older than retention_days. Returns count deleted."""
-        cutoff = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
         try:
             async with get_async_session() as session:
                 stmt = delete(AuditTrailRecord).where(

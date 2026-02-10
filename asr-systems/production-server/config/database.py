@@ -41,6 +41,10 @@ async def init_database(
     """Create async engine, session factory, and run table creation."""
     global _engine, _session_factory
 
+    # Dispose previous engine if re-initializing (e.g. tests calling init_database multiple times)
+    if _engine is not None:
+        await _engine.dispose()
+
     async_url = _convert_database_url(database_url)
     is_sqlite = async_url.startswith("sqlite")
 
