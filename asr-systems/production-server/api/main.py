@@ -9,6 +9,7 @@ Enterprise document processing server with sophisticated capabilities
 """
 
 import os
+import time
 import logging
 import asyncio
 from contextlib import asynccontextmanager
@@ -96,6 +97,9 @@ logger = logging.getLogger(__name__)
 # Security
 security = HTTPBearer(auto_error=False)
 
+# Server start time (set during lifespan startup)
+_server_start_time: float = 0.0
+
 # Service instances (initialized during startup)
 gl_account_service: Optional[GLAccountService] = None
 payment_detection_service: Optional[PaymentDetectionService] = None
@@ -110,7 +114,9 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager with sophisticated component initialization"""
     global gl_account_service, payment_detection_service, billing_router_service
     global document_processor_service, storage_service, scanner_manager_service
+    global _server_start_time
 
+    _server_start_time = time.time()
     logger.info("🚀 Starting ASR Production Server...")
     logger.info("Initializing sophisticated document processing capabilities...")
 
@@ -289,7 +295,7 @@ async def health_check():
         overall_status="healthy",
         components={},
         metrics={},
-        uptime_seconds=0,  # TODO: Track actual uptime
+        uptime_seconds=time.time() - _server_start_time,
         timestamp=datetime.utcnow()
     )
 
