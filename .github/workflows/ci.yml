@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONPATH: asr-systems/
+  ANTHROPIC_API_KEY: sk-ant-test-placeholder
+  DEBUG: "true"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: asr-systems/production-server/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r asr-systems/production-server/requirements.txt
+          pip install isort
+
+      - name: Create production_server symlink
+        run: ln -s production-server asr-systems/production_server
+
+      - name: black (format check)
+        run: black --check asr-systems/production-server asr-systems/shared asr-systems/tests
+        continue-on-error: true
+
+      - name: isort (import order)
+        run: isort --check asr-systems/production-server asr-systems/shared asr-systems/tests
+        continue-on-error: true
+
+      - name: mypy (type check)
+        run: mypy asr-systems/production-server asr-systems/shared --ignore-missing-imports
+        continue-on-error: true
+
+      - name: pytest
+        working-directory: asr-systems
+        run: python -m pytest tests/ -v --tb=short -x

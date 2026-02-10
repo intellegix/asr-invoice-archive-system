@@ -89,6 +89,16 @@ try:
 except (ImportError, SystemError):
     from middleware.rate_limit_middleware import RateLimitMiddleware
 
+try:
+    from ..config.database import init_database, close_database
+except (ImportError, SystemError):
+    from config.database import init_database, close_database
+
+try:
+    from ..services.audit_trail_service import AuditTrailService
+except (ImportError, SystemError):
+    from services.audit_trail_service import AuditTrailService
+
 # Configure logging
 _log_level = getattr(logging, production_settings.LOG_LEVEL) if production_settings else logging.INFO
 logging.basicConfig(level=_log_level)
@@ -107,6 +117,7 @@ billing_router_service: Optional[BillingRouterService] = None
 document_processor_service: Optional[DocumentProcessorService] = None
 storage_service: Optional[ProductionStorageService] = None
 scanner_manager_service: Optional[ScannerManagerService] = None
+audit_trail_service: Optional[AuditTrailService] = None
 
 
 @asynccontextmanager
@@ -114,13 +125,30 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager with sophisticated component initialization"""
     global gl_account_service, payment_detection_service, billing_router_service
     global document_processor_service, storage_service, scanner_manager_service
-    global _server_start_time
+    global audit_trail_service, _server_start_time
 
     _server_start_time = time.time()
     logger.info("🚀 Starting ASR Production Server...")
     logger.info("Initializing sophisticated document processing capabilities...")
 
     try:
+        # Initialize database
+        await init_database(
+            database_url=production_settings.DATABASE_URL,
+            pool_size=production_settings.DB_POOL_SIZE,
+            max_overflow=production_settings.DB_POOL_OVERFLOW,
+            pool_recycle=production_settings.DB_POOL_RECYCLE,
+        )
+        logger.info("✅ Database engine initialized")
+
+        # Initialize audit trail service
+        audit_trail_service = AuditTrailService(
+            enabled=production_settings.AUDIT_TRAIL_ENABLED,
+            retention_days=production_settings.AUDIT_RETENTION_DAYS,
+        )
+        await audit_trail_service.initialize()
+        logger.info("✅ Audit Trail Service initialized")
+
         # Initialize storage service
         storage_service = ProductionStorageService(production_settings.storage_config)
         await storage_service.initialize()
@@ -144,7 +172,8 @@ async def lifespan(app: FastAPI):
         # Initialize Billing Router Service (4 destinations)
         billing_router_service = BillingRouterService(
             production_settings.BILLING_DESTINATIONS,
-            production_settings.ROUTING_CONFIDENCE_THRESHOLD
+            production_settings.ROUTING_CONFIDENCE_THRESHOLD,
+            audit_trail_service=audit_trail_service,
         )
         await billing_router_service.initialize()
         destination_count = len(billing_router_service.get_available_destinations())
@@ -192,7 +221,8 @@ async def lifespan(app: FastAPI):
         payment_detection_service,
         billing_router_service,
         document_processor_service,
-        scanner_manager_service
+        scanner_manager_service,
+        audit_trail_service,
     ]
 
     for service in services_to_cleanup:
@@ -202,6 +232,8 @@ async def lifespan(app: FastAPI):
                     await service.cleanup()
             except Exception as e:
                 logger.error(f"Error during service cleanup: {e}")
+
+    await close_database()
 
     logger.info("✅ ASR Production Server shutdown complete")
 
@@ -353,6 +385,12 @@ async def health_check():
                 "active_scanners": active_scanners,
                 "max_scanners": production_settings.MAX_SCANNER_CLIENTS
             }
+
+        # Audit Trail
+        if audit_trail_service:
+            health_status.components["audit_trail"] = audit_trail_service.get_statistics()
+        else:
+            health_status.components["audit_trail"] = {"status": "not_initialized"}
 
         # Claude AI
         if production_settings.ANTHROPIC_API_KEY:

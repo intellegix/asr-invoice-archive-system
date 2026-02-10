@@ -52,9 +52,15 @@ class BillingRouterService:
     Sophisticated billing router service with 4-destination routing and audit trails
     """
 
-    def __init__(self, enabled_destinations: List[str], confidence_threshold: float):
+    def __init__(
+        self,
+        enabled_destinations: List[str],
+        confidence_threshold: float,
+        audit_trail_service: Optional[Any] = None,
+    ):
         self.enabled_destinations = [BillingDestination(dest) for dest in enabled_destinations]
         self.confidence_threshold = confidence_threshold
+        self.audit_trail_service = audit_trail_service
         self.routing_rules = self._load_routing_rules()
         self.routing_stats = {}
         self.initialized = False
@@ -528,8 +534,10 @@ class BillingRouterService:
             tenant_id=context.tenant_id
         )
 
-        # TODO: Store audit trail in database
-        logger.debug(f"Audit trail created for document {context.document_id}")
+        if self.audit_trail_service:
+            await self.audit_trail_service.record(audit_entry)
+        else:
+            logger.debug(f"Audit trail created for document {context.document_id}")
 
     def get_routing_statistics(self) -> Dict[str, Any]:
         """Get routing statistics for monitoring"""
