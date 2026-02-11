@@ -1,0 +1,51 @@
+# ASR Document Scanner Dependencies
+# Desktop scanning client with offline capabilities and server integration
+
+# Core framework
+pydantic>=2.0.0
+asyncio-tkinter-generator>=0.1.0
+
+# HTTP client and async support
+aiohttp>=3.8.0
+aiofiles>=23.0.0
+requests>=2.31.0
+
+# GUI framework
+tkinter  # Built into Python (included for completeness)
+Pillow>=10.0.0  # Image processing for GUI
+
+# Database for offline queue
+aiosqlite>=0.19.0
+
+# Scanner hardware support (Windows)
+python-twain>=1.0.0; platform_system=="Windows"  # TWAIN scanner support
+pywin32>=306; platform_system=="Windows"          # WIA scanner support
+
+# File handling and validation
+pathvalidate>=3.0.0
+python-magic>=0.4.27  # File type detection
+
+# Logging and configuration
+colorlog>=6.0.0
+python-dotenv>=1.0.0
+
+# Date/time utilities
+python-dateutil>=2.8.0
+
+# Optional: Enhanced scanner features
+opencv-python>=4.8.0  # Image processing and OCR preprocessing
+pypdf>=3.15.0         # PDF handling and optimization
+
+# Development and testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+mypy>=1.5.0
+
+# Optional: GUI enhancements
+ttkthemes>=3.2.2      # Enhanced tkinter themes
+tkinterdnd2>=0.3.0    # Drag and drop support
+
+# Optional: System integration
+plyer>=2.1.0          # Cross-platform system notifications
+psutil>=5.9.0         # System resource monitoring
