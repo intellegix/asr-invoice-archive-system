@@ -46,3 +46,21 @@ Thumbs.db
 
 # Project-specific
 DELETE/
+
+# Claude Code metadata
+.claude/
+
+# Generated reports and classifications
+classification_results_*.json
+claude_vision_verification_report_*.json
+comprehensive_audit_report_*.json
+scan_audit_*.json
+
+# Windows artifacts
+nul
+
+# Runtime data (SQLite DB, uploaded invoices)
+data/
+
+# Working copies of deployment configs
+working-*task-def.json
