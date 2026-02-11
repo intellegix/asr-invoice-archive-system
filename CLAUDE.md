@@ -163,11 +163,14 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Lint**: black, isort
-- **Type check**: mypy (continue-on-error due to hyphenated directory)
-- **Security**: bandit (advisory), pip-audit (advisory)
-- **Tests**: pytest with coverage on Python 3.11 + 3.12 (139 tests)
-- **Docker**: builds backend image after tests pass
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (advisory), pip-audit (advisory), pytest with coverage on Python 3.11 + 3.12 (139 tests)
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (298 tests) on Node 18
+- **Docker**: builds backend image after both test jobs pass
+
+Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
+- Builds + pushes backend/frontend images to ECR
+- Updates ECS services with new task definitions
+- Requires `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub secrets
 
 ## Deployment Status
 
@@ -177,6 +180,7 @@ CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 | Windows EXE | Working | `802008f` |
 | Docker | Working | `a0d36e9` |
 | AWS ECS | Working | `b351af7` |
-| CI Pipeline | Green | `ff81cad` |
+| CI Pipeline | Green | `6abf88e` |
 | System Review | Complete | `a35dfb5` |
 | Full-Stack Tests | 510 tests | `eaa9785` |
+| P1-P6 Feature Pass | Complete | `6abf88e` |
