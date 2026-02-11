@@ -235,7 +235,7 @@ class DocumentProcessorService:
             return UploadResult(
                 success=False,
                 document_id=document_id,
-                processing_status=ProcessingStatus.FAILED.value,
+                processing_status=ProcessingStatus.ERROR.value,
                 error_message=str(e),
                 processing_time_ms=int(processing_time),
             )
@@ -321,7 +321,7 @@ class DocumentProcessorService:
             return UploadResult(
                 success=False,
                 document_id=document_id,
-                processing_status=ProcessingStatus.FAILED.value,
+                processing_status=ProcessingStatus.ERROR.value,
                 error_message=str(e),
             )
 

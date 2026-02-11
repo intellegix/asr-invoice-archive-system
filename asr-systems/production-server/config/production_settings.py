@@ -310,7 +310,7 @@ class ProductionSettings(BaseSettings):
     )
 
     CORS_ALLOWED_ORIGINS: List[str] = Field(
-        default_factory=lambda: ["*"],
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"],
         env="CORS_ALLOWED_ORIGINS",
         description="CORS allowed origins (comma-separated)",
     )

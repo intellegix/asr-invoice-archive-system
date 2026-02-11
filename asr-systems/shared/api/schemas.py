@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from ..core.models import (
     BillingDestination,
@@ -34,8 +34,9 @@ class DocumentUploadSchema(BaseModel):
         default_factory=dict, description="Additional metadata"
     )
 
-    @validator("file_size")
-    def validate_file_size(cls, v):
+    @field_validator("file_size")
+    @classmethod
+    def validate_file_size(cls, v: int) -> int:
         max_size = 25 * 1024 * 1024  # 25MB
         if v > max_size:
             raise ValueError(
@@ -64,7 +65,7 @@ class BatchProcessingRequestSchema(BaseModel):
     """Schema for batch document processing"""
 
     document_ids: List[str] = Field(
-        ..., min_items=1, max_items=50, description="Document IDs to process"
+        ..., min_length=1, max_length=50, description="Document IDs to process"
     )
     tenant_id: str = Field(..., description="Tenant identifier")
     priority: int = Field(
@@ -252,7 +253,7 @@ class SystemHealthResponseSchema(BaseModel):
         ..., description="Component health details"
     )
     metrics: Dict[str, Any] = Field(..., description="System metrics")
-    uptime_seconds: int = Field(..., description="System uptime in seconds")
+    uptime_seconds: float = Field(..., description="System uptime in seconds")
     timestamp: datetime = Field(..., description="Health check timestamp")
 
 

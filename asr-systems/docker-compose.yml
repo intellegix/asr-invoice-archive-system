@@ -27,7 +27,7 @@ services:
       - DATA_DIR=/app/data
       - DATABASE_URL=${DATABASE_URL:-sqlite:///./asr_records.db}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
       - MULTI_TENANT_ENABLED=${MULTI_TENANT_ENABLED:-false}
       - SCANNER_API_ENABLED=${SCANNER_API_ENABLED:-true}
       - MAX_SCANNER_CLIENTS=${MAX_SCANNER_CLIENTS:-10}

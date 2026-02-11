@@ -8,7 +8,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class SystemType(str, Enum):
@@ -123,8 +123,9 @@ class DocumentMetadata(BaseModel):
     # Storage
     storage_path: Optional[str] = Field(None, description="Storage location")
 
-    @validator("routing_confidence")
-    def validate_confidence_range(cls, v):
+    @field_validator("routing_confidence")
+    @classmethod
+    def validate_confidence_range(cls, v: Optional[float]) -> Optional[float]:
         if v is not None and not 0.0 <= v <= 1.0:
             raise ValueError("Confidence scores must be between 0.0 and 1.0")
         return v

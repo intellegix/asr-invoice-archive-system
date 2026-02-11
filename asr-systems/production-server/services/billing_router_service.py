@@ -606,7 +606,7 @@ class BillingRouterService:
                     "fallback_used": analysis.fallback_used,
                     "confidence_threshold": self.confidence_threshold,
                     "payment_consensus": (
-                        context.payment_consensus.dict()
+                        context.payment_consensus.model_dump()
                         if context.payment_consensus
                         else None
                     ),

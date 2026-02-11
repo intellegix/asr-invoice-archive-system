@@ -677,7 +677,7 @@ async def asr_exception_handler(request, exc: ASRException):
         status_code=400,
         content=APIErrorResponseSchema(
             message=exc.message, errors=[exc.to_dict()]
-        ).dict(),
+        ).model_dump(),
     )
 
 
@@ -689,7 +689,7 @@ async def validation_exception_handler(request, exc: ValidationError):
         content=APIErrorResponseSchema(
             message="Validation error",
             errors=[{"error_type": "ValidationError", "message": str(exc)}],
-        ).dict(),
+        ).model_dump(),
     )
 
 

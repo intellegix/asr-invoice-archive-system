@@ -5,6 +5,7 @@
   "cpu": "512",
   "memory": "1024",
   "executionRoleArn": "arn:aws:iam::206362095382:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::206362095382:role/ecsTaskRole",
   "containerDefinitions": [
     {
       "name": "backend",
@@ -27,8 +28,13 @@
         {"name": "DATABASE_URL", "value": "sqlite:///./asr_records.db"},
         {"name": "MULTI_TENANT_ENABLED", "value": "false"},
         {"name": "SCANNER_API_ENABLED", "value": "true"},
-        {"name": "MAX_SCANNER_CLIENTS", "value": "10"},
-        {"name": "ANTHROPIC_API_KEY", "value": "YOUR_ANTHROPIC_API_KEY_HERE"}
+        {"name": "MAX_SCANNER_CLIENTS", "value": "10"}
+      ],
+      "secrets": [
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-west-2:206362095382:secret:asr-records/anthropic-api-key"
+        }
       ],
       "healthCheck": {
         "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
