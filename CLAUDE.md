@@ -33,16 +33,23 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-python -m pytest asr-systems/tests/ -v                        # All 83 tests
+# --- Backend (139 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 139 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
 python asr-systems/tests/load_test.py                         # Load tests (50+ concurrent)
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
+
+# --- Frontend (298 vitest tests) ---
+cd asr-records-legacy/legacy-frontend
+npm run test                                                  # All 298 tests
+npx vitest run                                                # Single run (no watch)
+npx tsc --noEmit                                              # TypeScript type check
 ```
 
-### Test Files (83 tests)
+### Backend Test Files (139 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -51,9 +58,24 @@ python asr-systems/system_verification.py                     # Deployment readi
 | `test_billing_router_service.py` | 12 | Routing logic + destinations |
 | `test_document_processor_service.py` | 8 | Pipeline orchestration |
 | `test_gl_account_service.py` | 6 | GL classification |
+| `test_multi_tenant_isolation.py` | 9 | Storage/API/scanner tenant scoping |
 | `test_payment_detection_service.py` | 13 | 5-method consensus |
+| `test_rate_limit_middleware.py` | 16 | Sliding window, 429s, client ID extraction |
 | `test_scanner_manager_service.py` | 8 | Scanner registration/heartbeat |
+| `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
 | `test_storage_service.py` | 10 | Local CRUD + tenant isolation |
+| `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
+
+### Frontend Test Files (298 tests)
+
+| Category | Files | Tests | Coverage |
+|----------|-------|-------|----------|
+| Zustand Stores | 3 | 69 | auth (14), documents (32), ui (23) |
+| API Services | 5 | 51 | ApiClient (18), queryClient (7), documents (10), metrics (10), vendors (6) |
+| Custom Hooks | 4 | 48 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14) |
+| Components | 4 | 62 | Button (20), MetricCard (20), Header (9), Navigation (13) |
+| Pages + App | 4 | 63 | Dashboard (18), Upload (18), Documents (20), App routing (7) |
+| Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
 ## Architecture
 
@@ -125,7 +147,7 @@ CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 - **Lint**: black, isort
 - **Type check**: mypy (continue-on-error due to hyphenated directory)
 - **Security**: bandit (advisory), pip-audit (advisory)
-- **Tests**: pytest with coverage on Python 3.11 + 3.12 (83 tests)
+- **Tests**: pytest with coverage on Python 3.11 + 3.12 (139 tests)
 - **Docker**: builds backend image after tests pass
 
 ## Deployment Status
@@ -138,3 +160,4 @@ CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 | AWS ECS | Working | `b351af7` |
 | CI Pipeline | Green | `ff81cad` |
 | System Review | Complete | `a35dfb5` |
+| Full-Stack Tests | 437 tests | `8f6ad11` |
