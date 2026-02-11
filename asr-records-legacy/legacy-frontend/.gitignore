@@ -91,5 +91,13 @@ temp/
 .nyc_output
 coverage
 
+# Playwright
+e2e/screenshots/
+playwright-report/
+test-results/
+
+# Vite temp files
+vite.config.ts.timestamp-*
+
 # Sentry
 .sentryclirc

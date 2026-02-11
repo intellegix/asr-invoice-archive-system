@@ -47,6 +47,13 @@ cd asr-records-legacy/legacy-frontend
 npm run test                                                  # All 298 tests
 npx vitest run                                                # Single run (no watch)
 npx tsc --noEmit                                              # TypeScript type check
+
+# --- E2E / Playwright (73 tests) ---
+# Requires backend (port 8000) + frontend (port 3000) running
+cd asr-records-legacy/legacy-frontend
+npm run test:e2e                                              # All 73 Playwright tests
+npm run test:e2e:headed                                       # With visible browser
+npm run test:e2e:report                                       # View HTML report
 ```
 
 ### Backend Test Files (139 tests)
@@ -66,7 +73,7 @@ npx tsc --noEmit                                              # TypeScript type 
 | `test_storage_service.py` | 10 | Local CRUD + tenant isolation |
 | `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
 
-### Frontend Test Files (298 tests)
+### Frontend Test Files (298 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
@@ -76,6 +83,18 @@ npx tsc --noEmit                                              # TypeScript type 
 | Components | 4 | 62 | Button (20), MetricCard (20), Header (9), Navigation (13) |
 | Pages + App | 4 | 63 | Dashboard (18), Upload (18), Documents (20), App routing (7) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
+
+### E2E Playwright Tests (73 tests)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `e2e/startup.spec.ts` | 5 | Health endpoint, frontend load, Vite proxy, redirect, console errors |
+| `e2e/dashboard.spec.ts` | 13 | Page title, MetricCards, Recent Docs, Payment Dist, Quick Actions |
+| `e2e/upload.spec.ts` | 13 | Dropzone, file types, size limit, feature cards, System Status |
+| `e2e/documents.spec.ts` | 14 | Search, filters, table/empty state, summary stats, export |
+| `e2e/navigation.spec.ts` | 10 | Sidebar, nav links, active state, routing, header consistency |
+| `e2e/responsive.spec.ts` | 7 | 4 viewports, metric reflow, tablet upload, mobile documents |
+| `e2e/integration.spec.ts` | 11 | API-to-UI data flow, error states, backend health/status |
 
 ## Architecture
 
@@ -160,4 +179,4 @@ CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 | AWS ECS | Working | `b351af7` |
 | CI Pipeline | Green | `ff81cad` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 437 tests | `8f6ad11` |
+| Full-Stack Tests | 510 tests | `8f6ad11` |
