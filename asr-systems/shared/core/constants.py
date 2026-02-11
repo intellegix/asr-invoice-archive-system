@@ -353,7 +353,14 @@ GL_ACCOUNTS = {
     "5010": {
         "name": "Payroll Taxes",
         "category": "EXPENSES",
-        "keywords": ["payroll tax", "fica", "medicare", "social security", "futa", "suta"],
+        "keywords": [
+            "payroll tax",
+            "fica",
+            "medicare",
+            "social security",
+            "futa",
+            "suta",
+        ],
     },
     "5020": {
         "name": "Employee Benefits",
