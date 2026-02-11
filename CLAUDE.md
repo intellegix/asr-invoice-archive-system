@@ -33,13 +33,27 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-python -m pytest asr-systems/tests/ -v                        # All tests
+python -m pytest asr-systems/tests/ -v                        # All 83 tests
+python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
 python asr-systems/tests/load_test.py                         # Load tests (50+ concurrent)
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 ```
+
+### Test Files (83 tests)
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `test_api_endpoints.py` | 10 | FastAPI routes via TestClient |
+| `test_audit_trail_service.py` | 5 | Audit trail persistence |
+| `test_billing_router_service.py` | 12 | Routing logic + destinations |
+| `test_document_processor_service.py` | 8 | Pipeline orchestration |
+| `test_gl_account_service.py` | 6 | GL classification |
+| `test_payment_detection_service.py` | 13 | 5-method consensus |
+| `test_scanner_manager_service.py` | 8 | Scanner registration/heartbeat |
+| `test_storage_service.py` | 10 | Local CRUD + tenant isolation |
 
 ## Architecture
 
@@ -55,7 +69,7 @@ Client → FastAPI (api/main.py)
            ├── PaymentDetectionService (5-method consensus: Claude Vision,
            │     Claude Text, Regex, Keywords, Amount Analysis)
            ├── BillingRouterService (4 destinations: open/closed × payable/receivable)
-           └── ProductionStorageService (local / S3 / Render disk)
+           └── ProductionStorageService (local filesystem / S3 via boto3)
        → Audit trail logged with confidence scores
 ```
 
@@ -85,7 +99,11 @@ Client → FastAPI (api/main.py)
 
 **Git Bash path mangling**: On Windows, Git Bash converts `/health` to a Windows path. Use double-slash: `curl http://localhost:8000//health`.
 
-**ECS crash if no API key**: The backend container crash-loops on AWS ECS if `ANTHROPIC_API_KEY` is empty/missing in the task definition.
+**ECS uses Secrets Manager for API key**: The `backend-task-def.json` pulls `ANTHROPIC_API_KEY` from AWS Secrets Manager via `valueFrom`. The task role (`ecsTaskRole`) must have `secretsmanager:GetSecretValue` permission.
+
+**Docker Compose requires JWT_SECRET_KEY**: `docker-compose.yml` uses `${JWT_SECRET_KEY:?...}` — the container will fail to start if this env var is not set.
+
+**CORS restricted to localhost**: Production settings default CORS origins to `["http://localhost:3000", "http://localhost:5173"]`. Add your domain to `CORS_ALLOWED_ORIGINS` env var for other deployments.
 
 **Default port differs by entry point**: `start_server.py` defaults to port 8080 (`API_PORT` env var). Docker Compose maps to 8000 internally.
 
@@ -95,11 +113,20 @@ Client → FastAPI (api/main.py)
 ANTHROPIC_API_KEY=sk-ant-...    # Required - Claude AI for document analysis
 ```
 
-Key optional vars: `DEBUG` (false), `API_PORT` (8000), `DATABASE_URL` (sqlite default), `STORAGE_BACKEND` (local/s3/render_disk), `MULTI_TENANT_ENABLED` (false), `JWT_SECRET_KEY`, `SCANNER_API_ENABLED` (true). Full list in `asr-systems/.env.example`.
+Key optional vars: `DEBUG` (false), `API_PORT` (8000), `DATABASE_URL` (sqlite default), `STORAGE_BACKEND` (local/s3), `MULTI_TENANT_ENABLED` (false), `JWT_SECRET_KEY` (required for Docker), `SCANNER_API_ENABLED` (true). Full list in `asr-systems/.env.example`.
 
 ## Dependencies
 
-Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uvicorn, anthropic, pydantic + pydantic-settings, SQLAlchemy, PyPDF2, pdfplumber, Pillow, structlog, python-jose. Dev: pytest, pytest-asyncio, black, isort, mypy.
+Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uvicorn, anthropic, pydantic + pydantic-settings, SQLAlchemy, PyPDF2, pdfplumber, Pillow, structlog, python-jose, aiofiles, boto3. Dev: pytest, pytest-asyncio, pytest-cov, black, isort, mypy, bandit, pip-audit.
+
+## CI Pipeline
+
+CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
+- **Lint**: black, isort
+- **Type check**: mypy (continue-on-error due to hyphenated directory)
+- **Security**: bandit (advisory), pip-audit (advisory)
+- **Tests**: pytest with coverage on Python 3.11 + 3.12 (83 tests)
+- **Docker**: builds backend image after tests pass
 
 ## Deployment Status
 
@@ -109,4 +136,5 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 | Windows EXE | Working | `802008f` |
 | Docker | Working | `a0d36e9` |
 | AWS ECS | Working | `b351af7` |
-| Docs Update | Working | `d2a5115` |
+| CI Pipeline | Green | `ff81cad` |
+| System Review | Complete | `a35dfb5` |
