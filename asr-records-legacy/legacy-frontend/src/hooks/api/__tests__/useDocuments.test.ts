@@ -86,7 +86,7 @@ describe('useDocuments hooks', () => {
   });
 
   it('useDocuments passes filters to API', async () => {
-    const filters = { vendor: 'Staples', limit: 10, offset: 0 };
+    const filters = { vendor: 'Staples', limit: 50, offset: 0 };
     const mockDocs = [{ id: 'doc-001', filename: 'invoice-001.pdf' }];
     vi.mocked(documentsAPI.list).mockResolvedValue(mockDocs as any);
 

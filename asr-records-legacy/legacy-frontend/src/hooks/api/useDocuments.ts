@@ -4,11 +4,17 @@ import { invalidateQueries } from '@/services/api/client';
 import type { DocumentFilters } from '@/types/api';
 import toast from 'react-hot-toast';
 
-// List documents with filters
-export const useDocuments = (filters?: DocumentFilters) => {
+// List documents with filters and pagination
+export const useDocuments = (filters?: DocumentFilters, page: number = 1, pageSize: number = 50) => {
+  const paginatedFilters: DocumentFilters = {
+    ...filters,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+  };
+
   return useQuery({
-    queryKey: ['documents', filters],
-    queryFn: () => documentsAPI.list(filters),
+    queryKey: ['documents', filters, page, pageSize],
+    queryFn: () => documentsAPI.list(paginatedFilters),
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
   });

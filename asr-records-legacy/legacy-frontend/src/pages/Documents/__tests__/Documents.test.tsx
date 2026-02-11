@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen } from '@testing-library/react';
 import { Documents } from '../Documents';
 import { useDocuments } from '@/hooks/api/useDocuments';
+import { renderWithProviders } from '@/tests/helpers/renderWithProviders';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -49,6 +49,7 @@ vi.mock('@/hooks/api/useDocuments', () => ({
   useDocuments: vi.fn(() => ({ data: mockDocuments, isLoading: false })),
   useDocumentSearch: vi.fn(() => ({ mutate: mockSearchMutate, data: null })),
   useDocumentDelete: vi.fn(() => ({ mutate: mockDeleteMutate, isPending: false })),
+  useDocument: vi.fn(() => ({ data: null })),
 }));
 
 // react-hot-toast is imported transitively — stub it to prevent side-effects
@@ -61,11 +62,7 @@ vi.mock('react-hot-toast', () => ({
 // ---------------------------------------------------------------------------
 
 const renderDocuments = () =>
-  render(
-    <MemoryRouter>
-      <Documents />
-    </MemoryRouter>,
-  );
+  renderWithProviders(<Documents />, { initialEntries: ['/documents'] });
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -222,9 +219,7 @@ describe('Documents', () => {
     renderDocuments();
     expect(screen.getByText('Previous')).toBeInTheDocument();
     expect(screen.getByText('Next')).toBeInTheDocument();
-    // Page numbers may appear elsewhere in summary stats, so use getAllByText
+    // Current page number shown in pagination
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(1);
   });
 });

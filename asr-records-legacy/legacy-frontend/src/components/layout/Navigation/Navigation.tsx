@@ -9,6 +9,8 @@ import {
   Folder,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useDashboardMetrics } from '@/hooks/api/useDashboard';
+import { useSystemStatus } from '@/hooks/api/useSystemStatus';
 
 interface NavigationProps {
   className?: string;
@@ -59,6 +61,21 @@ const secondaryNavItems: NavItem[] = [
 ];
 
 export const Navigation: React.FC<NavigationProps> = ({ className }) => {
+  const { data: metrics, isLoading: metricsLoading, dataUpdatedAt } = useDashboardMetrics();
+  const { data: systemStatus } = useSystemStatus();
+
+  const isOnline = systemStatus?.status === 'operational';
+
+  const lastSyncLabel = React.useMemo(() => {
+    if (!dataUpdatedAt) return 'Not synced yet';
+    const seconds = Math.floor((Date.now() - dataUpdatedAt) / 1000);
+    if (seconds < 60) return 'Just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+  }, [dataUpdatedAt]);
+
   return (
     <nav
       className={clsx(
@@ -85,11 +102,15 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
       <div className="p-4 bg-gray-50 border-b border-gray-200">
         <div className="grid grid-cols-2 gap-3 text-center">
           <div className="bg-white rounded-lg p-3 shadow-soft">
-            <div className="text-lg font-semibold text-gray-900">1,234</div>
+            <div className="text-lg font-semibold text-gray-900">
+              {metricsLoading ? '--' : (metrics?.totalDocuments?.toLocaleString() ?? '0')}
+            </div>
             <div className="text-xs text-gray-500">Documents</div>
           </div>
           <div className="bg-white rounded-lg p-3 shadow-soft">
-            <div className="text-lg font-semibold text-green-600">94%</div>
+            <div className="text-lg font-semibold text-green-600">
+              {metricsLoading ? '--' : `${metrics?.classificationAccuracy ?? metrics?.paymentAccuracy ?? 0}%`}
+            </div>
             <div className="text-xs text-gray-500">Accuracy</div>
           </div>
         </div>
@@ -119,11 +140,11 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
       {/* Footer info */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center space-x-2 text-xs text-gray-500">
-          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-          <span>System Online</span>
+          <div className={clsx('h-2 w-2 rounded-full', isOnline ? 'bg-green-500' : 'bg-red-500')}></div>
+          <span>{isOnline ? 'System Online' : 'System Offline'}</span>
         </div>
         <div className="mt-1 text-xs text-gray-400">
-          Last sync: 2 minutes ago
+          Last sync: {lastSyncLabel}
         </div>
       </div>
     </nav>

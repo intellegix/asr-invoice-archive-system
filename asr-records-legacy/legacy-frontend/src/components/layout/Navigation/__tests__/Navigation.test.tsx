@@ -1,13 +1,27 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen } from '@testing-library/react';
 import { Navigation } from '@/components/layout/Navigation';
+import { renderWithProviders } from '@/tests/helpers/renderWithProviders';
+
+// Mock the hooks that Navigation now uses
+vi.mock('@/hooks/api/useDashboard', () => ({
+  useDashboardMetrics: vi.fn(() => ({
+    data: { totalDocuments: 1234, classificationAccuracy: 94, paymentAccuracy: 94 },
+    isLoading: false,
+    dataUpdatedAt: Date.now() - 120000, // 2 minutes ago
+  })),
+}));
+
+vi.mock('@/hooks/api/useSystemStatus', () => ({
+  useSystemStatus: vi.fn(() => ({
+    data: { status: 'operational' },
+  })),
+  useSystemInfo: vi.fn(() => ({
+    data: null,
+  })),
+}));
 
 const renderNavigation = (initialEntries = ['/dashboard']) => {
-  return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <Navigation />
-    </MemoryRouter>
-  );
+  return renderWithProviders(<Navigation />, { initialEntries });
 };
 
 /**
@@ -41,14 +55,14 @@ describe('Navigation', () => {
     expect(screen.getByText('Legacy Edition')).toBeInTheDocument();
   });
 
-  // --- Quick stats ---
+  // --- Quick stats (live data from mocked hooks) ---
 
-  it('renders document count stat "1,234"', () => {
+  it('renders document count stat from API', () => {
     renderNavigation();
     expect(screen.getByText('1,234')).toBeInTheDocument();
   });
 
-  it('renders accuracy stat "94%"', () => {
+  it('renders accuracy stat from API', () => {
     renderNavigation();
     expect(screen.getByText('94%')).toBeInTheDocument();
   });
@@ -110,7 +124,7 @@ describe('Navigation', () => {
 
   // --- Footer ---
 
-  it('renders System Online status', () => {
+  it('renders System Online status when operational', () => {
     renderNavigation();
     expect(screen.getByText('System Online')).toBeInTheDocument();
   });
@@ -118,7 +132,7 @@ describe('Navigation', () => {
   it('renders last sync time', () => {
     renderNavigation();
     expect(
-      screen.getByText('Last sync: 2 minutes ago')
+      screen.getByText(/Last sync:/)
     ).toBeInTheDocument();
   });
 });

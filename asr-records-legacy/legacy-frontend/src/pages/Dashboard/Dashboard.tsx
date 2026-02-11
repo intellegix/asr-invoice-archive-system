@@ -71,7 +71,7 @@ export const Dashboard: React.FC = () => {
           value={`$${((metrics?.totalAmountProcessed || 0) / 1000000).toFixed(1)}M`}
           subtitle="Lifetime processing value"
           icon={DollarSign}
-          trend={{ value: 8.3, direction: 'up', period: 'vs last month', isPositive: true }}
+          trend={undefined}
           color="purple"
         />
 

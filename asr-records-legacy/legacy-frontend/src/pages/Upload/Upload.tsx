@@ -2,9 +2,20 @@ import React, { useCallback } from 'react';
 import { Upload as UploadIcon, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useFileUpload } from '@/hooks/upload/useFileUpload';
+import { useSystemStatus, useSystemInfo } from '@/hooks/api/useSystemStatus';
+import { useDashboardMetrics } from '@/hooks/api/useDashboard';
 
 export const Upload: React.FC = () => {
   const { uploads, uploadFile, uploadMultipleFiles, clearCompleted, stats } = useFileUpload();
+  const { data: systemStatus } = useSystemStatus();
+  const { data: systemInfo } = useSystemInfo();
+  const { data: metrics } = useDashboardMetrics();
+
+  const glAccountCount = systemInfo?.capabilities?.gl_accounts?.total ?? 79;
+  const isOnline = systemStatus?.status === 'operational';
+  const accuracy = metrics?.classificationAccuracy ?? metrics?.paymentAccuracy ?? 0;
+  const manualReviewRate = metrics?.manualReviewRate ?? 0;
+  const avgProcessingTime = metrics?.averageProcessingTime;
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 1) {
@@ -161,7 +172,7 @@ export const Upload: React.FC = () => {
         <div className="card text-center">
           <FileText className="mx-auto h-8 w-8 text-primary-600 mb-3" />
           <h3 className="font-semibold text-gray-900 mb-2">
-            40+ GL Account Classifications
+            {glAccountCount} GL Account Classifications
           </h3>
           <p className="text-sm text-gray-600">
             Automated mapping to QuickBooks accounts with keyword matching and machine learning.
@@ -198,19 +209,23 @@ export const Upload: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">Online</div>
+            <div className={`text-2xl font-bold ${isOnline ? 'text-green-600' : 'text-red-600'}`}>
+              {isOnline ? 'Online' : 'Offline'}
+            </div>
             <div className="text-sm text-gray-500">Processing System</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">2.3s</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {avgProcessingTime != null ? `${avgProcessingTime.toFixed(1)}s` : '--'}
+            </div>
             <div className="text-sm text-gray-500">Average Processing</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">94%</div>
+            <div className="text-2xl font-bold text-purple-600">{accuracy}%</div>
             <div className="text-sm text-gray-500">Classification Accuracy</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-yellow-600">6%</div>
+            <div className="text-2xl font-bold text-yellow-600">{manualReviewRate}%</div>
             <div className="text-sm text-gray-500">Manual Review Rate</div>
           </div>
         </div>

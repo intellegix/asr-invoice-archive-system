@@ -1,16 +1,20 @@
 import React from 'react';
 import { Bell, User, Settings } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import { useUserInfo, useTenantId } from '@/stores/auth';
 
 interface HeaderProps {
   className?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ className }) => {
+  const userInfo = useUserInfo();
+  const tenantId = useTenantId();
+
   const currentUser = {
-    name: 'John Doe',
-    email: 'john.doe@asr-records.com',
-    tenant: 'ASR Construction',
+    name: userInfo?.name || 'Guest',
+    email: userInfo?.email || '',
+    tenant: tenantId || 'Default Tenant',
   };
 
   return (

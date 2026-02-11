@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen } from '@testing-library/react';
 import { Upload } from '../Upload';
 import { useFileUpload } from '@/hooks/upload/useFileUpload';
+import { renderWithProviders } from '@/tests/helpers/renderWithProviders';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -34,16 +34,39 @@ vi.mock('react-dropzone', () => ({
   })),
 }));
 
+// Mock the new hooks used by Upload
+vi.mock('@/hooks/api/useSystemStatus', () => ({
+  useSystemStatus: vi.fn(() => ({
+    data: { status: 'operational' },
+  })),
+  useSystemInfo: vi.fn(() => ({
+    data: {
+      capabilities: {
+        gl_accounts: { total: 79, enabled: true },
+        payment_detection: { methods: 5, consensus_enabled: true },
+        billing_router: { destinations: 4, audit_trails: true },
+      },
+    },
+  })),
+}));
+
+vi.mock('@/hooks/api/useDashboard', () => ({
+  useDashboardMetrics: vi.fn(() => ({
+    data: {
+      classificationAccuracy: 94,
+      paymentAccuracy: 94,
+      manualReviewRate: 6,
+      averageProcessingTime: 2.3,
+    },
+  })),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const renderUpload = () =>
-  render(
-    <MemoryRouter>
-      <Upload />
-    </MemoryRouter>,
-  );
+  renderWithProviders(<Upload />, { initialEntries: ['/upload'] });
 
 const setupWithUploads = (overrides: Partial<ReturnType<typeof useFileUpload>> = {}) => {
   (useFileUpload as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -206,9 +229,9 @@ describe('Upload', () => {
 
   // --- Processing feature cards ---
 
-  it('renders 40+ GL Account Classifications card', () => {
+  it('renders GL Account Classifications card with live count', () => {
     renderUpload();
-    expect(screen.getByText('40+ GL Account Classifications')).toBeInTheDocument();
+    expect(screen.getByText('79 GL Account Classifications')).toBeInTheDocument();
   });
 
   it('renders 5-Method Payment Detection card', () => {
@@ -229,7 +252,7 @@ describe('Upload', () => {
     expect(screen.getByText('Online')).toBeInTheDocument();
   });
 
-  it('renders system stats (2.3s, 94%, 6%)', () => {
+  it('renders system stats from API (2.3s, 94%, 6%)', () => {
     renderUpload();
     expect(screen.getByText('2.3s')).toBeInTheDocument();
     expect(screen.getByText('94%')).toBeInTheDocument();

@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
 import { Search, Filter, Download, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import { useDocuments, useDocumentSearch, useDocumentDelete } from '@/hooks/api/useDocuments';
+import { useDocuments, useDocumentSearch, useDocumentDelete, useDocument } from '@/hooks/api/useDocuments';
+import { useDocumentView } from '@/stores/documents';
+import { FilterPanel } from '@/components/documents/FilterPanel';
+import { DocumentDetailModal } from '@/components/documents/DocumentDetailModal';
+import { exportDocumentsCsv } from '@/utils/exportCsv';
 import type { DocumentFilters } from '@/types/api';
 
 export const Documents: React.FC = () => {
-  const [filters] = useState<DocumentFilters>({});
+  const [filters, setFilters] = useState<DocumentFilters>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string>('all');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [viewingDocumentId, setViewingDocumentId] = useState<string | null>(null);
+  const { currentPage, pageSize, setCurrentPage, setPageSize } = useDocumentView();
 
   // Real API calls - preserves all backend sophistication
-  const { data: documents = [], isLoading } = useDocuments(filters);
+  const { data: documents = [], isLoading } = useDocuments(filters, currentPage, pageSize);
   const searchMutation = useDocumentSearch();
   const deleteMutation = useDocumentDelete();
+  const { data: viewingDocument } = useDocument(viewingDocumentId || '');
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -187,7 +196,14 @@ export const Documents: React.FC = () => {
               </td>
               <td>
                 <div className="flex space-x-1">
-                  <Button variant="ghost" size="sm">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewingDocumentId(doc.id);
+                    }}
+                  >
                     View
                   </Button>
                   <Button
@@ -235,27 +251,93 @@ export const Documents: React.FC = () => {
 
           {/* Filter buttons */}
           <div className="flex gap-2">
-            <Button variant="outline" leftIcon={<Filter className="h-4 w-4" />}>
+            <Button
+              variant="outline"
+              leftIcon={<Filter className="h-4 w-4" />}
+              onClick={() => setShowFilterPanel(!showFilterPanel)}
+            >
               Filters
             </Button>
-            <Button variant="outline" leftIcon={<Download className="h-4 w-4" />}>
+            <Button
+              variant="outline"
+              leftIcon={<Download className="h-4 w-4" />}
+              onClick={() => exportDocumentsCsv(displayedDocuments)}
+              disabled={displayedDocuments.length === 0}
+            >
               Export
             </Button>
           </div>
         </div>
 
+        {/* Filter Panel */}
+        {showFilterPanel && (
+          <FilterPanel
+            currentFilters={filters}
+            onApply={(newFilters) => {
+              setFilters(newFilters);
+              setActiveQuickFilter('all');
+              setCurrentPage(1);
+            }}
+            onClose={() => setShowFilterPanel(false)}
+          />
+        )}
+
         {/* Quick filters */}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button className="px-3 py-1 text-sm bg-primary-100 text-primary-700 rounded-full">
+          <button
+            className={`px-3 py-1 text-sm rounded-full ${
+              activeQuickFilter === 'all'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            onClick={() => {
+              setActiveQuickFilter('all');
+              setFilters({});
+              setCurrentPage(1);
+            }}
+          >
             All Documents ({displayedDocuments.length})
           </button>
-          <button className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200">
+          <button
+            className={`px-3 py-1 text-sm rounded-full ${
+              activeQuickFilter === 'review'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            onClick={() => {
+              setActiveQuickFilter('review');
+              setFilters({ confidence_threshold: 0.7 });
+              setCurrentPage(1);
+            }}
+          >
             Manual Review ({displayedDocuments.filter((doc: any) => doc.status === 'manual_review').length})
           </button>
-          <button className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200">
+          <button
+            className={`px-3 py-1 text-sm rounded-full ${
+              activeQuickFilter === 'unpaid'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            onClick={() => {
+              setActiveQuickFilter('unpaid');
+              setFilters({ payment_status: ['unpaid'] });
+              setCurrentPage(1);
+            }}
+          >
             Unpaid ({displayedDocuments.filter((doc: any) => doc.classification?.payment_status === 'unpaid').length})
           </button>
-          <button className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200">
+          <button
+            className={`px-3 py-1 text-sm rounded-full ${
+              activeQuickFilter === 'highvalue'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            onClick={() => {
+              setActiveQuickFilter('highvalue');
+              setFilters({ amount_range: { min: 10000, max: Number.MAX_SAFE_INTEGER } });
+              setCurrentPage(1);
+            }}
+          >
             High Value ($10K+) ({displayedDocuments.filter((doc: any) => (doc.classification?.amount || 0) > 10000).length})
           </button>
         </div>
@@ -271,24 +353,39 @@ export const Documents: React.FC = () => {
         {displayedDocuments.length > 0 && (
           <div className="border-t border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                Showing {displayedDocuments.length} documents
-                {searchQuery && searchMutation.data?.total && ` of ${searchMutation.data.total} total`}
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-500">
+                  Showing {((currentPage - 1) * pageSize) + 1}-{((currentPage - 1) * pageSize) + displayedDocuments.length} documents
+                  {searchQuery && searchMutation.data?.total && ` of ${searchMutation.data.total} total`}
+                </span>
+                <select
+                  className="text-sm border border-gray-200 rounded-md px-2 py-1"
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                >
+                  <option value={25}>25/page</option>
+                  <option value={50}>50/page</option>
+                  <option value={100}>100/page</option>
+                </select>
               </div>
               <div className="flex space-x-1">
-                <Button variant="outline" size="sm" disabled>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(currentPage - 1)}
+                >
                   Previous
                 </Button>
                 <Button variant="outline" size="sm" className="bg-primary-50 text-primary-600">
-                  1
+                  {currentPage}
                 </Button>
-                <Button variant="outline" size="sm">
-                  2
-                </Button>
-                <Button variant="outline" size="sm">
-                  3
-                </Button>
-                <Button variant="outline" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={displayedDocuments.length < pageSize}
+                  onClick={() => setCurrentPage(currentPage + 1)}
+                >
                   Next
                 </Button>
               </div>
@@ -341,6 +438,14 @@ export const Documents: React.FC = () => {
           <div className="text-sm text-gray-500">GL Accounts in Use</div>
         </div>
       </div>
+
+      {/* Document Detail Modal */}
+      {viewingDocumentId && viewingDocument && (
+        <DocumentDetailModal
+          document={viewingDocument}
+          onClose={() => setViewingDocumentId(null)}
+        />
+      )}
     </div>
   );
 };

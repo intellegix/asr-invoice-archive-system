@@ -1,6 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { Header } from '@/components/layout/Header';
 
+// Mock the auth store hooks
+vi.mock('@/stores/auth', () => ({
+  useUserInfo: vi.fn(() => ({
+    id: '1',
+    name: 'John Doe',
+    email: 'john.doe@asr-records.com',
+    role: 'admin',
+  })),
+  useTenantId: vi.fn(() => 'ASR Construction'),
+}));
+
 describe('Header', () => {
   it('renders the header element', () => {
     render(<Header />);
