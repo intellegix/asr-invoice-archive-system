@@ -179,4 +179,4 @@ CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 | AWS ECS | Working | `b351af7` |
 | CI Pipeline | Green | `ff81cad` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 510 tests | `8f6ad11` |
+| Full-Stack Tests | 510 tests | `eaa9785` |
