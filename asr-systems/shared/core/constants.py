@@ -100,6 +100,16 @@ GL_ACCOUNT_CATEGORIES = {
         "description": "Expense accounts",
         "codes": [
             "5000",
+            "5010",
+            "5020",
+            "5030",
+            "5040",
+            "5050",
+            "5060",
+            "5070",
+            "5080",
+            "5090",
+            "5095",
             "5100",
             "5200",
             "5300",
@@ -334,11 +344,61 @@ GL_ACCOUNTS = {
         "category": "REVENUE",
         "keywords": ["return", "allowance"],
     },
-    # Expense Accounts (5000-7800) - 29 accounts
+    # Expense Accounts (5000-7800) - 39 accounts
     "5000": {
         "name": "Cost of Goods Sold",
         "category": "EXPENSES",
         "keywords": ["cogs", "cost of goods", "materials"],
+    },
+    "5010": {
+        "name": "Payroll Taxes",
+        "category": "EXPENSES",
+        "keywords": ["payroll tax", "fica", "medicare", "social security", "futa", "suta"],
+    },
+    "5020": {
+        "name": "Employee Benefits",
+        "category": "EXPENSES",
+        "keywords": ["benefits", "health plan", "dental", "vision", "employee benefit"],
+    },
+    "5030": {
+        "name": "Workers Compensation",
+        "category": "EXPENSES",
+        "keywords": ["workers comp", "workers compensation", "work comp", "wc premium"],
+    },
+    "5040": {
+        "name": "Retirement Contributions",
+        "category": "EXPENSES",
+        "keywords": ["401k", "retirement", "pension", "ira", "sep"],
+    },
+    "5050": {
+        "name": "Uniforms & Safety",
+        "category": "EXPENSES",
+        "keywords": ["uniform", "safety", "ppe", "hard hat", "work boots"],
+    },
+    "5060": {
+        "name": "Cleaning & Janitorial",
+        "category": "EXPENSES",
+        "keywords": ["cleaning", "janitorial", "custodial", "sanitation"],
+    },
+    "5070": {
+        "name": "Security",
+        "category": "EXPENSES",
+        "keywords": ["security", "alarm", "surveillance", "guard"],
+    },
+    "5080": {
+        "name": "Dues & Subscriptions",
+        "category": "EXPENSES",
+        "keywords": ["dues", "subscription", "membership", "association"],
+    },
+    "5090": {
+        "name": "Printing & Reproduction",
+        "category": "EXPENSES",
+        "keywords": ["printing", "copies", "reproduction", "print shop"],
+    },
+    "5095": {
+        "name": "Permits & Inspections",
+        "category": "EXPENSES",
+        "keywords": ["permit fee", "inspection", "building permit", "compliance"],
     },
     "5100": {
         "name": "Advertising",

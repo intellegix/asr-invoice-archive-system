@@ -254,12 +254,12 @@ class GLAccountService:
         # Define vendor to GL account mappings
         vendor_mappings = {
             # Materials/Supplies
-            "home depot": "5010",
-            "lowes": "5010",
-            "lowe's": "5010",
-            "abc supply": "5010",
-            "beacon": "5010",
-            "ferguson": "5010",
+            "home depot": "5000",
+            "lowes": "5000",
+            "lowe's": "5000",
+            "abc supply": "5000",
+            "beacon": "5000",
+            "ferguson": "5000",
             # Utilities
             "sdge": "6600",
             "san diego gas": "6600",

@@ -4,7 +4,7 @@
 
 The ASR Invoice Archive System separation project successfully transforms a monolithic document processing system into two specialized, production-ready applications:
 
-1. **ASR Production Server** - Enterprise document processing server with 69 QuickBooks GL accounts, 5-method payment detection, and 4 billing destinations
+1. **ASR Production Server** - Enterprise document processing server with 79 QuickBooks GL accounts, 5-method payment detection, and 4 billing destinations
 2. **ASR Document Scanner** - Desktop application for workplace document scanning with offline capabilities
 
 ## 📁 Project Structure
@@ -60,7 +60,7 @@ asr-systems/
 - `production-server/main_server.py` - Server launcher with async event loop
 - `production-server/api/main.py` - FastAPI application with scanner endpoints
 - `production-server/services/` - All business logic services preserved:
-  - `gl_account_service.py` - 69 QuickBooks GL accounts with keyword matching
+  - `gl_account_service.py` - 79 QuickBooks GL accounts with keyword matching
   - `payment_detection_service.py` - 5-method payment consensus
   - `billing_router_service.py` - 4 billing destinations with audit trails
   - `document_processor_service.py` - Complete processing pipeline
@@ -104,7 +104,7 @@ asr-systems/
 **Deliverables**:
 
 #### Testing Infrastructure
-- `tests/test_gl_account_service.py` - Unit tests for all 69 GL accounts
+- `tests/test_gl_account_service.py` - Unit tests for all 79 GL accounts
 - `tests/load_test.py` - Concurrent load testing (50+ simultaneous requests)
 - `integration_test.py` - End-to-end system validation
 - `performance_validation.py` - Comprehensive performance benchmarking
@@ -122,7 +122,7 @@ asr-systems/
 ## 🏆 Preserved Capabilities
 
 ### 📊 Enterprise Document Processing (Production Server)
-- **69 QuickBooks GL Accounts** with sophisticated keyword matching and expense categorization
+- **79 QuickBooks GL Accounts** with sophisticated keyword matching and expense categorization
 - **5-Method Payment Detection** using Claude Vision, Claude Text, Regex, Keywords, and Amount Analysis
 - **4 Billing Destinations** (Open/Closed Payable/Receivable) with enhanced routing logic
 - **Complete Audit Trails** tracking all routing decisions with timestamps and confidence scores
@@ -248,7 +248,7 @@ install_complete.bat
 
 ### Unit Tests
 ```bash
-# Test GL account service (69 accounts)
+# Test GL account service (79 accounts)
 python -m pytest tests/test_gl_account_service.py -v
 
 # Run integration tests
@@ -271,7 +271,7 @@ python system_verification.py
 
 # Validates:
 # - Project structure completeness
-# - Backend capabilities (69 GL accounts, 5 methods, 4 destinations)
+# - Backend capabilities (79 GL accounts, 5 methods, 4 destinations)
 # - Build environment
 # - API integration
 # - Configuration completeness
@@ -283,7 +283,7 @@ python system_verification.py
 - **Startup Time**: <30 seconds with database initialization
 - **Document Processing**: <10 seconds average for typical invoice
 - **Concurrent Uploads**: 50+ simultaneous scanner connections
-- **GL Classification**: <1 second for 69 account keyword matching
+- **GL Classification**: <1 second for 79 account keyword matching
 - **Payment Detection**: <5 seconds for 5-method consensus
 - **Database Performance**: <100ms average query response
 
@@ -335,7 +335,7 @@ Both applications use sophisticated PyInstaller specifications:
 - **Preserved Intelligence**: All existing classification and routing sophistication maintained
 
 ### Enterprise Capabilities
-- **Complete Feature Preservation**: 69 GL accounts, 5-method payment detection, audit trails
+- **Complete Feature Preservation**: 79 GL accounts, 5-method payment detection, audit trails
 - **Scalable Architecture**: Production server supports multiple scanner clients
 - **Multi-tenant Ready**: Foundation for SaaS deployment with client isolation
 - **API Integration**: RESTful API with automatic documentation and validation
@@ -396,7 +396,7 @@ Both applications use sophisticated PyInstaller specifications:
 **Documentation**: Comprehensive guides, API docs, and troubleshooting resources
 
 **Key Success Metrics**:
-- ✅ All 69 GL accounts and 5-method payment detection preserved
+- ✅ All 79 GL accounts and 5-method payment detection preserved
 - ✅ Both applications build successfully to standalone executables
 - ✅ Complete system passes comprehensive verification tests
 - ✅ Performance meets enterprise requirements (50+ concurrent users)

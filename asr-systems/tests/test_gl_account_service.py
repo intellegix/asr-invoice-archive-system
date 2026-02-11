@@ -1,6 +1,6 @@
 """
 Unit Tests for GL Account Service
-Comprehensive testing of 69 QuickBooks GL accounts and classification methods
+Comprehensive testing of 79 QuickBooks GL accounts and classification methods
 """
 
 import asyncio
@@ -31,7 +31,7 @@ class TestGLAccountService:
     async def test_service_initialization(self, gl_service):
         """Test GL Account Service initialization"""
         assert gl_service.initialized is True
-        assert len(gl_service.gl_accounts) == 69
+        assert len(gl_service.gl_accounts) == 79
         assert len(gl_service.keyword_index) > 0
         assert len(gl_service.category_index) == 5
 
@@ -39,7 +39,7 @@ class TestGLAccountService:
     async def test_all_79_accounts_loaded(self, gl_service):
         """Test that all 79 GL accounts are properly loaded"""
         accounts = gl_service.get_all_accounts()
-        assert len(accounts) == 69
+        assert len(accounts) == 79
 
         # Verify account structure
         for account in accounts:
@@ -59,7 +59,7 @@ class TestGLAccountService:
 
         assert result.gl_account_code == "5000"
         assert result.confidence > 0.8
-        assert result.classification_method == "pattern_matching"
+        assert result.classification_method == "vendor_mapping"
 
     @pytest.mark.asyncio
     async def test_keyword_classification(self, gl_service):

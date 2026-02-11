@@ -1,6 +1,6 @@
 # ASR Invoice Archive System - Deployment Guide
 
-Enterprise document processing system with 69 GL accounts, 5-method payment detection, and 4 billing destinations.
+Enterprise document processing system with 79 GL accounts, 5-method payment detection, and 4 billing destinations.
 
 ## Table of Contents
 
@@ -512,7 +512,7 @@ curl http://localhost:8000/api/v1/gl-accounts | jq '. | length'
 
 ## System Capabilities
 
-- **69 QuickBooks GL Accounts** - Automated classification
+- **79 QuickBooks GL Accounts** - Automated classification
 - **5-Method Payment Detection** - Claude AI, Regex, Keywords, Amount, OCR
 - **4 Billing Destinations** - Open/Closed Payable/Receivable routing
 - **Multi-Tenant Architecture** - Document isolation per tenant
