@@ -1,8 +1,10 @@
 """
 Tests for YAML configuration loading (GL accounts and routing rules).
-Covers: valid parse, missing file fallback, schema validation errors.
+Covers: valid parse, missing file fallback, schema validation errors,
+and Pydantic v2 deprecation-free settings.
 """
 
+import warnings
 from pathlib import Path
 
 import pytest
@@ -131,3 +133,56 @@ class TestRoutingRulesYAML:
         )
         await svc.initialize()
         assert len(svc.get_available_destinations()) == 4
+
+
+# =========================================================================
+# Pydantic v2 settings deprecation tests
+# =========================================================================
+
+
+class TestPydanticV2Settings:
+    """Ensure ProductionSettings emits zero Pydantic deprecation warnings."""
+
+    def test_no_pydantic_deprecation_warnings(self) -> None:
+        """Instantiating ProductionSettings triggers no DeprecationWarning."""
+        from production_server.config.production_settings import ProductionSettings
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            ProductionSettings(
+                ANTHROPIC_API_KEY="test-key",
+                DEBUG=True,
+            )
+        pydantic_deprecations = [
+            w
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and "pydantic" in str(w.message).lower()
+        ]
+        assert pydantic_deprecations == [], (
+            f"Pydantic deprecation warnings: {[str(w.message) for w in pydantic_deprecations]}"
+        )
+
+    def test_render_alias_resolves(self) -> None:
+        """RENDER env var maps to RENDER_DEPLOYMENT_MODE field."""
+        import os
+
+        from production_server.config.production_settings import ProductionSettings
+
+        env_patch = {
+            "ANTHROPIC_API_KEY": "test-key",
+            "DEBUG": "true",
+            "RENDER": "true",
+            "DATABASE_URL": "postgresql://user:pass@localhost/db",
+        }
+        orig = {k: os.environ.get(k) for k in env_patch}
+        try:
+            os.environ.update(env_patch)
+            settings = ProductionSettings()
+            assert settings.RENDER_DEPLOYMENT_MODE is True
+        finally:
+            for k, v in orig.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v

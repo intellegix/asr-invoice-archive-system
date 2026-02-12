@@ -9,8 +9,8 @@ import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pydantic import Field, model_validator
-from pydantic_settings import BaseSettings
+from pydantic import AliasChoices, Field, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def _detect_git_commit() -> str:
@@ -36,7 +36,6 @@ class ProductionSettings(BaseSettings):
     VERSION: str = "2.0.0"
     GIT_COMMIT: str = Field(
         default_factory=_detect_git_commit,
-        env="GIT_COMMIT",
         description="Git commit hash (auto-detected or set via env)",
     )
     DESCRIPTION: str = (
@@ -48,111 +47,91 @@ class ProductionSettings(BaseSettings):
     BASE_DIR: Path = Path(__file__).parent.parent
 
     # Environment Detection
-    DEBUG: bool = Field(
-        default=False, env="DEBUG", description="Debug mode (false for production)"
-    )
+    DEBUG: bool = Field(default=False, description="Debug mode (false for production)")
 
     AWS_DEPLOYMENT_MODE: bool = Field(
         default=False,
-        env="AWS_DEPLOYMENT_MODE",
         description="Running in AWS ECS/Fargate environment",
     )
 
     RENDER_DEPLOYMENT_MODE: bool = Field(
-        default=False, env="RENDER", description="Running in Render.com environment"
+        default=False,
+        validation_alias=AliasChoices("RENDER_DEPLOYMENT_MODE", "RENDER"),
+        description="Running in Render.com environment",
     )
 
     # Database Configuration
     DATABASE_URL: str = Field(
         default="sqlite:///./data/production_server.db",
-        env="DATABASE_URL",
         description="Database connection string",
     )
 
-    DB_POOL_SIZE: int = Field(
-        default=20, env="DB_POOL_SIZE", description="Database connection pool size"
-    )
+    DB_POOL_SIZE: int = Field(default=20, description="Database connection pool size")
 
     DB_POOL_OVERFLOW: int = Field(
         default=30,
-        env="DB_POOL_OVERFLOW",
         description="Database pool overflow connections",
     )
 
     DB_POOL_RECYCLE: int = Field(
         default=3600,
-        env="DB_POOL_RECYCLE",
         description="Database connection recycle time (seconds)",
     )
 
     # API Configuration
     API_HOST: str = Field(
         default="127.0.0.1",
-        env="API_HOST",
         description="API host binding (0.0.0.0 for production)",
     )
 
-    API_PORT: int = Field(default=8000, env="API_PORT", description="API port")
+    API_PORT: int = Field(default=8000, description="API port")
 
-    API_WORKERS: int = Field(
-        default=4, env="API_WORKERS", description="Number of API worker processes"
-    )
+    API_WORKERS: int = Field(default=4, description="Number of API worker processes")
 
-    API_TIMEOUT: int = Field(
-        default=60, env="API_TIMEOUT", description="API timeout in seconds"
-    )
+    API_TIMEOUT: int = Field(default=60, description="API timeout in seconds")
 
     # Claude AI Configuration
     ANTHROPIC_API_KEY: Optional[str] = Field(
         default=None,
-        env="ANTHROPIC_API_KEY",
         description="Anthropic API key for Claude AI integration",
     )
 
     CLAUDE_MODEL: str = Field(
         default="claude-sonnet-4-5-20250929",
-        env="CLAUDE_MODEL",
         description="Claude model for document analysis (e.g. claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001)",
     )
 
     CLAUDE_MAX_TOKENS: int = Field(
         default=4096,
-        env="CLAUDE_MAX_TOKENS",
         description="Maximum tokens for Claude responses",
     )
 
     CLAUDE_TEMPERATURE: float = Field(
         default=0.1,
-        env="CLAUDE_TEMPERATURE",
         description="Claude temperature for consistency",
     )
 
     # Storage Configuration
     STORAGE_BACKEND: str = Field(
         default="local",
-        env="STORAGE_BACKEND",
         description="Storage backend type (local, s3, render_disk)",
     )
 
     # S3 Configuration (for AWS deployment)
     S3_BUCKET: Optional[str] = Field(
-        default=None, env="S3_BUCKET", description="S3 bucket name for document storage"
+        default=None, description="S3 bucket name for document storage"
     )
 
-    S3_REGION: str = Field(
-        default="us-west-2", env="S3_REGION", description="S3 region"
-    )
+    S3_REGION: str = Field(default="us-west-2", description="S3 region")
 
     S3_PREFIX: str = Field(
         default="production-server",
-        env="S3_PREFIX",
         description="S3 prefix for document organization",
     )
 
     # Render Disk Configuration
     RENDER_DISK_MOUNT: str = Field(
         default="/data",
-        env="RENDER_DISK_MOUNT",
         description="Render persistent disk mount path",
     )
 
@@ -162,83 +141,70 @@ class ProductionSettings(BaseSettings):
     # Multi-Tenant Configuration
     MULTI_TENANT_ENABLED: bool = Field(
         default=True,
-        env="MULTI_TENANT_ENABLED",
         description="Enable multi-tenant document isolation",
     )
 
     DEFAULT_TENANT_ID: str = Field(
         default="default",
-        env="DEFAULT_TENANT_ID",
         description="Default tenant ID for single-tenant mode",
     )
 
     TENANT_ISOLATION_ENABLED: bool = Field(
         default=True,
-        env="TENANT_ISOLATION_ENABLED",
         description="Enable strict tenant data isolation",
     )
 
     # Scanner API Configuration
     SCANNER_API_ENABLED: bool = Field(
         default=True,
-        env="SCANNER_API_ENABLED",
         description="Enable API endpoints for document scanners",
     )
 
     MAX_SCANNER_CLIENTS: int = Field(
         default=100,
-        env="MAX_SCANNER_CLIENTS",
         description="Maximum concurrent scanner clients",
     )
 
     SCANNER_AUTHENTICATION_REQUIRED: bool = Field(
         default=True,
-        env="SCANNER_AUTHENTICATION_REQUIRED",
         description="Require API key authentication for scanners",
     )
 
     # Document Processing Configuration
     MAX_FILE_SIZE_MB: int = Field(
         default=25,
-        env="MAX_FILE_SIZE_MB",
         description="Maximum file size for uploads in MB",
     )
 
     MAX_BATCH_SIZE: int = Field(
         default=50,
-        env="MAX_BATCH_SIZE",
         description="Maximum batch size for processing",
     )
 
     PROCESSING_TIMEOUT: int = Field(
         default=300,
-        env="PROCESSING_TIMEOUT",
         description="Document processing timeout in seconds",
     )
 
     # GL Account Configuration (79 QuickBooks accounts)
     GL_ACCOUNTS_CONFIG_PATH: str = Field(
         default="config/gl_accounts.yaml",
-        env="GL_ACCOUNTS_CONFIG_PATH",
         description="Path to GL accounts YAML config (relative to asr-systems/)",
     )
 
     GL_ACCOUNTS_ENABLED: bool = Field(
         default=True,
-        env="GL_ACCOUNTS_ENABLED",
         description="Enable GL account classification",
     )
 
     GL_CLASSIFICATION_CONFIDENCE_THRESHOLD: float = Field(
         default=0.7,
-        env="GL_CLASSIFICATION_CONFIDENCE_THRESHOLD",
         description="Minimum confidence for GL classification",
     )
 
     # Payment Detection Configuration (5-method consensus)
     PAYMENT_DETECTION_ENABLED: bool = Field(
         default=True,
-        env="PAYMENT_DETECTION_ENABLED",
         description="Enable payment status detection",
     )
 
@@ -250,26 +216,22 @@ class ProductionSettings(BaseSettings):
             "keyword_matching",
             "amount_analysis",
         ],
-        env="PAYMENT_DETECTION_METHODS",
         description="Enabled payment detection methods",
     )
 
     PAYMENT_CONSENSUS_THRESHOLD: float = Field(
         default=0.8,
-        env="PAYMENT_CONSENSUS_THRESHOLD",
         description="Minimum consensus confidence for payment detection",
     )
 
     # Billing Router Configuration (4 destinations)
     ROUTING_RULES_CONFIG_PATH: str = Field(
         default="config/routing_rules.yaml",
-        env="ROUTING_RULES_CONFIG_PATH",
         description="Path to routing rules YAML config (relative to asr-systems/)",
     )
 
     BILLING_ROUTER_ENABLED: bool = Field(
         default=True,
-        env="BILLING_ROUTER_ENABLED",
         description="Enable billing destination routing",
     )
 
@@ -280,132 +242,111 @@ class ProductionSettings(BaseSettings):
             "open_receivable",
             "closed_receivable",
         ],
-        env="BILLING_DESTINATIONS",
         description="Enabled billing destinations",
     )
 
     ROUTING_CONFIDENCE_THRESHOLD: float = Field(
         default=0.75,
-        env="ROUTING_CONFIDENCE_THRESHOLD",
         description="Minimum confidence for routing decisions",
     )
 
     MANUAL_REVIEW_THRESHOLD: float = Field(
         default=0.7,
-        env="MANUAL_REVIEW_THRESHOLD",
         description="Confidence threshold below which manual review is required",
     )
 
     # Audit Trail Configuration
     AUDIT_TRAIL_ENABLED: bool = Field(
         default=True,
-        env="AUDIT_TRAIL_ENABLED",
         description="Enable comprehensive audit trails",
     )
 
     AUDIT_RETENTION_DAYS: int = Field(
         default=2555,  # 7 years
-        env="AUDIT_RETENTION_DAYS",
         description="Audit trail retention period in days",
     )
 
     # Background Processing Configuration
     BACKGROUND_PROCESSING_ENABLED: bool = Field(
         default=True,
-        env="BACKGROUND_PROCESSING_ENABLED",
         description="Enable background document processing",
     )
 
     BACKGROUND_WORKERS: int = Field(
         default=4,
-        env="BACKGROUND_WORKERS",
         description="Number of background processing workers",
     )
 
     # Logging Configuration
-    LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL", description="Logging level")
+    LOG_LEVEL: str = Field(default="INFO", description="Logging level")
 
     LOG_FORMAT: str = Field(
         default="text",
-        env="LOG_FORMAT",
         description="Log format: 'text' (human readable) or 'json' (structured)",
     )
 
-    LOG_TO_FILE: bool = Field(
-        default=True, env="LOG_TO_FILE", description="Enable file logging"
-    )
+    LOG_TO_FILE: bool = Field(default=True, description="Enable file logging")
 
     LOG_FILE_PATH: str = Field(
         default="./logs/production_server.log",
-        env="LOG_FILE_PATH",
         description="Log file path",
     )
 
     # Observability
     OTEL_ENABLED: bool = Field(
         default=False,
-        env="OTEL_ENABLED",
         description="Enable OpenTelemetry instrumentation",
     )
 
     ENABLE_DOCS: bool = Field(
         default=False,
-        env="ENABLE_DOCS",
         description="Enable OpenAPI docs (/docs, /redoc) independently of DEBUG",
     )
 
     # Security Configuration
     API_KEYS_REQUIRED: bool = Field(
         default=True,
-        env="API_KEYS_REQUIRED",
         description="Require API keys for authentication",
     )
 
     CORS_ALLOWED_ORIGINS: List[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"],
-        env="CORS_ALLOWED_ORIGINS",
         description="CORS allowed origins (comma-separated)",
     )
 
     RATE_LIMIT_ENABLED: bool = Field(
-        default=True, env="RATE_LIMIT_ENABLED", description="Enable API rate limiting"
+        default=True, description="Enable API rate limiting"
     )
 
     RATE_LIMIT_PER_MINUTE: int = Field(
         default=100,
-        env="RATE_LIMIT_PER_MINUTE",
         description="API requests per minute limit",
     )
 
     RATE_LIMIT_BACKEND: str = Field(
         default="memory",
-        env="RATE_LIMIT_BACKEND",
         description="Rate limit backend: 'memory' (default) or 'redis'",
     )
 
     REDIS_URL: Optional[str] = Field(
         default=None,
-        env="REDIS_URL",
         description="Redis connection URL (required when RATE_LIMIT_BACKEND=redis)",
     )
 
     # CSRF Protection
     CSRF_ENABLED: bool = Field(
         default=True,
-        env="CSRF_ENABLED",
         description="Enable CSRF double-submit cookie protection",
     )
 
     # Health Check Configuration
     HEALTH_CHECK_ENABLED: bool = Field(
         default=True,
-        env="HEALTH_CHECK_ENABLED",
         description="Enable health check endpoints",
     )
 
     HEALTH_CHECK_INTERVAL: int = Field(
         default=60,
-        env="HEALTH_CHECK_INTERVAL",
         description="Health check interval in seconds",
     )
 
@@ -565,11 +506,12 @@ class ProductionSettings(BaseSettings):
         if issues:
             raise ValueError(f"Configuration issues: {', '.join(issues)}")
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=True,
+    )
 
 
 # Global production settings instance
