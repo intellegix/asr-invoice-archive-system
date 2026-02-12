@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (174 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 174 tests
+# --- Backend (192 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 192 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -42,9 +42,9 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (366 vitest tests) ---
+# --- Frontend (371 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
-npm run test                                                  # All 366 tests
+npm run test                                                  # All 371 tests
 npx vitest run                                                # Single run (no watch)
 npx tsc --noEmit                                              # TypeScript type check
 
@@ -56,7 +56,7 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (174 tests)
+### Backend Test Files (192 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -64,6 +64,8 @@ npm run test:e2e:report                                       # View HTML report
 | `test_audit_trail_service.py` | 5 | Audit trail persistence |
 | `test_auth_endpoints.py` | 11 | /auth/login + /auth/me endpoints |
 | `test_billing_router_service.py` | 12 | Routing logic + destinations |
+| `test_config_loading.py` | 11 | GL accounts + routing rules YAML loading |
+| `test_csrf_middleware.py` | 7 | CSRF double-submit cookie validation |
 | `test_dashboard_routes.py` | 17 | /metrics/* endpoint shapes |
 | `test_document_processor_service.py` | 8 | Pipeline orchestration |
 | `test_gl_account_service.py` | 6 | GL classification |
@@ -75,7 +77,7 @@ npm run test:e2e:report                                       # View HTML report
 | `test_storage_service.py` | 14 | Local CRUD + tenant isolation + path traversal |
 | `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
 
-### Frontend Test Files (366 vitest tests)
+### Frontend Test Files (371 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
@@ -83,7 +85,7 @@ npm run test:e2e:report                                       # View HTML report
 | API Services | 6 | 56 | ApiClient (18), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
 | Custom Hooks | 4 | 48 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14) |
 | Components | 5 | 66 | Button (20), MetricCard (20), Header (9), Navigation (13), ProtectedRoute (4) |
-| Pages + App | 5 | 79 | Dashboard (18), Upload (18), Documents (20), Login (13), App routing (10) |
+| Pages + App | 5 | 84 | Dashboard (18), Upload (18), Documents (25), Login (13), App routing (10) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
 ### E2E Playwright Tests (73 tests)
@@ -165,8 +167,8 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (advisory), pip-audit (advisory), pytest with coverage on Python 3.11 + 3.12 (174 tests)
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (366 tests) on Node 18
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (advisory), pip-audit (advisory), pytest with coverage on Python 3.11 + 3.12 (192 tests)
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (371 tests) on Node 18
 - **Docker**: builds backend image after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
@@ -184,8 +186,9 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | AWS ECS | Working | `b351af7` |
 | CI Pipeline | Green | `941a5af` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 613 tests | `0d84a7a` |
+| Full-Stack Tests | 636 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
 | P13 Login+Auth Flow | Complete | `0d84a7a` |
+| P14-P18 Plan | Complete | — |

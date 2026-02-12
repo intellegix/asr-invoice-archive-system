@@ -7,7 +7,10 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import yaml
 
 # Import shared components
 from shared.core.constants import GL_ACCOUNT_CATEGORIES, GL_ACCOUNTS
@@ -15,6 +18,33 @@ from shared.core.exceptions import ClassificationError, ValidationError
 from shared.core.models import GLAccount
 
 logger = logging.getLogger(__name__)
+
+
+def load_gl_accounts_from_yaml(config_path: str) -> Dict[str, Dict[str, Any]]:
+    """Load GL accounts from a YAML config file.
+
+    Returns the accounts dict on success, or raises on parse error.
+    """
+    path = Path(config_path)
+    if not path.is_absolute():
+        # Resolve relative to asr-systems/
+        path = Path(__file__).parent.parent.parent / path
+    if not path.exists():
+        raise FileNotFoundError(f"GL accounts config not found: {path}")
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or "accounts" not in data:
+        raise ValueError("GL accounts YAML must have a top-level 'accounts' key")
+    accounts = data["accounts"]
+    if not isinstance(accounts, dict) or len(accounts) == 0:
+        raise ValueError("GL accounts YAML 'accounts' must be a non-empty mapping")
+    # Validate each entry has required fields
+    for code, entry in accounts.items():
+        for field in ("name", "category", "keywords"):
+            if field not in entry:
+                raise ValueError(
+                    f"GL account '{code}' missing required field '{field}'"
+                )
+    return accounts
 
 
 @dataclass
@@ -35,7 +65,8 @@ class GLAccountService:
     Service for managing 79 QuickBooks GL Accounts with sophisticated classification
     """
 
-    def __init__(self):
+    def __init__(self, config_path: Optional[str] = None):
+        self.config_path = config_path
         self.gl_accounts: Dict[str, GLAccount] = {}
         self.keyword_index: Dict[str, List[str]] = {}  # keyword -> [gl_codes]
         self.category_index: Dict[str, List[str]] = {}  # category -> [gl_codes]
@@ -66,16 +97,33 @@ class GLAccountService:
             logger.error(f"Failed to initialize GL Account Service: {e}")
             raise ClassificationError(f"GL Account service initialization failed: {e}")
 
-    def _load_gl_accounts(self):
-        """Load all GL accounts from constants"""
-        for code, account_data in GL_ACCOUNTS.items():
-            self.gl_accounts[code] = GLAccount(
-                code=code,
+    def _load_gl_accounts(self) -> None:
+        """Load GL accounts from YAML config, falling back to constants."""
+        source = "constants"
+        accounts_data = GL_ACCOUNTS
+
+        if self.config_path:
+            try:
+                accounts_data = load_gl_accounts_from_yaml(self.config_path)
+                source = self.config_path
+            except Exception as e:
+                logger.warning(
+                    "Failed to load GL accounts from %s, using built-in constants: %s",
+                    self.config_path,
+                    e,
+                )
+                accounts_data = GL_ACCOUNTS
+
+        for code, account_data in accounts_data.items():
+            self.gl_accounts[str(code)] = GLAccount(
+                code=str(code),
                 name=account_data["name"],
                 category=account_data["category"],
                 keywords=account_data["keywords"],
                 active=True,
             )
+
+        logger.info("Loaded %d GL accounts from %s", len(self.gl_accounts), source)
 
     def _build_keyword_index(self):
         """Build reverse index of keywords to GL account codes"""

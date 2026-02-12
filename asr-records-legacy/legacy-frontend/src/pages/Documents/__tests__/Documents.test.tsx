@@ -1,6 +1,8 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Documents } from '../Documents';
 import { useDocuments } from '@/hooks/api/useDocuments';
+import { useDocumentStore } from '@/stores/documents';
 import { renderWithProviders } from '@/tests/helpers/renderWithProviders';
 
 // ---------------------------------------------------------------------------
@@ -221,5 +223,48 @@ describe('Documents', () => {
     expect(screen.getByText('Next')).toBeInTheDocument();
     // Current page number shown in pagination
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('disables Previous button on first page', () => {
+    renderDocuments();
+    const prevButton = screen.getByText('Previous').closest('button');
+    expect(prevButton).toBeDisabled();
+  });
+
+  it('renders page size selector with options', () => {
+    renderDocuments();
+    const select = screen.getByDisplayValue('50/page');
+    expect(select).toBeInTheDocument();
+    expect(screen.getByText('25/page')).toBeInTheDocument();
+    expect(screen.getByText('100/page')).toBeInTheDocument();
+  });
+
+  it('shows "Showing X-Y documents" text', () => {
+    renderDocuments();
+    expect(screen.getByText(/Showing 1-2 documents/)).toBeInTheDocument();
+  });
+
+  it('does not render pagination when documents list is empty', () => {
+    (useDocuments as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
+    renderDocuments();
+    expect(screen.queryByText('Previous')).not.toBeInTheDocument();
+    expect(screen.queryByText('Next')).not.toBeInTheDocument();
+  });
+
+  it('advances to next page when Next is clicked', async () => {
+    (useDocuments as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockDocuments,
+      isLoading: false,
+    });
+    // Set pageSize to match document count so Next button is enabled
+    useDocumentStore.setState({ currentPage: 1, pageSize: 2 });
+    renderDocuments();
+    const nextButton = screen.getByText('Next').closest('button')!;
+    expect(nextButton).not.toBeDisabled();
+    await userEvent.click(nextButton);
+    expect(useDocumentStore.getState().currentPage).toBe(2);
   });
 });

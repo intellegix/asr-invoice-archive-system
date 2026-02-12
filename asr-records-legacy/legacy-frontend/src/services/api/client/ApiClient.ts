@@ -14,11 +14,19 @@ export class ApiClient {
       },
     });
 
-    // Request interceptor for auth
+    // Request interceptor for auth + CSRF
     this.client.interceptors.request.use((config) => {
       const apiKey = sessionStorage.getItem('api_key');
       if (apiKey) {
         config.headers.Authorization = `Bearer ${apiKey}`;
+      }
+      // Double-submit CSRF cookie
+      const csrfToken = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('csrf_token='))
+        ?.split('=')[1];
+      if (csrfToken) {
+        config.headers['X-CSRF-Token'] = csrfToken;
       }
       return config;
     });

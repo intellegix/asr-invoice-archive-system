@@ -13,8 +13,10 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+import yaml
 from shared.core.constants import BILLING_DESTINATION_RULES, CONFIDENCE_THRESHOLDS
 from shared.core.exceptions import RoutingError, ValidationError
 
@@ -68,12 +70,14 @@ class BillingRouterService:
         enabled_destinations: List[str],
         confidence_threshold: float,
         audit_trail_service: Optional[AuditTrailService] = None,
+        config_path: Optional[str] = None,
     ):
         self.enabled_destinations = [
             BillingDestination(dest) for dest in enabled_destinations
         ]
         self.confidence_threshold = confidence_threshold
         self.audit_trail_service = audit_trail_service
+        self.config_path = config_path
         self.routing_rules = self._load_routing_rules()
         self.routing_stats = {}
         self.initialized = False
@@ -101,12 +105,63 @@ class BillingRouterService:
             logger.error(f"Failed to initialize Billing Router Service: {e}")
             raise RoutingError(f"Billing router service initialization failed: {e}")
 
-    def _load_routing_rules(self) -> Dict[str, Dict[str, Any]]:
-        """Load and enhance routing rules"""
-        rules = BILLING_DESTINATION_RULES.copy()
+    def _load_routing_rules(self) -> Dict[BillingDestination, Dict[str, Any]]:
+        """Load routing rules from YAML config, falling back to built-in defaults."""
+        if self.config_path:
+            try:
+                return self._load_routing_rules_from_yaml(self.config_path)
+            except Exception as e:
+                logger.warning(
+                    "Failed to load routing rules from %s, using built-in defaults: %s",
+                    self.config_path,
+                    e,
+                )
 
-        # Add enhanced routing logic
-        enhanced_rules = {
+        return self._build_default_routing_rules()
+
+    @staticmethod
+    def _load_routing_rules_from_yaml(
+        config_path: str,
+    ) -> Dict[BillingDestination, Dict[str, Any]]:
+        """Parse routing rules YAML into the internal format."""
+        path = Path(config_path)
+        if not path.is_absolute():
+            path = Path(__file__).parent.parent.parent / path
+        if not path.exists():
+            raise FileNotFoundError(f"Routing rules config not found: {path}")
+
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict) or "destinations" not in data:
+            raise ValueError(
+                "Routing rules YAML must have a top-level 'destinations' key"
+            )
+
+        status_map = {s.value: s for s in PaymentStatus}
+        dest_map = {d.value: d for d in BillingDestination}
+
+        rules: Dict[BillingDestination, Dict[str, Any]] = {}
+        for dest_key, dest_data in data["destinations"].items():
+            dest_enum = dest_map.get(dest_key)
+            if dest_enum is None:
+                raise ValueError(f"Unknown destination '{dest_key}' in routing YAML")
+            criteria = dest_data.get("criteria", {})
+            # Convert payment_status strings to enums
+            criteria["payment_status"] = [
+                status_map[s] for s in criteria.get("payment_status", [])
+            ]
+            rules[dest_enum] = {
+                "description": dest_data.get("description", ""),
+                "criteria": criteria,
+                "priority": dest_data.get("priority", 99),
+            }
+
+        logger.info("Loaded routing rules from %s", config_path)
+        return rules
+
+    @staticmethod
+    def _build_default_routing_rules() -> Dict[BillingDestination, Dict[str, Any]]:
+        """Built-in default routing rules (used when no YAML config is provided)."""
+        return {
             BillingDestination.OPEN_PAYABLE: {
                 "description": "Unpaid vendor invoices and bills",
                 "criteria": {
@@ -126,7 +181,7 @@ class BillingRouterService:
                         "vendor",
                         "supplier",
                     ],
-                    "amount_threshold": 0.01,  # Minimum amount to be considered
+                    "amount_threshold": 0.01,
                 },
                 "priority": 1,
             },
@@ -194,8 +249,6 @@ class BillingRouterService:
                 "priority": 4,
             },
         }
-
-        return enhanced_rules
 
     def _validate_destinations(self):
         """Validate that all required destinations are enabled"""
