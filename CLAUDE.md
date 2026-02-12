@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (230 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 230 tests
+# --- Backend (234 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 234 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -42,9 +42,9 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (389 vitest tests) ---
+# --- Frontend (392 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
-npm run test                                                  # All 389 tests
+npm run test                                                  # All 392 tests
 npx vitest run                                                # Single run (no watch)
 npx tsc --noEmit                                              # TypeScript type check
 
@@ -56,7 +56,7 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (230 tests)
+### Backend Test Files (234 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -64,7 +64,7 @@ npm run test:e2e:report                                       # View HTML report
 | `test_audit_trail_service.py` | 5 | Audit trail persistence |
 | `test_auth_endpoints.py` | 11 | /auth/login + /auth/me endpoints |
 | `test_billing_router_service.py` | 12 | Routing logic + destinations |
-| `test_config_loading.py` | 11 | GL accounts + routing rules YAML loading |
+| `test_config_loading.py` | 15 | GL accounts + routing rules YAML + Pydantic v2 settings |
 | `test_csrf_middleware.py` | 7 | CSRF double-submit cookie validation |
 | `test_dashboard_routes.py` | 17 | /metrics/* endpoint shapes |
 | `test_database_migrations.py` | 6 | Alembic config + DB URL validation |
@@ -82,14 +82,14 @@ npm run test:e2e:report                                       # View HTML report
 | `test_storage_service.py` | 14 | Local CRUD + tenant isolation + path traversal |
 | `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
 
-### Frontend Test Files (389 vitest tests)
+### Frontend Test Files (392 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
 | Zustand Stores | 4 | 75 | auth (14), documents (33), ui (23), themePersistence (5) |
 | API Services | 6 | 59 | ApiClient (21), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
 | Custom Hooks | 5 | 51 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3) |
-| Components | 8 | 87 | Button (20), MetricCard (20), Header (9), Navigation (13), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10) |
+| Components | 8 | 90 | Button (20), MetricCard (20), Header (12), Navigation (13), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10) |
 | Pages + App | 7 | 114 | Dashboard (21), Upload (18), Documents (25), Login (13), Settings (8), Reports (8), App routing (10), DocumentDetailModal (5), FilterPanel (5) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
@@ -173,9 +173,9 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (advisory), pip-audit (advisory), pytest with coverage on Python 3.11 + 3.12 (230 tests)
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (389 tests) on Node 18
-- **Docker**: builds backend image after both test jobs pass
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (advisory), pytest with coverage >= 60% on Python 3.11 + 3.12 (234 tests)
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (392 tests) on Node 18
+- **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
 - Builds + pushes backend/frontend images to ECR
@@ -193,10 +193,66 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 692 tests | — |
+| Full-Stack Tests | 699 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
 | P13 Login+Auth Flow | Complete | `0d84a7a` |
 | P14-P18 Plan | Complete | — |
 | P20-P25 Infra+Quality | Complete | — |
+| P26-P31 Housekeeping+Hardening | Complete | — |
+
+## Operational Runbook (AWS ECS)
+
+### CloudWatch Log Groups
+
+```
+/ecs/asr-records-legacy-backend-dev    # Backend container logs (JSON format)
+/ecs/asr-records-legacy-frontend-dev   # Nginx access/error logs
+```
+
+View logs: `aws logs tail /ecs/asr-records-legacy-backend-dev --follow --region us-west-2`
+
+### Manual Deployment
+
+```bash
+# 1. Build and push backend image
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 206362095382.dkr.ecr.us-west-2.amazonaws.com
+docker build -f production-server/Dockerfile -t 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest .
+docker push 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest
+
+# 2. Register new task definition and update service
+aws ecs register-task-definition --cli-input-json file://backend-task-def.json --region us-west-2
+aws ecs update-service --cluster asr-records-legacy-cluster-dev --service backend-service --force-new-deployment --region us-west-2
+```
+
+### Alarm Status
+
+```bash
+# List all alarms
+aws cloudwatch describe-alarms --alarm-name-prefix "asr-records" --region us-west-2
+
+# SNS topic (requires terraform/sns.tf applied with alert_email set)
+aws sns list-subscriptions-by-topic --topic-arn "arn:aws:sns:us-west-2:206362095382:asr-records-alarms-dev" --region us-west-2
+```
+
+### ECS Exec (Interactive Shell)
+
+```bash
+# Requires: ECS Exec enabled on service, ssmmessages:* permissions on task role
+aws ecs execute-command \
+  --cluster asr-records-legacy-cluster-dev \
+  --task <TASK_ID> \
+  --container backend \
+  --interactive \
+  --command "/bin/sh" \
+  --region us-west-2
+```
+
+### Health Checks
+
+```bash
+# Via ALB
+curl http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com/health/live
+curl http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com/health/ready
+```
