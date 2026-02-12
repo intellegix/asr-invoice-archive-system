@@ -1,3 +1,4 @@
+export * from './auth';
 export * from './client';
 export * from './documents';
 export * from './metrics';

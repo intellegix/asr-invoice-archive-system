@@ -2,10 +2,12 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Navigation } from '@/components/layout/Navigation';
+import { ProtectedRoute } from '@/components/auth';
 import { PageErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Dashboard } from '@/pages/Dashboard';
 import { Upload } from '@/pages/Upload';
 import { Documents } from '@/pages/Documents';
+import { Login } from '@/pages/Login';
 
 const Reports = lazy(() => import('@/pages/Reports/Reports').then(m => ({ default: m.Reports })));
 const Settings = lazy(() => import('@/pages/Settings/Settings').then(m => ({ default: m.Settings })));
@@ -18,33 +20,35 @@ const PageFallback = () => (
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Navigation Sidebar */}
-      <Navigation />
+    <Routes>
+      {/* Login — outside layout */}
+      <Route path="/login" element={<Login />} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <Header />
-
-        {/* Page Content */}
-        <main className="flex-1 p-6">
-          <Suspense fallback={<PageFallback />}>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary>} />
-              <Route path="/upload" element={<PageErrorBoundary pageName="Upload"><Upload /></PageErrorBoundary>} />
-              <Route path="/documents" element={<PageErrorBoundary pageName="Documents"><Documents /></PageErrorBoundary>} />
-              <Route path="/reports" element={<PageErrorBoundary pageName="Reports"><Reports /></PageErrorBoundary>} />
-              <Route path="/settings" element={<PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary>} />
-
-              {/* Catch all route - redirect to dashboard */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </Suspense>
-        </main>
-      </div>
-    </div>
+      {/* All other routes — protected + full layout */}
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <div className="min-h-screen bg-gray-50 flex">
+            <Navigation />
+            <div className="flex-1 flex flex-col">
+              <Header />
+              <main className="flex-1 p-6">
+                <Suspense fallback={<PageFallback />}>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route path="/dashboard" element={<PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary>} />
+                    <Route path="/upload" element={<PageErrorBoundary pageName="Upload"><Upload /></PageErrorBoundary>} />
+                    <Route path="/documents" element={<PageErrorBoundary pageName="Documents"><Documents /></PageErrorBoundary>} />
+                    <Route path="/reports" element={<PageErrorBoundary pageName="Reports"><Reports /></PageErrorBoundary>} />
+                    <Route path="/settings" element={<PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary>} />
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  </Routes>
+                </Suspense>
+              </main>
+            </div>
+          </div>
+        </ProtectedRoute>
+      } />
+    </Routes>
   );
 };
 

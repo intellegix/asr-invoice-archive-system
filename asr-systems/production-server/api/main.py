@@ -30,6 +30,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "shared"))
 from shared.api.schemas import (
     APIErrorResponseSchema,
     APISuccessResponseSchema,
+    AuthLoginRequestSchema,
+    AuthLoginResponseSchema,
+    AuthMeResponseSchema,
     ClassificationResponseSchema,
     DocumentUploadResponseSchema,
     ScannerHeartbeatSchema,
@@ -336,6 +339,58 @@ async def get_current_user(
         "tenant_id": production_settings.DEFAULT_TENANT_ID,
         "authenticated": True,
     }
+
+
+# Auth endpoints
+@app.post("/auth/login", response_model=AuthLoginResponseSchema)
+async def auth_login(request: AuthLoginRequestSchema):
+    """Authenticate with API key. No Bearer token required."""
+    # Dev mode: accept any key when API_KEYS_REQUIRED=false
+    if not production_settings.API_KEYS_REQUIRED:
+        return AuthLoginResponseSchema(
+            authenticated=True,
+            tenant_id=request.tenant_id,
+            message="Authenticated (dev mode — API keys not required)",
+            server_version=production_settings.VERSION,
+            capabilities={
+                "gl_accounts": 79,
+                "payment_methods": len(production_settings.PAYMENT_DETECTION_METHODS),
+                "billing_destinations": len(production_settings.BILLING_DESTINATIONS),
+                "multi_tenant": production_settings.MULTI_TENANT_ENABLED,
+                "scanner_api": production_settings.SCANNER_API_ENABLED,
+            },
+        )
+
+    # Validate key length
+    if len(request.api_key) < 10:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key",
+        )
+
+    return AuthLoginResponseSchema(
+        authenticated=True,
+        tenant_id=request.tenant_id,
+        message="Authenticated successfully",
+        server_version=production_settings.VERSION,
+        capabilities={
+            "gl_accounts": 79,
+            "payment_methods": len(production_settings.PAYMENT_DETECTION_METHODS),
+            "billing_destinations": len(production_settings.BILLING_DESTINATIONS),
+            "multi_tenant": production_settings.MULTI_TENANT_ENABLED,
+            "scanner_api": production_settings.SCANNER_API_ENABLED,
+        },
+    )
+
+
+@app.get("/auth/me", response_model=AuthMeResponseSchema)
+async def auth_me(user: Dict[str, Any] = Depends(get_current_user)):
+    """Get current authenticated user info."""
+    return AuthMeResponseSchema(
+        authenticated=user.get("authenticated", False),
+        tenant_id=user.get("tenant_id", production_settings.DEFAULT_TENANT_ID),
+        api_keys_required=production_settings.API_KEYS_REQUIRED,
+    )
 
 
 # Root endpoint

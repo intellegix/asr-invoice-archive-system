@@ -164,8 +164,8 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (advisory), pip-audit (advisory), pytest with coverage on Python 3.11 + 3.12 (139 tests)
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (298 tests) on Node 18
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (advisory), pip-audit (advisory), pytest with coverage on Python 3.11 + 3.12 (163 tests)
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (341 tests) on Node 18
 - **Docker**: builds backend image after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
@@ -181,7 +181,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | Windows EXE | Working | `802008f` |
 | Docker | Working | `a0d36e9` |
 | AWS ECS | Working | `b351af7` |
-| CI Pipeline | Green | `6abf88e` |
+| CI Pipeline | Green | `941a5af` |
 | System Review | Complete | `a35dfb5` |
 | Full-Stack Tests | 577 tests | `cabc69d` |
 | P1-P6 Feature Pass | Complete | `6abf88e` |

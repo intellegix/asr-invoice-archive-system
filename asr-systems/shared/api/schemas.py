@@ -19,6 +19,38 @@ from ..core.models import (
     SystemType,
 )
 
+# Auth Schemas
+
+
+class AuthLoginRequestSchema(BaseModel):
+    """Schema for login requests"""
+
+    api_key: str = Field(..., min_length=1, description="API key for authentication")
+    tenant_id: str = Field(default="default", description="Tenant identifier")
+
+
+class AuthLoginResponseSchema(BaseModel):
+    """Schema for login responses"""
+
+    authenticated: bool = Field(..., description="Whether authentication succeeded")
+    tenant_id: str = Field(..., description="Authenticated tenant")
+    message: str = Field(..., description="Status message")
+    server_version: str = Field(..., description="Server version")
+    capabilities: Dict[str, Any] = Field(
+        default_factory=dict, description="Server capabilities"
+    )
+
+
+class AuthMeResponseSchema(BaseModel):
+    """Schema for current user info"""
+
+    authenticated: bool = Field(..., description="Whether user is authenticated")
+    tenant_id: str = Field(..., description="Current tenant")
+    api_keys_required: bool = Field(
+        ..., description="Whether API keys are required for auth"
+    )
+
+
 # API Request Schemas
 
 
@@ -387,6 +419,10 @@ class DocumentFilterSchema(BaseModel):
 
 # Export all schemas
 __all__ = [
+    # Auth schemas
+    "AuthLoginRequestSchema",
+    "AuthLoginResponseSchema",
+    "AuthMeResponseSchema",
     # Request schemas
     "DocumentUploadSchema",
     "ClassificationRequestSchema",

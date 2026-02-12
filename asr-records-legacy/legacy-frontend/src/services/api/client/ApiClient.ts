@@ -43,7 +43,11 @@ export class ApiClient {
         break;
       case 401:
         toast.error('Authentication required');
-        // Redirect to login - can be implemented later
+        sessionStorage.removeItem('api_key');
+        sessionStorage.removeItem('tenant_id');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         break;
       case 403:
         toast.error('Access denied');
