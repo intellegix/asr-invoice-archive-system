@@ -279,48 +279,44 @@ class TestMemoryManagement:
     def test_cleanup_evicts_expired_entries(self):
         """_cleanup() should remove client entries whose timestamps are all expired."""
         middleware = RateLimitMiddleware(app=None, calls=100, period=1)
+        backend = middleware._backend
         # Manually insert expired entries
         old_time = time.time() - 10
-        middleware.clients["ip:expired-1"] = [old_time]
-        middleware.clients["ip:expired-2"] = [old_time]
-        middleware.clients["ip:fresh"] = [time.time()]
+        backend.clients["ip:expired-1"] = [old_time]
+        backend.clients["ip:expired-2"] = [old_time]
+        backend.clients["ip:fresh"] = [time.time()]
 
-        middleware._cleanup()
+        backend._cleanup()
 
-        assert "ip:expired-1" not in middleware.clients
-        assert "ip:expired-2" not in middleware.clients
-        assert "ip:fresh" in middleware.clients
+        assert "ip:expired-1" not in backend.clients
+        assert "ip:expired-2" not in backend.clients
+        assert "ip:fresh" in backend.clients
 
     def test_max_client_cap_enforced(self):
         """LRU eviction should keep tracked clients at or below MAX_TRACKED_CLIENTS."""
         from middleware.rate_limit_middleware import MAX_TRACKED_CLIENTS
 
         middleware = RateLimitMiddleware(app=None, calls=100, period=60)
+        backend = middleware._backend
         now = time.time()
         for i in range(MAX_TRACKED_CLIENTS + 500):
-            middleware.clients[f"ip:{i}"] = [now]
+            backend.clients[f"ip:{i}"] = [now]
 
-        middleware._cleanup()
+        backend._cleanup()
 
-        assert len(middleware.clients) <= MAX_TRACKED_CLIENTS
+        assert len(backend.clients) <= MAX_TRACKED_CLIENTS
 
     def test_amortized_cleanup_triggers(self):
         """Cleanup should trigger every 100 requests."""
         middleware = RateLimitMiddleware(app=None, calls=1000, period=1)
+        backend = middleware._backend
         old_time = time.time() - 10
-        middleware.clients["ip:stale"] = [old_time]
+        backend.clients["ip:stale"] = [old_time]
 
         # Force counter to 99 so next call triggers cleanup
-        middleware._cleanup_counter = 99
+        backend._cleanup_counter = 99
 
-        from unittest.mock import MagicMock
-
-        request = MagicMock()
-        request.client = MagicMock()
-        request.client.host = "127.0.0.1"
-        request.headers = {}
-
-        middleware._is_rate_limited("ip:trigger")
+        backend.is_rate_limited("ip:trigger")
 
         # After cleanup, stale entry should be gone
-        assert "ip:stale" not in middleware.clients
+        assert "ip:stale" not in backend.clients

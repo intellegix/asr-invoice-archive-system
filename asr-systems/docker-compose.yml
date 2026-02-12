@@ -25,17 +25,19 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - STORAGE_BACKEND=${STORAGE_BACKEND:-local}
       - DATA_DIR=/app/data
-      - DATABASE_URL=${DATABASE_URL:-sqlite:///./asr_records.db}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/asr_records.db}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set}
       - MULTI_TENANT_ENABLED=${MULTI_TENANT_ENABLED:-false}
       - SCANNER_API_ENABLED=${SCANNER_API_ENABLED:-true}
       - MAX_SCANNER_CLIENTS=${MAX_SCANNER_CLIENTS:-10}
+      - RATE_LIMIT_BACKEND=${RATE_LIMIT_BACKEND:-memory}
+      - REDIS_URL=${REDIS_URL:-}
     volumes:
       - asr-data:/app/data
       - asr-logs:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

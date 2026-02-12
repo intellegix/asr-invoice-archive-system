@@ -112,6 +112,11 @@ except (ImportError, SystemError):
     from middleware.rate_limit_middleware import RateLimitMiddleware
 
 try:
+    from ..middleware.csrf_middleware import CSRFMiddleware
+except (ImportError, SystemError):
+    from middleware.csrf_middleware import CSRFMiddleware
+
+try:
     from ..api.dashboard_routes import register_dashboard_routes
 except (ImportError, SystemError):
     from api.dashboard_routes import register_dashboard_routes
@@ -186,7 +191,9 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Storage service initialized")
 
         # Initialize GL Account Service (79 QuickBooks accounts)
-        gl_account_service = GLAccountService()
+        gl_account_service = GLAccountService(
+            config_path=production_settings.GL_ACCOUNTS_CONFIG_PATH,
+        )
         await gl_account_service.initialize()
         account_count = len(gl_account_service.get_all_accounts())
         logger.info(
@@ -209,6 +216,7 @@ async def lifespan(app: FastAPI):
             production_settings.BILLING_DESTINATIONS,
             production_settings.ROUTING_CONFIDENCE_THRESHOLD,
             audit_trail_service=audit_trail_service,
+            config_path=production_settings.ROUTING_RULES_CONFIG_PATH,
         )
         await billing_router_service.initialize()
         destination_count = len(billing_router_service.get_available_destinations())
@@ -298,10 +306,18 @@ app.add_middleware(
 if production_settings.MULTI_TENANT_ENABLED:
     app.add_middleware(TenantMiddleware)
 
+# Add CSRF protection if enabled
+if production_settings.CSRF_ENABLED:
+    app.add_middleware(CSRFMiddleware, enabled=production_settings.CSRF_ENABLED)
+
 # Add rate limiting if enabled
 if production_settings.RATE_LIMIT_ENABLED:
     app.add_middleware(
-        RateLimitMiddleware, calls=production_settings.RATE_LIMIT_PER_MINUTE, period=60
+        RateLimitMiddleware,
+        calls=production_settings.RATE_LIMIT_PER_MINUTE,
+        period=60,
+        backend=production_settings.RATE_LIMIT_BACKEND,
+        redis_url=production_settings.REDIS_URL,
     )
 
 # Register dashboard metrics routes (matches frontend MetricsService.ts calls)
@@ -402,6 +418,7 @@ async def root():
         data={
             "system_type": "production_server",
             "version": production_settings.VERSION,
+            "git_commit": production_settings.GIT_COMMIT,
             "capabilities": {
                 "gl_accounts": 79,
                 "payment_methods": len(production_settings.PAYMENT_DETECTION_METHODS),

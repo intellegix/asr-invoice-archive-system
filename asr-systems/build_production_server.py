@@ -4,22 +4,39 @@ ASR Production Server Build Script
 Creates standalone executable for enterprise deployment
 """
 
+import logging
 import os
-import sys
 import shutil
 import subprocess
+import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Add the shared modules to the path
 sys.path.insert(0, str(Path(__file__).parent / "shared"))
 sys.path.insert(0, str(Path(__file__).parent / "production-server"))
 
 import PyInstaller.__main__
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+SPEC_TEMPLATE = Path(__file__).parent / "asr_production_server.spec.template"
+
+
+def _get_git_commit_hash() -> str:
+    """Return the short git commit hash, or 'unknown' on failure."""
+    try:
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return "unknown"
 
 
 class ProductionServerBuilder:
@@ -29,12 +46,29 @@ class ProductionServerBuilder:
         self.build_dir = Path(build_dir)
         self.spec_file = Path("asr_production_server.spec")
         self.project_root = Path(__file__).parent
+        self.git_commit = _get_git_commit_hash()
 
     def create_spec_file(self) -> None:
-        """Create PyInstaller spec file for production server"""
-        logger.info("📝 Creating PyInstaller spec file...")
+        """Create PyInstaller spec file from template, injecting git commit hash."""
+        logger.info("Creating PyInstaller spec file...")
 
-        spec_content = '''
+        if SPEC_TEMPLATE.exists():
+            spec_content = SPEC_TEMPLATE.read_text(encoding="utf-8")
+            spec_content = spec_content.replace("{{GIT_COMMIT}}", self.git_commit)
+        else:
+            logger.warning(
+                "Spec template not found at %s, generating inline", SPEC_TEMPLATE
+            )
+            spec_content = self._generate_spec_content()
+
+        self.spec_file.write_text(spec_content.strip(), encoding="utf-8")
+        logger.info(
+            "Spec file created: %s (commit: %s)", self.spec_file, self.git_commit
+        )
+
+    def _generate_spec_content(self) -> str:
+        """Fallback: generate spec content inline when template is missing."""
+        return """
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
@@ -194,28 +228,45 @@ coll = COLLECT(
     upx_exclude=[],
     name='ASR_Production_Server'
 )
-'''
+"""
 
-        self.spec_file.write_text(spec_content.strip())
-        logger.info(f"✅ Spec file created: {self.spec_file}")
+        return spec_content
+
+    def _write_version_file(self) -> None:
+        """Write a version metadata file into the dist directory."""
+        from shared.core.constants import VERSION
+
+        dist_path = Path("dist/ASR_Production_Server")
+        dist_path.mkdir(parents=True, exist_ok=True)
+        version_info = {
+            "version": VERSION,
+            "git_commit": self.git_commit,
+        }
+        import json
+
+        (dist_path / "version.json").write_text(
+            json.dumps(version_info, indent=2), encoding="utf-8"
+        )
+        logger.info("Version file written: %s", version_info)
 
     def build_executable(self) -> None:
         """Build the production server executable"""
-        logger.info("🏗️ Building ASR Production Server executable...")
+        logger.info("Building ASR Production Server executable...")
 
         try:
-            # Run PyInstaller
-            PyInstaller.__main__.run([
-                str(self.spec_file),
-                '--clean',
-                '--noconfirm',
-                '--log-level=INFO'
-            ])
-
-            logger.info("✅ Production server executable built successfully")
+            PyInstaller.__main__.run(
+                [
+                    str(self.spec_file),
+                    "--clean",
+                    "--noconfirm",
+                    "--log-level=INFO",
+                ]
+            )
+            self._write_version_file()
+            logger.info("Production server executable built successfully")
 
         except Exception as e:
-            logger.error(f"❌ Build failed: {e}")
+            logger.error("Build failed: %s", e)
             raise
 
     def create_config_files(self) -> None:
@@ -227,7 +278,7 @@ coll = COLLECT(
         config_path.mkdir(exist_ok=True)
 
         # Create .env.template
-        env_template = '''# ASR Production Server Configuration
+        env_template = """# ASR Production Server Configuration
 # Copy to .env and customize for your environment
 
 # Database Configuration
@@ -265,7 +316,7 @@ ENABLE_CLAUDE_VISION=true
 ENABLE_PAYMENT_DETECTION=true
 ENABLE_ROUTING_AUDIT=true
 ENABLE_MANUAL_REVIEW=true
-'''
+"""
 
         (config_path / ".env.template").write_text(env_template)
 
@@ -317,7 +368,7 @@ if __name__ == "__main__":
     sys.exit(main())
 '''
 
-        (dist_path / "start_server.py").write_text(startup_script, encoding='utf-8')
+        (dist_path / "start_server.py").write_text(startup_script, encoding="utf-8")
 
         logger.info(f"✅ Configuration files created in: {dist_path}")
 

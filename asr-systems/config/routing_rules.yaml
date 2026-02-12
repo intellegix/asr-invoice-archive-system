@@ -1,0 +1,103 @@
+# ASR Records — Billing Routing Rules Configuration
+# 4 billing destinations with criteria for document routing.
+# Edit this file to adjust routing logic without code changes.
+#
+# Source: Externalized from BillingRouterService._load_routing_rules()
+# in production-server/services/billing_router_service.py (enhanced_rules dict)
+# and shared/core/constants.py (BILLING_DESTINATION_RULES dict).
+#
+# Scoring weights (hardcoded in _calculate_destination_score):
+#   payment_status:      40%
+#   document_type:       25%
+#   gl_account_categories: 20%
+#   keywords:            10%
+#   amount_threshold:     5%
+
+destinations:
+  open_payable:
+    description: "Unpaid vendor invoices and bills"
+    priority: 1
+    criteria:
+      payment_status:
+        - unpaid
+        - unknown
+      document_type:
+        - vendor_invoice
+        - bill
+        - purchase_order
+        - expense
+      gl_account_categories:
+        - EXPENSES
+      keywords:
+        - invoice
+        - bill
+        - due
+        - payment terms
+        - vendor
+        - supplier
+      amount_threshold: 0.01
+
+  closed_payable:
+    description: "Paid vendor invoices and bills"
+    priority: 2
+    criteria:
+      payment_status:
+        - paid
+        - void
+      document_type:
+        - vendor_invoice
+        - bill
+        - receipt
+        - paid_invoice
+      gl_account_categories:
+        - EXPENSES
+      keywords:
+        - paid
+        - receipt
+        - check
+        - payment received
+        - settled
+      amount_threshold: 0.0
+
+  open_receivable:
+    description: "Unpaid customer invoices"
+    priority: 3
+    criteria:
+      payment_status:
+        - unpaid
+        - unknown
+      document_type:
+        - customer_invoice
+        - sales_invoice
+        - ar_invoice
+      gl_account_categories:
+        - REVENUE
+        - ASSETS
+      keywords:
+        - customer
+        - sales
+        - invoice
+        - receivable
+        - due from
+      amount_threshold: 0.01
+
+  closed_receivable:
+    description: "Paid customer invoices"
+    priority: 4
+    criteria:
+      payment_status:
+        - paid
+        - void
+      document_type:
+        - customer_invoice
+        - sales_invoice
+        - paid_invoice
+      gl_account_categories:
+        - REVENUE
+        - ASSETS
+      keywords:
+        - customer payment
+        - payment received
+        - deposit
+        - cash receipt
+      amount_threshold: 0.0

@@ -5,11 +5,27 @@ Inherits and extends shared configurations
 """
 
 import os
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
+
+
+def _detect_git_commit() -> str:
+    """Return short git commit hash at import time, or 'unknown'."""
+    try:
+        return (
+            subprocess.check_output(
+                ["git", "rev-parse", "--short", "HEAD"],
+                stderr=subprocess.DEVNULL,
+            )
+            .decode()
+            .strip()
+        )
+    except Exception:
+        return "unknown"
 
 
 class ProductionSettings(BaseSettings):
@@ -18,6 +34,11 @@ class ProductionSettings(BaseSettings):
     # Application Info
     APP_NAME: str = "ASR Production Server"
     VERSION: str = "2.0.0"
+    GIT_COMMIT: str = Field(
+        default_factory=_detect_git_commit,
+        env="GIT_COMMIT",
+        description="Git commit hash (auto-detected or set via env)",
+    )
     DESCRIPTION: str = (
         "Enterprise document processing server with sophisticated capabilities"
     )
@@ -71,7 +92,7 @@ class ProductionSettings(BaseSettings):
         description="API host binding (0.0.0.0 for production)",
     )
 
-    API_PORT: int = Field(default=8000, env="PORT", description="API port")
+    API_PORT: int = Field(default=8000, env="API_PORT", description="API port")
 
     API_WORKERS: int = Field(
         default=4, env="API_WORKERS", description="Number of API worker processes"
@@ -89,9 +110,9 @@ class ProductionSettings(BaseSettings):
     )
 
     CLAUDE_MODEL: str = Field(
-        default="claude-3-5-sonnet-20241022",
+        default="claude-sonnet-4-5-20250929",
         env="CLAUDE_MODEL",
-        description="Claude model to use for document analysis",
+        description="Claude model for document analysis (e.g. claude-sonnet-4-5-20250929, claude-haiku-4-5-20251001)",
     )
 
     CLAUDE_MAX_TOKENS: int = Field(
@@ -196,6 +217,12 @@ class ProductionSettings(BaseSettings):
     )
 
     # GL Account Configuration (79 QuickBooks accounts)
+    GL_ACCOUNTS_CONFIG_PATH: str = Field(
+        default="config/gl_accounts.yaml",
+        env="GL_ACCOUNTS_CONFIG_PATH",
+        description="Path to GL accounts YAML config (relative to asr-systems/)",
+    )
+
     GL_ACCOUNTS_ENABLED: bool = Field(
         default=True,
         env="GL_ACCOUNTS_ENABLED",
@@ -234,6 +261,12 @@ class ProductionSettings(BaseSettings):
     )
 
     # Billing Router Configuration (4 destinations)
+    ROUTING_RULES_CONFIG_PATH: str = Field(
+        default="config/routing_rules.yaml",
+        env="ROUTING_RULES_CONFIG_PATH",
+        description="Path to routing rules YAML config (relative to asr-systems/)",
+    )
+
     BILLING_ROUTER_ENABLED: bool = Field(
         default=True,
         env="BILLING_ROUTER_ENABLED",
@@ -323,6 +356,25 @@ class ProductionSettings(BaseSettings):
         default=100,
         env="RATE_LIMIT_PER_MINUTE",
         description="API requests per minute limit",
+    )
+
+    RATE_LIMIT_BACKEND: str = Field(
+        default="memory",
+        env="RATE_LIMIT_BACKEND",
+        description="Rate limit backend: 'memory' (default) or 'redis'",
+    )
+
+    REDIS_URL: Optional[str] = Field(
+        default=None,
+        env="REDIS_URL",
+        description="Redis connection URL (required when RATE_LIMIT_BACKEND=redis)",
+    )
+
+    # CSRF Protection
+    CSRF_ENABLED: bool = Field(
+        default=True,
+        env="CSRF_ENABLED",
+        description="Enable CSRF double-submit cookie protection",
     )
 
     # Health Check Configuration

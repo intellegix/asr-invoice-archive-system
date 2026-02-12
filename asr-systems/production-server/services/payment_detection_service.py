@@ -12,6 +12,7 @@ import asyncio
 import logging
 import re
 import statistics
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
@@ -207,7 +208,7 @@ class PaymentDetectionService:
 
             for method in self.enabled_methods:
                 try:
-                    start_time = asyncio.get_event_loop().time()
+                    start_time = time.perf_counter()
 
                     if (
                         method == PaymentDetectionMethod.CLAUDE_VISION
@@ -229,7 +230,7 @@ class PaymentDetectionService:
                     else:
                         continue  # Skip unavailable methods
 
-                    processing_time = asyncio.get_event_loop().time() - start_time
+                    processing_time = time.perf_counter() - start_time
                     result.processing_time = processing_time
                     method_results.append(result)
 
