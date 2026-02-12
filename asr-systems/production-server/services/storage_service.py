@@ -69,9 +69,7 @@ class ProductionStorageService:
         resolved = (self.base_path / user_path).resolve()
         base_resolved = self.base_path.resolve()
         if not str(resolved).startswith(str(base_resolved)):
-            raise StorageError(
-                f"Invalid path: resolved path escapes storage directory"
-            )
+            raise StorageError(f"Invalid path: resolved path escapes storage directory")
         return resolved
 
     async def initialize(self) -> None:

@@ -302,7 +302,9 @@ if production_settings.RATE_LIMIT_ENABLED:
     )
 
 # Register dashboard metrics routes (matches frontend MetricsService.ts calls)
-register_dashboard_routes(app, Path(production_settings.storage_config.get("base_path", "./storage")))
+register_dashboard_routes(
+    app, Path(production_settings.storage_config.get("base_path", "./storage"))
+)
 
 
 # Authentication dependency
