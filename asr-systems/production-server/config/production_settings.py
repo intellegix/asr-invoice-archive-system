@@ -309,10 +309,15 @@ class ProductionSettings(BaseSettings):
         description="Require API keys for authentication",
     )
 
-    CORS_ALLOWED_ORIGINS: List[str] = Field(
-        default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"],
-        description="CORS allowed origins (comma-separated)",
+    CORS_ALLOWED_ORIGINS: str = Field(
+        default="http://localhost:3000,http://localhost:5173",
+        description="CORS allowed origins (comma-separated string)",
     )
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parse CORS_ALLOWED_ORIGINS into a list of origin strings."""
+        return [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
 
     RATE_LIMIT_ENABLED: bool = Field(
         default=True, description="Enable API rate limiting"

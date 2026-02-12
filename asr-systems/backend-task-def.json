@@ -28,7 +28,8 @@
         {"name": "DATABASE_URL", "value": "sqlite:///./asr_records.db"},
         {"name": "MULTI_TENANT_ENABLED", "value": "false"},
         {"name": "SCANNER_API_ENABLED", "value": "true"},
-        {"name": "MAX_SCANNER_CLIENTS", "value": "10"}
+        {"name": "MAX_SCANNER_CLIENTS", "value": "10"},
+        {"name": "CORS_ALLOWED_ORIGINS", "value": "http://localhost:3000,http://localhost:5173,http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com"}
       ],
       "secrets": [
         {

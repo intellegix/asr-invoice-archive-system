@@ -159,9 +159,50 @@ class TestPydanticV2Settings:
             if issubclass(w.category, DeprecationWarning)
             and "pydantic" in str(w.message).lower()
         ]
-        assert pydantic_deprecations == [], (
-            f"Pydantic deprecation warnings: {[str(w.message) for w in pydantic_deprecations]}"
+        assert (
+            pydantic_deprecations == []
+        ), f"Pydantic deprecation warnings: {[str(w.message) for w in pydantic_deprecations]}"
+
+    def test_cors_comma_separated_parsing(self) -> None:
+        """cors_origins_list property parses comma-separated string."""
+        from production_server.config.production_settings import ProductionSettings
+
+        settings = ProductionSettings(
+            ANTHROPIC_API_KEY="test-key",
+            DEBUG=True,
+            CORS_ALLOWED_ORIGINS="http://localhost:3000,http://example.com , https://app.example.com",
         )
+        assert settings.cors_origins_list == [
+            "http://localhost:3000",
+            "http://example.com",
+            "https://app.example.com",
+        ]
+
+    def test_cors_env_var_string(self) -> None:
+        """CORS_ALLOWED_ORIGINS env var works as comma-separated string."""
+        import os
+
+        from production_server.config.production_settings import ProductionSettings
+
+        env_patch = {
+            "ANTHROPIC_API_KEY": "test-key",
+            "DEBUG": "true",
+            "CORS_ALLOWED_ORIGINS": "http://a.com,http://b.com",
+        }
+        orig = {k: os.environ.get(k) for k in env_patch}
+        try:
+            os.environ.update(env_patch)
+            settings = ProductionSettings()
+            assert settings.cors_origins_list == [
+                "http://a.com",
+                "http://b.com",
+            ]
+        finally:
+            for k, v in orig.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
 
     def test_render_alias_resolves(self) -> None:
         """RENDER env var maps to RENDER_DEPLOYMENT_MODE field."""
