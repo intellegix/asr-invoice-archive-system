@@ -2,7 +2,7 @@ import { useAuthStore } from '../authStore';
 
 describe('authStore', () => {
   beforeEach(() => {
-    localStorage.clear();
+    sessionStorage.clear();
     useAuthStore.setState({
       isAuthenticated: false,
       tenantId: null,
@@ -69,14 +69,14 @@ describe('authStore', () => {
       expect(useAuthStore.getState().userInfo).toEqual(testUserInfo);
     });
 
-    it('persists api_key to localStorage', () => {
+    it('persists api_key to sessionStorage', () => {
       useAuthStore.getState().login(testApiKey, testTenantId);
-      expect(localStorage.getItem('api_key')).toBe(testApiKey);
+      expect(sessionStorage.getItem('api_key')).toBe(testApiKey);
     });
 
-    it('persists tenant_id to localStorage', () => {
+    it('persists tenant_id to sessionStorage', () => {
       useAuthStore.getState().login(testApiKey, testTenantId);
-      expect(localStorage.getItem('tenant_id')).toBe(testTenantId);
+      expect(sessionStorage.getItem('tenant_id')).toBe(testTenantId);
     });
   });
 
@@ -104,14 +104,14 @@ describe('authStore', () => {
       expect(state.userInfo).toBeUndefined();
     });
 
-    it('removes api_key from localStorage', () => {
+    it('removes api_key from sessionStorage', () => {
       useAuthStore.getState().logout();
-      expect(localStorage.getItem('api_key')).toBeNull();
+      expect(sessionStorage.getItem('api_key')).toBeNull();
     });
 
-    it('removes tenant_id from localStorage', () => {
+    it('removes tenant_id from sessionStorage', () => {
       useAuthStore.getState().logout();
-      expect(localStorage.getItem('tenant_id')).toBeNull();
+      expect(sessionStorage.getItem('tenant_id')).toBeNull();
     });
   });
 
@@ -142,11 +142,11 @@ describe('authStore', () => {
   // setTenantId
   // ---------------------------------------------------------------------------
   describe('setTenantId', () => {
-    it('updates tenantId and persists to localStorage', () => {
+    it('updates tenantId and persists to sessionStorage', () => {
       useAuthStore.getState().setTenantId('new-tenant-99');
 
       expect(useAuthStore.getState().tenantId).toBe('new-tenant-99');
-      expect(localStorage.getItem('tenant_id')).toBe('new-tenant-99');
+      expect(sessionStorage.getItem('tenant_id')).toBe('new-tenant-99');
     });
   });
 });

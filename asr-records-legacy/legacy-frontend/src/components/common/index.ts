@@ -3,3 +3,5 @@ export type { ButtonProps } from './Button';
 
 export { MetricCard } from './MetricCard';
 export type { MetricCardProps, TrendData } from './MetricCard';
+
+export { ErrorBoundary, PageErrorBoundary } from './ErrorBoundary';

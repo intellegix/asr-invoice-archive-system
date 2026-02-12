@@ -109,6 +109,11 @@ except (ImportError, SystemError):
     from middleware.rate_limit_middleware import RateLimitMiddleware
 
 try:
+    from ..api.dashboard_routes import register_dashboard_routes
+except (ImportError, SystemError):
+    from api.dashboard_routes import register_dashboard_routes
+
+try:
     from ..config.database import close_database, init_database
 except (ImportError, SystemError):
     from config.database import close_database, init_database
@@ -295,6 +300,9 @@ if production_settings.RATE_LIMIT_ENABLED:
     app.add_middleware(
         RateLimitMiddleware, calls=production_settings.RATE_LIMIT_PER_MINUTE, period=60
     )
+
+# Register dashboard metrics routes (matches frontend MetricsService.ts calls)
+register_dashboard_routes(app, Path(production_settings.storage_config.get("base_path", "./storage")))
 
 
 # Authentication dependency

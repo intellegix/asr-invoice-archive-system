@@ -16,7 +16,7 @@ export class ApiClient {
 
     // Request interceptor for auth
     this.client.interceptors.request.use((config) => {
-      const apiKey = localStorage.getItem('api_key');
+      const apiKey = sessionStorage.getItem('api_key');
       if (apiKey) {
         config.headers.Authorization = `Bearer ${apiKey}`;
       }

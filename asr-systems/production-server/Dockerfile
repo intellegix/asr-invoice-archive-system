@@ -6,7 +6,7 @@
 #   docker build -f production-server/Dockerfile -t asr-backend .
 
 # Build stage
-FROM python:3.11-slim AS builder
+FROM python:3.11.11-slim AS builder
 
 WORKDIR /build
 
@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Production stage
-FROM python:3.11-slim AS production
+FROM python:3.11.11-slim AS production
 
 WORKDIR /app
 

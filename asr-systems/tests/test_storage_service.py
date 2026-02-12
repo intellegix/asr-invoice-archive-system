@@ -154,3 +154,35 @@ class TestHealth:
         svc = ProductionStorageService(config)
         health = await svc.get_health()
         assert health["status"] == "not_initialized"
+
+
+class TestPathTraversal:
+    @pytest.mark.asyncio
+    async def test_dotdot_rejected(self, storage_service):
+        """Paths containing '..' must be rejected."""
+        from shared.core.exceptions import StorageError
+
+        with pytest.raises(StorageError, match="traversal"):
+            storage_service._validate_path("../etc/passwd")
+
+    @pytest.mark.asyncio
+    async def test_absolute_path_rejected(self, storage_service):
+        """Absolute paths must be rejected."""
+        from shared.core.exceptions import StorageError
+
+        with pytest.raises(StorageError):
+            storage_service._validate_path("/etc/passwd")
+
+    @pytest.mark.asyncio
+    async def test_valid_relative_path_allowed(self, storage_service):
+        """Normal relative paths within base_path should succeed."""
+        # Should not raise
+        result = storage_service._validate_path("documents/test-tenant")
+        assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_store_with_traversal_tenant_fails(self, storage_service):
+        """Storing with a tenant_id containing '..' should fail."""
+        meta = _make_metadata(tenant_id="../../../etc")
+        result = await storage_service.store_document("doc-evil", b"data", meta)
+        assert result.success is False

@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Navigation } from '@/components/layout/Navigation';
+import { PageErrorBoundary } from '@/components/common/ErrorBoundary';
 import { Dashboard } from '@/pages/Dashboard';
 import { Upload } from '@/pages/Upload';
 import { Documents } from '@/pages/Documents';
@@ -31,11 +32,11 @@ const App: React.FC = () => {
           <Suspense fallback={<PageFallback />}>
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/upload" element={<Upload />} />
-              <Route path="/documents" element={<Documents />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/dashboard" element={<PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary>} />
+              <Route path="/upload" element={<PageErrorBoundary pageName="Upload"><Upload /></PageErrorBoundary>} />
+              <Route path="/documents" element={<PageErrorBoundary pageName="Documents"><Documents /></PageErrorBoundary>} />
+              <Route path="/reports" element={<PageErrorBoundary pageName="Reports"><Reports /></PageErrorBoundary>} />
+              <Route path="/settings" element={<PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary>} />
 
               {/* Catch all route - redirect to dashboard */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

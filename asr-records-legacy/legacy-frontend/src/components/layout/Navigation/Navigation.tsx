@@ -78,6 +78,7 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
 
   return (
     <nav
+      aria-label="Main navigation"
       className={clsx(
         'w-64 bg-white border-r border-gray-200 flex flex-col',
         className
@@ -139,8 +140,8 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
 
       {/* Footer info */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center space-x-2 text-xs text-gray-500">
-          <div className={clsx('h-2 w-2 rounded-full', isOnline ? 'bg-green-500' : 'bg-red-500')}></div>
+        <div className="flex items-center space-x-2 text-xs text-gray-500" aria-live="polite">
+          <div className={clsx('h-2 w-2 rounded-full', isOnline ? 'bg-green-500' : 'bg-red-500')} aria-hidden="true"></div>
           <span>{isOnline ? 'System Online' : 'System Offline'}</span>
         </div>
         <div className="mt-1 text-xs text-gray-400">

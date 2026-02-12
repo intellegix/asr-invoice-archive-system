@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -33,8 +33,8 @@ export const useAuthStore = create<AuthStore>()(
 
       // Actions
       login: (apiKey, tenantId, userInfo) => {
-        localStorage.setItem('api_key', apiKey);
-        localStorage.setItem('tenant_id', tenantId);
+        sessionStorage.setItem('api_key', apiKey);
+        sessionStorage.setItem('tenant_id', tenantId);
 
         set({
           isAuthenticated: true,
@@ -45,8 +45,8 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
-        localStorage.removeItem('api_key');
-        localStorage.removeItem('tenant_id');
+        sessionStorage.removeItem('api_key');
+        sessionStorage.removeItem('tenant_id');
 
         set({
           isAuthenticated: false,
@@ -61,18 +61,19 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       setTenantId: (tenantId) => {
-        localStorage.setItem('tenant_id', tenantId);
+        sessionStorage.setItem('tenant_id', tenantId);
         set({ tenantId });
       },
     }),
     {
       name: 'auth-storage',
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         isAuthenticated: state.isAuthenticated,
         tenantId: state.tenantId,
         apiKey: state.apiKey,
         userInfo: state.userInfo,
-      }),
+      } as AuthStore),
     }
   )
 );

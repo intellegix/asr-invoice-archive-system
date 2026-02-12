@@ -57,6 +57,23 @@ class ProductionStorageService:
         self.s3_prefix: str = storage_config.get("prefix", "production-server")
         self.initialized = False
 
+    def _validate_path(self, user_path: str) -> Path:
+        """Validate that a user-supplied path stays within the storage directory.
+
+        Raises StorageError if the resolved path escapes base_path.
+        """
+        if ".." in user_path or Path(user_path).is_absolute():
+            raise StorageError(
+                f"Invalid path: directory traversal or absolute paths are not allowed"
+            )
+        resolved = (self.base_path / user_path).resolve()
+        base_resolved = self.base_path.resolve()
+        if not str(resolved).startswith(str(base_resolved)):
+            raise StorageError(
+                f"Invalid path: resolved path escapes storage directory"
+            )
+        return resolved
+
     async def initialize(self) -> None:
         """Initialize storage service"""
         try:
@@ -123,6 +140,9 @@ class ProductionStorageService:
     ) -> StorageResult:
         """Store document in local filesystem"""
         try:
+            # Validate tenant_id and filename against path traversal
+            self._validate_path(f"documents/{metadata.tenant_id}")
+
             # Create tenant-specific path
             tenant_path = self.base_path / "documents" / metadata.tenant_id
             tenant_path.mkdir(parents=True, exist_ok=True)

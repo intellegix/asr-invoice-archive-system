@@ -14,15 +14,31 @@ env:
   ECS_CLUSTER: asr-records-legacy-cluster-dev
 
 jobs:
-  # Wait for CI to pass first
+  # Wait for CI to pass first (both backend matrix jobs + frontend)
   ci-check:
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for CI workflow
+      - name: Wait for backend tests (3.11)
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'test (3.11)'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
+      - name: Wait for backend tests (3.12)
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref: ${{ github.sha }}
           check-name: 'test (3.12)'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
+      - name: Wait for frontend tests
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'frontend-test'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 15
 

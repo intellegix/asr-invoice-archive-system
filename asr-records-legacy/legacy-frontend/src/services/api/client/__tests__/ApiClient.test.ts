@@ -37,7 +37,7 @@ describe('ApiClient', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    sessionStorage.clear();
 
     client = new ApiClient();
 
@@ -102,8 +102,8 @@ describe('ApiClient', () => {
   // ---------- Request interceptor ----------
 
   describe('request interceptor', () => {
-    it('adds Authorization header when api_key exists in localStorage', () => {
-      localStorage.setItem('api_key', 'test-api-key-123');
+    it('adds Authorization header when api_key exists in sessionStorage', () => {
+      sessionStorage.setItem('api_key', 'test-api-key-123');
 
       const config = { headers: {} as Record<string, string> };
       const result = requestInterceptor(config);
@@ -111,7 +111,7 @@ describe('ApiClient', () => {
       expect(result.headers.Authorization).toBe('Bearer test-api-key-123');
     });
 
-    it('skips Authorization header when no api_key in localStorage', () => {
+    it('skips Authorization header when no api_key in sessionStorage', () => {
       const config = { headers: {} as Record<string, string> };
       const result = requestInterceptor(config);
 
