@@ -85,7 +85,7 @@ jobs:
           # Update service
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
-            --service asr-records-backend-dev \
+            --service backend-service \
             --task-definition "$NEW_TASK_DEF" \
             --force-new-deployment
 
@@ -130,6 +130,6 @@ jobs:
               --query 'taskDefinition.taskDefinitionArn' --output text)
           aws ecs update-service \
             --cluster $ECS_CLUSTER \
-            --service asr-records-frontend-dev \
+            --service frontend-service \
             --task-definition "$NEW_TASK_DEF" \
             --force-new-deployment
