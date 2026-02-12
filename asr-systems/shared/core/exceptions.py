@@ -10,7 +10,10 @@ class ASRException(Exception):
     """Base exception class for ASR systems"""
 
     def __init__(
-        self, message: str, error_code: str = None, details: Dict[str, Any] = None
+        self,
+        message: str,
+        error_code: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(message)
         self.message = message
@@ -30,7 +33,7 @@ class ASRException(Exception):
 class ConfigurationError(ASRException):
     """Configuration-related errors"""
 
-    def __init__(self, message: str, config_key: str = None, **kwargs):
+    def __init__(self, message: str, config_key: Optional[str] = None, **kwargs):
         super().__init__(message, "CONFIG_ERROR", **kwargs)
         self.config_key = config_key
 
@@ -38,7 +41,7 @@ class ConfigurationError(ASRException):
 class TenantError(ASRException):
     """Tenant-related errors"""
 
-    def __init__(self, message: str, tenant_id: str = None, **kwargs):
+    def __init__(self, message: str, tenant_id: Optional[str] = None, **kwargs):
         super().__init__(message, "TENANT_ERROR", **kwargs)
         self.tenant_id = tenant_id
 
@@ -46,7 +49,7 @@ class TenantError(ASRException):
 class DocumentError(ASRException):
     """Document processing errors"""
 
-    def __init__(self, message: str, document_id: str = None, **kwargs):
+    def __init__(self, message: str, document_id: Optional[str] = None, **kwargs):
         super().__init__(message, "DOCUMENT_ERROR", **kwargs)
         self.document_id = document_id
 
@@ -54,7 +57,7 @@ class DocumentError(ASRException):
 class StorageError(ASRException):
     """Storage-related errors"""
 
-    def __init__(self, message: str, storage_path: str = None, **kwargs):
+    def __init__(self, message: str, storage_path: Optional[str] = None, **kwargs):
         super().__init__(message, "STORAGE_ERROR", **kwargs)
         self.storage_path = storage_path
 
@@ -62,7 +65,9 @@ class StorageError(ASRException):
 class ClassificationError(ASRException):
     """Document classification errors"""
 
-    def __init__(self, message: str, classification_type: str = None, **kwargs):
+    def __init__(
+        self, message: str, classification_type: Optional[str] = None, **kwargs
+    ):
         super().__init__(message, "CLASSIFICATION_ERROR", **kwargs)
         self.classification_type = classification_type
 
@@ -70,7 +75,7 @@ class ClassificationError(ASRException):
 class PaymentDetectionError(ASRException):
     """Payment detection errors"""
 
-    def __init__(self, message: str, method: str = None, **kwargs):
+    def __init__(self, message: str, method: Optional[str] = None, **kwargs):
         super().__init__(message, "PAYMENT_DETECTION_ERROR", **kwargs)
         self.method = method
 
@@ -78,7 +83,7 @@ class PaymentDetectionError(ASRException):
 class RoutingError(ASRException):
     """Billing routing errors"""
 
-    def __init__(self, message: str, destination: str = None, **kwargs):
+    def __init__(self, message: str, destination: Optional[str] = None, **kwargs):
         super().__init__(message, "ROUTING_ERROR", **kwargs)
         self.destination = destination
 
@@ -86,7 +91,7 @@ class RoutingError(ASRException):
 class ValidationError(ASRException):
     """Data validation errors"""
 
-    def __init__(self, message: str, field: str = None, **kwargs):
+    def __init__(self, message: str, field: Optional[str] = None, **kwargs):
         super().__init__(message, "VALIDATION_ERROR", **kwargs)
         self.field = field
 
@@ -101,7 +106,9 @@ class AuthenticationError(ASRException):
 class AuthorizationError(ASRException):
     """Authorization errors"""
 
-    def __init__(self, message: str = "Access denied", resource: str = None, **kwargs):
+    def __init__(
+        self, message: str = "Access denied", resource: Optional[str] = None, **kwargs
+    ):
         super().__init__(message, "AUTHZ_ERROR", **kwargs)
         self.resource = resource
 
@@ -110,7 +117,11 @@ class APIError(ASRException):
     """API communication errors"""
 
     def __init__(
-        self, message: str, status_code: int = None, endpoint: str = None, **kwargs
+        self,
+        message: str,
+        status_code: Optional[int] = None,
+        endpoint: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(message, "API_ERROR", **kwargs)
         self.status_code = status_code
@@ -120,7 +131,7 @@ class APIError(ASRException):
 class ScannerError(ASRException):
     """Document scanner errors"""
 
-    def __init__(self, message: str, scanner_id: str = None, **kwargs):
+    def __init__(self, message: str, scanner_id: Optional[str] = None, **kwargs):
         super().__init__(message, "SCANNER_ERROR", **kwargs)
         self.scanner_id = scanner_id
 
@@ -128,7 +139,7 @@ class ScannerError(ASRException):
 class NetworkError(ASRException):
     """Network connectivity errors"""
 
-    def __init__(self, message: str, url: str = None, **kwargs):
+    def __init__(self, message: str, url: Optional[str] = None, **kwargs):
         super().__init__(message, "NETWORK_ERROR", **kwargs)
         self.url = url
 
@@ -136,7 +147,7 @@ class NetworkError(ASRException):
 class DatabaseError(ASRException):
     """Database operation errors"""
 
-    def __init__(self, message: str, operation: str = None, **kwargs):
+    def __init__(self, message: str, operation: Optional[str] = None, **kwargs):
         super().__init__(message, "DATABASE_ERROR", **kwargs)
         self.operation = operation
 
@@ -144,7 +155,7 @@ class DatabaseError(ASRException):
 class CLAUDEAPIError(ASRException):
     """Claude AI API errors"""
 
-    def __init__(self, message: str, api_status: int = None, **kwargs):
+    def __init__(self, message: str, api_status: Optional[int] = None, **kwargs):
         super().__init__(message, "CLAUDE_API_ERROR", **kwargs)
         self.api_status = api_status
 
@@ -153,7 +164,11 @@ class FileSystemError(ASRException):
     """File system operation errors"""
 
     def __init__(
-        self, message: str, file_path: str = None, operation: str = None, **kwargs
+        self,
+        message: str,
+        file_path: Optional[str] = None,
+        operation: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(message, "FILESYSTEM_ERROR", **kwargs)
         self.file_path = file_path
@@ -166,9 +181,9 @@ class QuotaExceededError(ASRException):
     def __init__(
         self,
         message: str,
-        resource_type: str = None,
-        current_usage: str = None,
-        limit: str = None,
+        resource_type: Optional[str] = None,
+        current_usage: Optional[str] = None,
+        limit: Optional[str] = None,
         **kwargs,
     ):
         super().__init__(message, "QUOTA_EXCEEDED", **kwargs)
@@ -180,7 +195,7 @@ class QuotaExceededError(ASRException):
 class ConflictError(ASRException):
     """Resource conflict errors"""
 
-    def __init__(self, message: str, resource_id: str = None, **kwargs):
+    def __init__(self, message: str, resource_id: Optional[str] = None, **kwargs):
         super().__init__(message, "CONFLICT_ERROR", **kwargs)
         self.resource_id = resource_id
 
@@ -188,7 +203,7 @@ class ConflictError(ASRException):
 class RetryableError(ASRException):
     """Errors that should trigger retry logic"""
 
-    def __init__(self, message: str, retry_after: int = None, **kwargs):
+    def __init__(self, message: str, retry_after: Optional[int] = None, **kwargs):
         super().__init__(message, "RETRYABLE_ERROR", **kwargs)
         self.retry_after = retry_after  # seconds
 
@@ -196,7 +211,7 @@ class RetryableError(ASRException):
 class CriticalSystemError(ASRException):
     """Critical system errors that require immediate attention"""
 
-    def __init__(self, message: str, component: str = None, **kwargs):
+    def __init__(self, message: str, component: Optional[str] = None, **kwargs):
         super().__init__(message, "CRITICAL_SYSTEM_ERROR", **kwargs)
         self.component = component
 

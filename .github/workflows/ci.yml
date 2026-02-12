@@ -50,7 +50,7 @@ jobs:
 
       - name: mypy (type check)
         continue-on-error: true
-        run: mypy asr-systems/production-server asr-systems/shared --ignore-missing-imports
+        run: mypy asr-systems/production_server asr-systems/shared --ignore-missing-imports
 
       - name: bandit (security scan)
         run: bandit -r asr-systems/production-server asr-systems/shared -c pyproject.toml || true
