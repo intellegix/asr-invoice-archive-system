@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (139 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 139 tests
+# --- Backend (163 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 163 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -42,7 +42,7 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (298 vitest tests) ---
+# --- Frontend (341 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
 npm run test                                                  # All 298 tests
 npx vitest run                                                # Single run (no watch)
@@ -56,24 +56,25 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (139 tests)
+### Backend Test Files (163 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
 | `test_api_endpoints.py` | 10 | FastAPI routes via TestClient |
 | `test_audit_trail_service.py` | 5 | Audit trail persistence |
 | `test_billing_router_service.py` | 12 | Routing logic + destinations |
+| `test_dashboard_routes.py` | 17 | /metrics/* endpoint shapes |
 | `test_document_processor_service.py` | 8 | Pipeline orchestration |
 | `test_gl_account_service.py` | 6 | GL classification |
 | `test_multi_tenant_isolation.py` | 9 | Storage/API/scanner tenant scoping |
 | `test_payment_detection_service.py` | 13 | 5-method consensus |
-| `test_rate_limit_middleware.py` | 16 | Sliding window, 429s, client ID extraction |
-| `test_scanner_manager_service.py` | 8 | Scanner registration/heartbeat |
+| `test_rate_limit_middleware.py` | 19 | Sliding window, 429s, memory management |
+| `test_scanner_manager_service.py` | 15 | Scanner registration/heartbeat |
 | `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
-| `test_storage_service.py` | 10 | Local CRUD + tenant isolation |
+| `test_storage_service.py` | 14 | Local CRUD + tenant isolation + path traversal |
 | `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
 
-### Frontend Test Files (298 vitest tests)
+### Frontend Test Files (341 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
@@ -182,5 +183,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | AWS ECS | Working | `b351af7` |
 | CI Pipeline | Green | `6abf88e` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 510 tests | `eaa9785` |
+| Full-Stack Tests | 577 tests | `cabc69d` |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
+| P7-P9 Type Safety | Complete | `7702a6c` |
+| P10-P12 Metrics+Hardening | Complete | `cabc69d` |
