@@ -52,15 +52,15 @@ jobs:
         continue-on-error: true
         run: mypy asr-systems/production_server asr-systems/shared --ignore-missing-imports
 
-      - name: bandit (security scan)
-        run: bandit -r asr-systems/production-server asr-systems/shared -c pyproject.toml || true
+      - name: bandit (security scan — blocks on medium+)
+        run: bandit -r asr-systems/production-server asr-systems/shared -c pyproject.toml -ll
 
       - name: pip-audit (dependency check)
         run: pip-audit -r asr-systems/production-server/requirements.txt || true
 
-      - name: pytest (with coverage)
+      - name: pytest (234 tests, coverage >= 60%)
         working-directory: asr-systems
-        run: python -m pytest tests/ -v --tb=short -x --cov=production-server --cov=shared --cov-report=term-missing
+        run: python -m pytest tests/ -v --tb=short -x --cov=production-server --cov=shared --cov-report=term-missing --cov-fail-under=60
 
   frontend-test:
     runs-on: ubuntu-latest
@@ -83,7 +83,7 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Vitest (389 tests)
+      - name: Vitest (392 tests)
         run: npx vitest run
 
   docker:
@@ -92,6 +92,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Build backend Docker image
         working-directory: asr-systems
         run: docker build -f production-server/Dockerfile -t asr-backend:test .
+
+      - name: Build frontend Docker image
+        working-directory: asr-records-legacy/legacy-frontend
+        run: docker build -t asr-frontend:test .
+
+      - name: Backend Docker smoke test
+        working-directory: asr-systems
+        run: |
+          docker run -d --name backend-smoke \
+            -e DEBUG=true \
+            -e ANTHROPIC_API_KEY=test-key \
+            -p 8000:8000 \
+            asr-backend:test
+          sleep 5
+          curl -sf http://localhost:8000/health/live || (docker logs backend-smoke && exit 1)
+          docker stop backend-smoke

@@ -4,6 +4,11 @@ profile = "black"
 [tool.black]
 line-length = 88
 
+[tool.bandit]
+# B104: hardcoded_bind_all_interfaces — intentional in cloud deployment modes
+# B110: try_except_pass — acceptable in best-effort helpers (mime detection, etc.)
+skips = ["B104", "B110"]
+
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
