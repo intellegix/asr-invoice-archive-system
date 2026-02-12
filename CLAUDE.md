@@ -173,7 +173,7 @@ CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
 - Builds + pushes backend/frontend images to ECR
-- Updates ECS services with new task definitions
+- Updates ECS services (`backend-service`, `frontend-service`) with new task definitions
 - Requires `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub secrets
 
 ## Deployment Status
@@ -183,8 +183,9 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | Source Code | Working | — |
 | Windows EXE | Working | `802008f` |
 | Docker | Working | `a0d36e9` |
-| AWS ECS | Working | `b351af7` |
-| CI Pipeline | Green | `941a5af` |
+| AWS ECS | Working | `8749d85` |
+| CI Pipeline | Green | `8749d85` |
+| Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
 | Full-Stack Tests | 636 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
