@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   CheckCircle,
@@ -9,8 +10,10 @@ import {
 } from 'lucide-react';
 import { MetricCard } from '@/components/common/MetricCard';
 import { useDashboardMetrics, usePaymentStatusDistribution } from '@/hooks/api/useDashboard';
+import type { PaymentStatusDistribution } from '@/types/api';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   // Real API calls - preserves all backend sophistication
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
   const { data: paymentDistribution } = usePaymentStatusDistribution();
@@ -164,7 +167,7 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="space-y-4">
-            {(paymentDistribution as any)?.distribution?.map((item: any) => {
+            {(paymentDistribution as PaymentStatusDistribution | undefined)?.distribution?.map((item) => {
               const colors = {
                 paid: 'bg-green-500',
                 unpaid: 'bg-yellow-500',
@@ -193,7 +196,7 @@ export const Dashboard: React.FC = () => {
               );
             })}
 
-            {(!(paymentDistribution as any)?.distribution || (paymentDistribution as any)?.distribution?.length === 0) && (
+            {(!(paymentDistribution as PaymentStatusDistribution | undefined)?.distribution || (paymentDistribution as PaymentStatusDistribution | undefined)?.distribution?.length === 0) && (
               <div className="text-center py-4 text-gray-500">
                 <p>No payment status data available</p>
               </div>
@@ -220,7 +223,7 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+          <button onClick={() => navigate('/upload')} className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
             <FileText className="h-6 w-6 text-primary-600 mb-2" />
             <h4 className="font-medium text-gray-900">Upload Documents</h4>
             <p className="text-sm text-gray-600">
@@ -228,7 +231,7 @@ export const Dashboard: React.FC = () => {
             </p>
           </button>
 
-          <button className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+          <button onClick={() => navigate('/reports')} className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
             <TrendingUp className="h-6 w-6 text-primary-600 mb-2" />
             <h4 className="font-medium text-gray-900">View Reports</h4>
             <p className="text-sm text-gray-600">
@@ -236,7 +239,7 @@ export const Dashboard: React.FC = () => {
             </p>
           </button>
 
-          <button className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
+          <button onClick={() => navigate('/documents')} className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
             <AlertCircle className="h-6 w-6 text-primary-600 mb-2" />
             <h4 className="font-medium text-gray-900">Review Queue</h4>
             <p className="text-sm text-gray-600">

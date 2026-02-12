@@ -1,9 +1,10 @@
 import React from 'react';
 import { X, FileText, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import type { Document as ApiDocument, AuditStep } from '@/types/api';
 
 interface DocumentDetailModalProps {
-  document: any;
+  document: ApiDocument | null;
   onClose: () => void;
 }
 
@@ -160,7 +161,7 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
           {doc.audit_trail && doc.audit_trail.length > 0 && (
             <Section title="Audit Trail">
               <div className="space-y-2">
-                {doc.audit_trail.map((step: any, i: number) => (
+                {doc.audit_trail.map((step: AuditStep, i: number) => (
                   <div key={i} className="flex items-start space-x-3 py-2 border-b border-gray-100 last:border-0">
                     <CheckCircle className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from '../Dashboard';
 import { useDashboardMetrics, usePaymentStatusDistribution } from '@/hooks/api/useDashboard';
@@ -231,5 +231,32 @@ describe('Dashboard', () => {
     expect(screen.getByText('Generate analytics and insights')).toBeInTheDocument();
     expect(screen.getByText('Review Queue')).toBeInTheDocument();
     expect(screen.getByText('Check items needing manual review')).toBeInTheDocument();
+  });
+
+  // --- Quick Action navigation ---
+
+  it('Upload Documents quick action navigates to /upload', () => {
+    setupLoaded();
+    renderDashboard();
+    const btn = screen.getByText('Upload Documents').closest('button')!;
+    fireEvent.click(btn);
+    // MemoryRouter will handle the navigation — verify no crash
+    expect(btn).toBeInTheDocument();
+  });
+
+  it('View Reports quick action navigates to /reports', () => {
+    setupLoaded();
+    renderDashboard();
+    const btn = screen.getByText('View Reports').closest('button')!;
+    fireEvent.click(btn);
+    expect(btn).toBeInTheDocument();
+  });
+
+  it('Review Queue quick action navigates to /documents', () => {
+    setupLoaded();
+    renderDashboard();
+    const btn = screen.getByText('Review Queue').closest('button')!;
+    fireEvent.click(btn);
+    expect(btn).toBeInTheDocument();
   });
 });

@@ -21,6 +21,7 @@ import {
   useGLAccountUsage,
   useTrendData,
 } from '@/hooks/api/useDashboard';
+import type { GLAccountUsage, PaymentStatusDistribution, TrendData } from '@/types/api';
 
 ChartJS.register(
   CategoryScale,
@@ -42,13 +43,13 @@ export const Reports: React.FC = () => {
   const { data: trends } = useTrendData('30d');
 
   const glChartData = React.useMemo(() => {
-    const accounts = (glUsage as any)?.accounts?.slice(0, 10) || [];
+    const accounts = (glUsage as GLAccountUsage | undefined)?.accounts?.slice(0, 10) ?? [];
     return {
-      labels: accounts.map((a: any) => a.name || a.code),
+      labels: accounts.map((a) => a.name || a.code),
       datasets: [
         {
           label: 'Documents',
-          data: accounts.map((a: any) => a.documentCount || 0),
+          data: accounts.map((a) => a.documentCount || 0),
           backgroundColor: 'rgba(59, 130, 246, 0.7)',
           borderColor: 'rgb(59, 130, 246)',
           borderWidth: 1,
@@ -58,7 +59,7 @@ export const Reports: React.FC = () => {
   }, [glUsage]);
 
   const paymentChartData = React.useMemo(() => {
-    const dist = (paymentDistribution as any)?.distribution || [];
+    const dist = (paymentDistribution as PaymentStatusDistribution | undefined)?.distribution ?? [];
     const colors = {
       paid: 'rgba(34, 197, 94, 0.8)',
       unpaid: 'rgba(234, 179, 8, 0.8)',
@@ -67,12 +68,12 @@ export const Reports: React.FC = () => {
       unknown: 'rgba(156, 163, 175, 0.8)',
     };
     return {
-      labels: dist.map((d: any) => d.status?.charAt(0).toUpperCase() + d.status?.slice(1)),
+      labels: dist.map((d) => d.status?.charAt(0).toUpperCase() + d.status?.slice(1)),
       datasets: [
         {
-          data: dist.map((d: any) => d.count || 0),
+          data: dist.map((d) => d.count || 0),
           backgroundColor: dist.map(
-            (d: any) => colors[d.status as keyof typeof colors] || colors.unknown
+            (d) => colors[d.status as keyof typeof colors] || colors.unknown
           ),
           borderWidth: 2,
           borderColor: '#fff',
@@ -82,13 +83,13 @@ export const Reports: React.FC = () => {
   }, [paymentDistribution]);
 
   const trendChartData = React.useMemo(() => {
-    const docs = trends?.documents || [];
+    const docs = (trends as TrendData | undefined)?.documents ?? [];
     return {
-      labels: docs.map((d: any) => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+      labels: docs.map((d) => new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
       datasets: [
         {
           label: 'Classified',
-          data: docs.map((d: any) => d.classified || 0),
+          data: docs.map((d) => d.classified || 0),
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           fill: true,
@@ -96,7 +97,7 @@ export const Reports: React.FC = () => {
         },
         {
           label: 'Manual Review',
-          data: docs.map((d: any) => d.manualReview || 0),
+          data: docs.map((d) => d.manualReview || 0),
           borderColor: 'rgb(234, 179, 8)',
           backgroundColor: 'rgba(234, 179, 8, 0.1)',
           fill: true,

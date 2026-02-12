@@ -1,4 +1,6 @@
-export function exportDocumentsCsv(documents: any[]): void {
+import type { Document as ApiDocument } from '@/types/api';
+
+export function exportDocumentsCsv(documents: ApiDocument[]): void {
   const headers = [
     'Document Name',
     'Vendor',
@@ -23,7 +25,7 @@ export function exportDocumentsCsv(documents: any[]): void {
     doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '',
   ]);
 
-  const escapeCsvField = (field: any): string => {
+  const escapeCsvField = (field: string | number | undefined): string => {
     const str = String(field);
     if (str.includes(',') || str.includes('"') || str.includes('\n')) {
       return `"${str.replace(/"/g, '""')}"`;

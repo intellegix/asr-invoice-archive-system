@@ -29,9 +29,12 @@ interface SystemInfoData {
 export const useSystemStatus = () => {
   return useQuery({
     queryKey: ['system', 'status'],
-    queryFn: async () => {
-      const response = await apiClient.get<{ data: SystemStatusData }>('/api/status');
-      return (response as any).data || response;
+    queryFn: async (): Promise<SystemStatusData> => {
+      const response = await apiClient.get<SystemStatusData | { data: SystemStatusData }>('/api/status');
+      if (response && typeof response === 'object' && 'data' in response && response.data && typeof response.data === 'object' && 'status' in response.data) {
+        return response.data as SystemStatusData;
+      }
+      return response as SystemStatusData;
     },
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
@@ -42,9 +45,12 @@ export const useSystemStatus = () => {
 export const useSystemInfo = () => {
   return useQuery({
     queryKey: ['system', 'info'],
-    queryFn: async () => {
-      const response = await apiClient.get<{ data: SystemInfoData }>('/api/v1/system/info');
-      return (response as any).data || response;
+    queryFn: async (): Promise<SystemInfoData> => {
+      const response = await apiClient.get<SystemInfoData | { data: SystemInfoData }>('/api/v1/system/info');
+      if (response && typeof response === 'object' && 'data' in response && response.data && typeof response.data === 'object' && 'capabilities' in response.data) {
+        return response.data as SystemInfoData;
+      }
+      return response as SystemInfoData;
     },
     staleTime: 10 * 60 * 1000,
     gcTime: 60 * 60 * 1000,

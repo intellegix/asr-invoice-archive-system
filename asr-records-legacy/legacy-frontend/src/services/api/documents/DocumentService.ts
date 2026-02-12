@@ -1,8 +1,9 @@
 import { apiClient } from '../client';
 import type {
+  Document as ApiDocument,
   DocumentFilters,
   DocumentUploadResponse,
-  SearchResult
+  SearchResult,
 } from '@/types/api';
 
 export const documentsAPI = {
@@ -19,12 +20,12 @@ export const documentsAPI = {
       max_amount: filters?.amount_range?.max,
     };
 
-    return apiClient.get<Document[]>('/invoices', params);
+    return apiClient.get<ApiDocument[]>('/invoices', params);
   },
 
   // Get single document
   async getById(id: string) {
-    return apiClient.get<Document>(`/invoices/${id}`);
+    return apiClient.get<ApiDocument>(`/invoices/${id}`);
   },
 
   // Upload and process document - preserves all backend sophistication
@@ -44,7 +45,7 @@ export const documentsAPI = {
   // Quick search - fast document lookup
   async quickSearch(query: string) {
     const params = { q: query, limit: 10 };
-    return apiClient.get<Document[]>('/search/quick', params);
+    return apiClient.get<ApiDocument[]>('/search/quick', params);
   },
 
   // Trigger document reprocessing - uses all 40+ GL accounts and 5-method payment detection

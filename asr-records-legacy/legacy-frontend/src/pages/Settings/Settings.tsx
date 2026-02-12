@@ -29,7 +29,7 @@ export const Settings: React.FC = () => {
   }
 
   const capabilities = systemInfo?.capabilities;
-  const services = systemStatus?.services || {};
+  const services: Record<string, { status: string; count?: number; methods?: number; destinations?: number; backend?: string }> = systemStatus?.services || {};
   const isOperational = systemStatus?.status === 'operational';
 
   return (
@@ -92,7 +92,7 @@ export const Settings: React.FC = () => {
             </div>
           </div>
           <div className="space-y-3">
-            {Object.entries(services).map(([name, service]: [string, any]) => (
+            {Object.entries(services).map(([name, service]) => (
               <div key={name} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <span className="text-sm text-gray-700 capitalize">
                   {name.replace(/_/g, ' ')}

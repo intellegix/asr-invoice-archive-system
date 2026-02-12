@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import type { DocumentFilters } from '@/types/api';
+import type { DocumentFilters, PaymentStatus } from '@/types/api';
 
 interface FilterPanelProps {
   onApply: (filters: DocumentFilters) => void;
@@ -42,7 +42,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
     }
 
     if (paymentStatus) {
-      filters.payment_status = [paymentStatus as any];
+      filters.payment_status = [paymentStatus as PaymentStatus];
     }
 
     onApply(filters);
