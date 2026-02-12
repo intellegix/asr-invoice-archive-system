@@ -29,7 +29,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost/ || exit 1
+  CMD wget -qO /dev/null http://localhost/health || exit 1
 
 # Expose port
 EXPOSE 80
