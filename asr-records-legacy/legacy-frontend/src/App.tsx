@@ -27,7 +27,7 @@ const App: React.FC = () => {
       {/* All other routes — protected + full layout */}
       <Route path="/*" element={
         <ProtectedRoute>
-          <div className="min-h-screen bg-gray-50 flex">
+          <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
             <Navigation />
             <div className="flex-1 flex flex-col">
               <Header />

@@ -80,18 +80,18 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
     <nav
       aria-label="Main navigation"
       className={clsx(
-        'w-64 bg-white border-r border-gray-200 flex flex-col',
+        'w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col',
         className
       )}
     >
       {/* Logo and brand */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 bg-primary-600 rounded-lg flex items-center justify-center">
             <Folder className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
               ASR Records
             </h2>
             <p className="text-xs text-gray-500">Legacy Edition</p>
@@ -100,19 +100,19 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
       </div>
 
       {/* Quick stats */}
-      <div className="p-4 bg-gray-50 border-b border-gray-200">
+      <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-2 gap-3 text-center">
-          <div className="bg-white rounded-lg p-3 shadow-soft">
-            <div className="text-lg font-semibold text-gray-900">
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-soft">
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">
               {metricsLoading ? '--' : (metrics?.totalDocuments?.toLocaleString() ?? '0')}
             </div>
-            <div className="text-xs text-gray-500">Documents</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Documents</div>
           </div>
-          <div className="bg-white rounded-lg p-3 shadow-soft">
+          <div className="bg-white dark:bg-gray-700 rounded-lg p-3 shadow-soft">
             <div className="text-lg font-semibold text-green-600">
               {metricsLoading ? '--' : `${metrics?.classificationAccuracy ?? metrics?.paymentAccuracy ?? 0}%`}
             </div>
-            <div className="text-xs text-gray-500">Accuracy</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Accuracy</div>
           </div>
         </div>
       </div>
@@ -126,7 +126,7 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
         </div>
 
         {/* Secondary Navigation */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
           <h3 className="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
             Tools
           </h3>
@@ -139,7 +139,7 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
       </div>
 
       {/* Footer info */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
         <div className="flex items-center space-x-2 text-xs text-gray-500" aria-live="polite">
           <div className={clsx('h-2 w-2 rounded-full', isOnline ? 'bg-green-500' : 'bg-red-500')} aria-hidden="true"></div>
           <span>{isOnline ? 'System Online' : 'System Offline'}</span>

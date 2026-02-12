@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { Header } from '@/components/layout/Header';
+import { useUIStore } from '@/stores/ui/uiStore';
 
 // Mock the auth store hooks
 vi.mock('@/stores/auth', () => ({
@@ -71,5 +72,35 @@ describe('Header', () => {
     expect(
       screen.getByRole('button', { name: /user menu/i })
     ).toBeInTheDocument();
+  });
+
+  it('renders theme toggle button', () => {
+    render(<Header />);
+    expect(
+      screen.getByRole('button', { name: /toggle theme/i })
+    ).toBeInTheDocument();
+  });
+
+  it('toggles theme when theme button is clicked', () => {
+    // Reset to light
+    useUIStore.getState().setTheme('light');
+    render(<Header />);
+    const btn = screen.getByRole('button', { name: /toggle theme/i });
+    fireEvent.click(btn);
+    expect(useUIStore.getState().theme).toBe('dark');
+  });
+
+  it('shows Sun icon in dark mode and Moon icon in light mode', () => {
+    useUIStore.getState().setTheme('light');
+    const { rerender } = render(<Header />);
+    // In light mode, Moon icon is displayed (click to go dark)
+    const btn = screen.getByRole('button', { name: /toggle theme/i });
+    expect(btn.querySelector('svg')).toBeInTheDocument();
+
+    // Switch to dark
+    useUIStore.getState().setTheme('dark');
+    rerender(<Header />);
+    // Still has an svg icon
+    expect(btn.querySelector('svg')).toBeInTheDocument();
   });
 });

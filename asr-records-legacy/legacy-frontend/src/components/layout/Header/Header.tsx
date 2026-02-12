@@ -1,7 +1,8 @@
 import React from 'react';
-import { Bell, User, Settings } from 'lucide-react';
+import { Bell, User, Settings, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { useUserInfo, useTenantId } from '@/stores/auth';
+import { useTheme } from '@/stores/ui/uiStore';
 
 interface HeaderProps {
   className?: string;
@@ -10,6 +11,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ className }) => {
   const userInfo = useUserInfo();
   const tenantId = useTenantId();
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const currentUser = {
     name: userInfo?.name || 'Guest',
@@ -18,14 +20,14 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
   };
 
   return (
-    <header className={`bg-white border-b border-gray-200 px-6 py-4 ${className || ''}`}>
+    <header className={`bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-4 ${className || ''}`}>
       <div className="flex items-center justify-between">
         {/* Left side - Page title and breadcrumbs will be added here later */}
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             ASR Records Legacy
           </h1>
-          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+          <span className="text-sm text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-md">
             {currentUser.tenant}
           </span>
         </div>
@@ -39,9 +41,24 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
             className="relative p-2"
             aria-label="Notifications"
           >
-            <Bell className="h-5 w-5 text-gray-600" />
+            <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             {/* Notification indicator */}
             <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+          </Button>
+
+          {/* Theme toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="p-2"
+            aria-label="Toggle theme"
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? (
+              <Sun className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            ) : (
+              <Moon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            )}
           </Button>
 
           {/* Settings */}
@@ -51,16 +68,16 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
             className="p-2"
             aria-label="Settings"
           >
-            <Settings className="h-5 w-5 text-gray-600" />
+            <Settings className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </Button>
 
           {/* User menu */}
-          <div className="flex items-center space-x-3 pl-3 border-l border-gray-200">
+          <div className="flex items-center space-x-3 pl-3 border-l border-gray-200 dark:border-gray-700">
             <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {currentUser.name}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 {currentUser.email}
               </p>
             </div>
@@ -70,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
               className="p-2"
               aria-label="User menu"
             >
-              <User className="h-5 w-5 text-gray-600" />
+              <User className="h-5 w-5 text-gray-600 dark:text-gray-400" />
             </Button>
           </div>
         </div>
