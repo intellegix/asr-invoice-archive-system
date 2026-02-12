@@ -34,10 +34,15 @@
         {
           "name": "ANTHROPIC_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:us-west-2:206362095382:secret:asr-records/anthropic-api-key"
+        },
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-west-2:206362095382:secret:asr-records/database-url"
         }
       ],
+      "stopTimeout": 30,
       "healthCheck": {
-        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health/live || exit 1"],
         "interval": 30,
         "timeout": 10,
         "retries": 3,

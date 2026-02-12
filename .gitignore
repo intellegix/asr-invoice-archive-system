@@ -46,6 +46,7 @@ Thumbs.db
 
 # Project-specific
 DELETE/
+test-invoice.pdf
 
 # mypy symlink (created by CI and local dev)
 asr-systems/production_server

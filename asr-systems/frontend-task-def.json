@@ -17,6 +17,7 @@
           "protocol": "tcp"
         }
       ],
+      "stopTimeout": 15,
       "healthCheck": {
         "command": ["CMD-SHELL", "wget -qO /dev/null http://localhost/health || exit 1"],
         "interval": 30,

@@ -20,6 +20,11 @@ from typing import Any, Dict, List, Optional, Tuple
 from shared.core.constants import CONFIDENCE_THRESHOLDS, PAYMENT_INDICATORS
 from shared.core.exceptions import CLAUDEAPIError, PaymentDetectionError
 
+try:
+    from ..utils.retry import CircuitBreaker, async_retry
+except (ImportError, SystemError):
+    from utils.retry import CircuitBreaker, async_retry
+
 # Import shared components
 from shared.core.models import (
     PaymentConsensusResult,
@@ -62,6 +67,7 @@ class PaymentDetectionService:
 
         # Claude client (will be initialized if available)
         self.claude_client = None
+        self._claude_circuit = CircuitBreaker(failure_threshold=5, reset_timeout=30.0)
 
     async def initialize(self):
         """Initialize payment detection service"""
@@ -255,12 +261,19 @@ class PaymentDetectionService:
             logger.error(f"Payment detection error: {e}")
             raise PaymentDetectionError(f"Failed to detect payment status: {e}")
 
+    @async_retry(
+        max_attempts=3,
+        backoff_seconds=(1.0, 2.0, 4.0),
+        retryable_exceptions=(CLAUDEAPIError,),
+    )
     async def _detect_claude_vision(
         self, document_image: bytes, document_text: str
     ) -> MethodResult:
         """Detect payment status using Claude Vision"""
         if not self.claude_client:
             raise PaymentDetectionError("Claude client not available")
+        if self._claude_circuit.is_open:
+            raise CLAUDEAPIError("Claude API circuit breaker is open — failing fast")
 
         try:
             # Convert image to base64
@@ -315,6 +328,7 @@ class PaymentDetectionService:
                 response_text
             )
 
+            self._claude_circuit.record_success()
             return MethodResult(
                 method=PaymentDetectionMethod.CLAUDE_VISION,
                 payment_status=payment_status,
@@ -324,14 +338,24 @@ class PaymentDetectionService:
                 processing_time=0.0,
             )
 
+        except CLAUDEAPIError:
+            raise
         except Exception as e:
+            self._claude_circuit.record_failure()
             logger.error(f"Claude Vision detection failed: {e}")
             raise CLAUDEAPIError(f"Claude Vision analysis failed: {e}")
 
+    @async_retry(
+        max_attempts=3,
+        backoff_seconds=(1.0, 2.0, 4.0),
+        retryable_exceptions=(CLAUDEAPIError,),
+    )
     async def _detect_claude_text(self, document_text: str) -> MethodResult:
         """Detect payment status using Claude Text analysis"""
         if not self.claude_client:
             raise PaymentDetectionError("Claude client not available")
+        if self._claude_circuit.is_open:
+            raise CLAUDEAPIError("Claude API circuit breaker is open — failing fast")
 
         try:
             prompt = f"""
@@ -367,6 +391,7 @@ class PaymentDetectionService:
                 response_text
             )
 
+            self._claude_circuit.record_success()
             return MethodResult(
                 method=PaymentDetectionMethod.CLAUDE_TEXT,
                 payment_status=payment_status,
@@ -376,7 +401,10 @@ class PaymentDetectionService:
                 processing_time=0.0,
             )
 
+        except CLAUDEAPIError:
+            raise
         except Exception as e:
+            self._claude_circuit.record_failure()
             logger.error(f"Claude Text detection failed: {e}")
             raise CLAUDEAPIError(f"Claude Text analysis failed: {e}")
 

@@ -117,6 +117,11 @@ except (ImportError, SystemError):
     from middleware.csrf_middleware import CSRFMiddleware
 
 try:
+    from ..middleware.request_logging_middleware import RequestLoggingMiddleware
+except (ImportError, SystemError):
+    from middleware.request_logging_middleware import RequestLoggingMiddleware
+
+try:
     from ..api.dashboard_routes import register_dashboard_routes
 except (ImportError, SystemError):
     from api.dashboard_routes import register_dashboard_routes
@@ -145,6 +150,9 @@ security = HTTPBearer(auto_error=False)
 
 # Server start time (set during lifespan startup)
 _server_start_time: float = 0.0
+
+# Graceful shutdown flag — set during shutdown to reject new requests
+_shutting_down: bool = False
 
 # Service instances (initialized during startup)
 gl_account_service: Optional[GLAccountService] = None
@@ -257,7 +265,13 @@ async def lifespan(app: FastAPI):
 
     yield  # Application runs here
 
-    logger.info("🛑 Shutting down ASR Production Server services...")
+    global _shutting_down
+    _shutting_down = True
+    logger.info(
+        "🛑 Shutting down ASR Production Server — draining in-flight requests..."
+    )
+    # Give in-flight requests a few seconds to complete before tearing down services
+    await asyncio.sleep(2)
 
     # Cleanup services
     services_to_cleanup = [
@@ -283,14 +297,52 @@ async def lifespan(app: FastAPI):
     logger.info("✅ ASR Production Server shutdown complete")
 
 
+# OpenAPI tag metadata
+_openapi_tags = [
+    {
+        "name": "Health",
+        "description": "Liveness, readiness, and legacy health-check endpoints.",
+    },
+    {
+        "name": "Auth",
+        "description": "Authentication — login and current-user endpoints.",
+    },
+    {
+        "name": "Documents",
+        "description": "Document upload, classification, and status.",
+    },
+    {
+        "name": "GL Accounts",
+        "description": "QuickBooks GL account listing and search.",
+    },
+    {
+        "name": "Scanner",
+        "description": "Scanner client registration, heartbeat, upload, and discovery.",
+    },
+    {
+        "name": "System",
+        "description": "System info, API status, and dashboard metrics.",
+    },
+]
+
+
 # Initialize FastAPI application
 app = FastAPI(
     title="ASR Production Server",
     description=production_settings.DESCRIPTION,
     version=production_settings.VERSION,
     lifespan=lifespan,
-    docs_url="/docs" if production_settings.DEBUG else None,
-    redoc_url="/redoc" if production_settings.DEBUG else None,
+    docs_url=(
+        "/docs"
+        if (production_settings.DEBUG or production_settings.ENABLE_DOCS)
+        else None
+    ),
+    redoc_url=(
+        "/redoc"
+        if (production_settings.DEBUG or production_settings.ENABLE_DOCS)
+        else None
+    ),
+    openapi_tags=_openapi_tags,
 )
 
 # Add middleware
@@ -301,6 +353,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
+
+# Add request logging middleware (outermost — runs first/last)
+app.add_middleware(RequestLoggingMiddleware, log_format=production_settings.LOG_FORMAT)
 
 # Add tenant middleware if multi-tenant enabled
 if production_settings.MULTI_TENANT_ENABLED:
@@ -358,7 +413,7 @@ async def get_current_user(
 
 
 # Auth endpoints
-@app.post("/auth/login", response_model=AuthLoginResponseSchema)
+@app.post("/auth/login", response_model=AuthLoginResponseSchema, tags=["Auth"])
 async def auth_login(request: AuthLoginRequestSchema):
     """Authenticate with API key. No Bearer token required."""
     # Dev mode: accept any key when API_KEYS_REQUIRED=false
@@ -399,7 +454,7 @@ async def auth_login(request: AuthLoginRequestSchema):
     )
 
 
-@app.get("/auth/me", response_model=AuthMeResponseSchema)
+@app.get("/auth/me", response_model=AuthMeResponseSchema, tags=["Auth"])
 async def auth_me(user: Dict[str, Any] = Depends(get_current_user)):
     """Get current authenticated user info."""
     return AuthMeResponseSchema(
@@ -410,7 +465,7 @@ async def auth_me(user: Dict[str, Any] = Depends(get_current_user)):
 
 
 # Root endpoint
-@app.get("/", response_model=APISuccessResponseSchema)
+@app.get("/", response_model=APISuccessResponseSchema, tags=["System"])
 async def root():
     """Root endpoint with system information"""
     return APISuccessResponseSchema(
@@ -431,10 +486,43 @@ async def root():
     )
 
 
-# Health check endpoint
-@app.get("/health", response_model=SystemHealthResponseSchema)
+# ---------------------------------------------------------------------------
+# Health check endpoints — split into liveness and readiness
+# ---------------------------------------------------------------------------
+
+
+@app.get("/health/live", tags=["Health"])
+async def health_live():
+    """Liveness probe — always returns 200 if the process is running."""
+    return {
+        "status": "ok",
+        "uptime_seconds": round(time.time() - _server_start_time, 2),
+    }
+
+
+@app.get("/health/ready", response_model=SystemHealthResponseSchema, tags=["Health"])
+async def health_ready():
+    """Readiness probe — checks that all services are initialised and the DB is reachable."""
+    if _shutting_down:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "overall_status": "shutting_down",
+                "message": "Server is draining",
+            },
+        )
+
+    return await _build_health_response()
+
+
+@app.get("/health", response_model=SystemHealthResponseSchema, tags=["Health"])
 async def health_check():
-    """Comprehensive health check with sophisticated component status"""
+    """Backwards-compatible health endpoint (alias for /health/ready)."""
+    return await _build_health_response()
+
+
+async def _build_health_response() -> SystemHealthResponseSchema:
+    """Shared logic for readiness & legacy health endpoints."""
     health_status = SystemHealthResponseSchema(
         system_type=SystemType.PRODUCTION_SERVER,
         overall_status="healthy",
@@ -444,7 +532,6 @@ async def health_check():
         timestamp=datetime.utcnow(),
     )
 
-    # Check services
     try:
         # GL Account Service
         if gl_account_service:
@@ -530,7 +617,11 @@ async def health_check():
 
 
 # Document processing endpoints
-@app.post("/api/v1/documents/upload", response_model=DocumentUploadResponseSchema)
+@app.post(
+    "/api/v1/documents/upload",
+    response_model=DocumentUploadResponseSchema,
+    tags=["Documents"],
+)
 async def upload_document(
     file: UploadFile = File(...), user: Dict[str, Any] = Depends(get_current_user)
 ):
@@ -577,7 +668,7 @@ async def upload_document(
         )
 
 
-@app.get("/api/v1/documents/{document_id}/status")
+@app.get("/api/v1/documents/{document_id}/status", tags=["Documents"])
 async def get_document_status(
     document_id: str, user: Dict[str, Any] = Depends(get_current_user)
 ):
@@ -610,6 +701,7 @@ async def get_document_status(
 @app.post(
     "/api/v1/documents/{document_id}/classify",
     response_model=ClassificationResponseSchema,
+    tags=["Documents"],
 )
 async def classify_document(
     document_id: str, user: Dict[str, Any] = Depends(get_current_user)
@@ -654,7 +746,7 @@ async def classify_document(
 
 
 # GL Account endpoints
-@app.get("/api/v1/gl-accounts")
+@app.get("/api/v1/gl-accounts", tags=["GL Accounts"])
 async def list_gl_accounts(
     category: Optional[str] = None,
     search: Optional[str] = None,
@@ -690,7 +782,7 @@ async def list_gl_accounts(
 # Scanner API endpoints (if enabled)
 if production_settings.SCANNER_API_ENABLED:
 
-    @app.post("/api/v1/scanner/register")
+    @app.post("/api/v1/scanner/register", tags=["Scanner"])
     async def register_scanner(
         request: ScannerRegistrationSchema,
         user: Dict[str, Any] = Depends(get_current_user),
@@ -721,7 +813,7 @@ if production_settings.SCANNER_API_ENABLED:
                 detail="Failed to register scanner",
             )
 
-    @app.post("/api/v1/scanner/heartbeat")
+    @app.post("/api/v1/scanner/heartbeat", tags=["Scanner"])
     async def scanner_heartbeat(
         request: ScannerHeartbeatSchema,
         user: Dict[str, Any] = Depends(get_current_user),
@@ -775,6 +867,33 @@ async def validation_exception_handler(request, exc: ValidationError):
     )
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc: Exception):
+    """Catch-all handler — returns structured JSON for any unhandled exception."""
+    request_id = getattr(getattr(request, "state", None), "request_id", None)
+    logger.error(
+        "unhandled_exception request_id=%s path=%s error=%s",
+        request_id,
+        request.url.path,
+        exc,
+        exc_info=True,
+    )
+    return JSONResponse(
+        status_code=500,
+        content=APIErrorResponseSchema(
+            message="Internal server error",
+            errors=[
+                {
+                    "error_code": "INTERNAL_ERROR",
+                    "error_type": "server",
+                    "message": "An unexpected error occurred",
+                }
+            ],
+        ).model_dump(),
+        headers={"X-Request-ID": request_id or ""},
+    )
+
+
 @app.exception_handler(404)
 async def not_found_handler(request, exc):
     """Custom 404 handler"""
@@ -818,7 +937,7 @@ async def internal_error_handler(request, exc):
     )
 
 
-@app.get("/api/status")
+@app.get("/api/status", tags=["System"])
 async def api_status():
     """API status endpoint with service health summary"""
     services_status = {}
@@ -883,7 +1002,7 @@ async def api_status():
 
 
 # Additional endpoints for system management
-@app.get("/api/v1/system/info")
+@app.get("/api/v1/system/info", tags=["System"])
 async def get_system_info():
     """Get system information and capabilities"""
     return APISuccessResponseSchema(
@@ -917,7 +1036,7 @@ async def get_system_info():
 
 
 # Legacy API info endpoint for scanner compatibility
-@app.get("/api/info")
+@app.get("/api/info", tags=["Scanner"])
 async def get_api_info():
     """Legacy API info endpoint for scanner client compatibility"""
     return {
@@ -941,7 +1060,7 @@ async def get_api_info():
 # Enhanced Scanner API Endpoints
 if production_settings.SCANNER_API_ENABLED:
 
-    @app.get("/api/scanner/discovery")
+    @app.get("/api/scanner/discovery", tags=["Scanner"])
     async def scanner_discovery():
         """Scanner server discovery endpoint"""
         try:
@@ -998,7 +1117,7 @@ if production_settings.SCANNER_API_ENABLED:
             logger.error(f"❌ Scanner discovery failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.post("/api/scanner/upload")
+    @app.post("/api/scanner/upload", tags=["Scanner"])
     async def scanner_upload(
         file: UploadFile = File(...),
         credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -1052,7 +1171,7 @@ if production_settings.SCANNER_API_ENABLED:
             logger.error(f"❌ Scanner upload failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.get("/api/scanner/status/{session_id}")
+    @app.get("/api/scanner/status/{session_id}", tags=["Scanner"])
     async def get_scanner_upload_status(
         session_id: str, credentials: HTTPAuthorizationCredentials = Depends(security)
     ):
@@ -1073,7 +1192,7 @@ if production_settings.SCANNER_API_ENABLED:
             logger.error(f"❌ Failed to get upload status: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.post("/api/scanner/batch")
+    @app.post("/api/scanner/batch", tags=["Scanner"])
     async def scanner_batch_upload(
         files: List[UploadFile] = File(...),
         credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -1138,7 +1257,7 @@ if production_settings.SCANNER_API_ENABLED:
             logger.error(f"❌ Batch upload failed: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @app.get("/api/scanner/connected")
+    @app.get("/api/scanner/connected", tags=["Scanner"])
     async def get_connected_scanners(
         credentials: HTTPAuthorizationCredentials = Depends(security),
     ):

@@ -42,7 +42,7 @@ def _register_package(dotted_name: str, directory: Path) -> None:
 
 # Register production_server as a package so "from production_server.*" works
 _register_package("production_server", _prod_server)
-for sub in ("config", "api", "services", "middleware", "models"):
+for sub in ("config", "api", "services", "middleware", "models", "utils"):
     sub_dir = _prod_server / sub
     if sub_dir.exists():
         _register_package(f"production_server.{sub}", sub_dir)

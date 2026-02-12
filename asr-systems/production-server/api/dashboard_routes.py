@@ -14,7 +14,7 @@ from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(tags=["System"])
 
 
 class DashboardService:

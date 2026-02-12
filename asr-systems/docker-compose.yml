@@ -18,6 +18,8 @@ services:
     container_name: asr-backend
     ports:
       - "${API_PORT:-8000}:8000"
+    command: >
+      sh -c "cd /app && python -m alembic upgrade head && python -m uvicorn production_server.api.main:app --host 0.0.0.0 --port 8000"
     environment:
       - DEBUG=${DEBUG:-false}
       - API_HOST=0.0.0.0
@@ -37,7 +39,7 @@ services:
       - asr-data:/app/data
       - asr-logs:/app/logs
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready')"]
       interval: 30s
       timeout: 10s
       retries: 3

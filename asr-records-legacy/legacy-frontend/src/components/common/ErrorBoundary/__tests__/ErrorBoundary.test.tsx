@@ -90,4 +90,35 @@ describe('PageErrorBoundary', () => {
     );
     expect(screen.getByText('Dashboard content')).toBeInTheDocument();
   });
+
+  it('displays the error message', () => {
+    render(
+      <PageErrorBoundary pageName="Upload">
+        <ThrowingComponent message="Network failure" />
+      </PageErrorBoundary>
+    );
+    expect(screen.getByText('Network failure')).toBeInTheDocument();
+  });
+
+  it('has a Try again button that resets error state', () => {
+    render(
+      <PageErrorBoundary pageName="Documents">
+        <ThrowingComponent />
+      </PageErrorBoundary>
+    );
+    expect(screen.getByText('Documents failed to load')).toBeInTheDocument();
+
+    // Click "Try again" — resets state, child re-throws
+    fireEvent.click(screen.getByText('Try again'));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
+  it('has a Reload page button', () => {
+    render(
+      <PageErrorBoundary pageName="Reports">
+        <ThrowingComponent />
+      </PageErrorBoundary>
+    );
+    expect(screen.getByText('Reload page')).toBeInTheDocument();
+  });
 });

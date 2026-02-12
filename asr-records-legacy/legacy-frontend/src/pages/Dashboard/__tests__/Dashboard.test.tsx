@@ -90,7 +90,7 @@ describe('Dashboard', () => {
   it('renders loading state when metrics loading', () => {
     setupLoading();
     renderDashboard();
-    expect(screen.getByText('Loading dashboard data...')).toBeInTheDocument();
+    expect(screen.getByTestId('dashboard-skeleton')).toBeInTheDocument();
   });
 
   it('shows skeleton cards in loading state', () => {

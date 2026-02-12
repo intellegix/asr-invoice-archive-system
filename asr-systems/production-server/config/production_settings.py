@@ -325,6 +325,12 @@ class ProductionSettings(BaseSettings):
     # Logging Configuration
     LOG_LEVEL: str = Field(default="INFO", env="LOG_LEVEL", description="Logging level")
 
+    LOG_FORMAT: str = Field(
+        default="text",
+        env="LOG_FORMAT",
+        description="Log format: 'text' (human readable) or 'json' (structured)",
+    )
+
     LOG_TO_FILE: bool = Field(
         default=True, env="LOG_TO_FILE", description="Enable file logging"
     )
@@ -333,6 +339,19 @@ class ProductionSettings(BaseSettings):
         default="./logs/production_server.log",
         env="LOG_FILE_PATH",
         description="Log file path",
+    )
+
+    # Observability
+    OTEL_ENABLED: bool = Field(
+        default=False,
+        env="OTEL_ENABLED",
+        description="Enable OpenTelemetry instrumentation",
+    )
+
+    ENABLE_DOCS: bool = Field(
+        default=False,
+        env="ENABLE_DOCS",
+        description="Enable OpenAPI docs (/docs, /redoc) independently of DEBUG",
     )
 
     # Security Configuration
@@ -470,12 +489,25 @@ class ProductionSettings(BaseSettings):
         if self.is_production and not self.ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY is required for production deployment")
 
-        # Validate database configuration (only enforce PostgreSQL in cloud deployments)
+        # Validate database configuration
         if (
             self.AWS_DEPLOYMENT_MODE or self.RENDER_DEPLOYMENT_MODE
         ) and self.DATABASE_URL.startswith("sqlite:"):
             raise ValueError(
                 "SQLite database not supported in cloud deployment. Use PostgreSQL."
+            )
+
+        if (
+            self.is_production
+            and not self.AWS_DEPLOYMENT_MODE
+            and not self.RENDER_DEPLOYMENT_MODE
+            and self.DATABASE_URL.startswith("sqlite:")
+        ):
+            import warnings
+
+            warnings.warn(
+                "Using SQLite in production mode. Consider PostgreSQL for durability.",
+                stacklevel=2,
             )
 
         # Validate S3 configuration if using S3 backend

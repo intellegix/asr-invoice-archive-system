@@ -9,6 +9,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { MetricCard } from '@/components/common/MetricCard';
+import { DashboardSkeleton } from '@/components/common/Skeleton';
 import { useDashboardMetrics, usePaymentStatusDistribution } from '@/hooks/api/useDashboard';
 import type { PaymentStatusDistribution } from '@/types/api';
 
@@ -18,25 +19,9 @@ export const Dashboard: React.FC = () => {
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
   const { data: paymentDistribution } = usePaymentStatusDistribution();
 
-  // Show loading state while data is being fetched
+  // Show skeleton loading state while data is being fetched
   if (metricsLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="mt-2 text-gray-600">
-            Loading dashboard data...
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="card animate-pulse">
-              <div className="h-20 bg-gray-200 rounded"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (

@@ -68,10 +68,41 @@ interface UIActions {
 
 type UIStore = UIState & UIActions;
 
+/** Read persisted theme from localStorage (or default to 'light'). */
+function getPersistedTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light';
+  try {
+    const stored = localStorage.getItem('asr-ui-theme');
+    if (stored === 'dark') return 'dark';
+  } catch {
+    // localStorage unavailable
+  }
+  return 'light';
+}
+
+/** Persist theme to localStorage and sync CSS class. */
+function applyTheme(theme: 'light' | 'dark'): void {
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('asr-ui-theme', theme);
+    } catch {
+      // localStorage unavailable
+    }
+  }
+}
+
+const initialTheme = getPersistedTheme();
+// Apply persisted theme on module load
+applyTheme(initialTheme);
+
 export const useUIStore = create<UIStore>((set, get) => ({
   // Initial state
   sidebarCollapsed: false,
-  theme: 'light',
+  theme: initialTheme,
   notifications: [],
   globalLoading: false,
   loadingMessage: undefined,
@@ -92,10 +123,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   setTheme: (theme) => {
     set({ theme });
-    // Update document class for CSS theming
-    if (typeof document !== 'undefined') {
-      document.documentElement.className = theme;
-    }
+    applyTheme(theme);
   },
 
   toggleTheme: () => {

@@ -20,7 +20,16 @@ class TenantMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         # Skip tenant validation for health/info endpoints
-        skip_paths = ["/health", "/docs", "/redoc", "/openapi.json", "/api/info", "/"]
+        skip_paths = [
+            "/health",
+            "/health/live",
+            "/health/ready",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/api/info",
+            "/",
+        ]
         if request.url.path in skip_paths:
             request.state.tenant_id = DEFAULT_TENANT_ID
             return await call_next(request)

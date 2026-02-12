@@ -133,7 +133,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         return f"ip:{client.host}" if client else "ip:unknown"
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in ["/health", "/"]:
+        if request.url.path in ["/health", "/health/live", "/health/ready", "/"]:
             return await call_next(request)
 
         client_id = self._get_client_id(request)

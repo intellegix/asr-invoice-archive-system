@@ -83,7 +83,7 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Vitest (298 tests)
+      - name: Vitest (389 tests)
         run: npx vitest run
 
   docker:
