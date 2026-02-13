@@ -381,21 +381,54 @@ class VendorCreateRequestSchema(BaseModel):
     """Schema for creating a new vendor."""
 
     name: str = Field(..., min_length=1, max_length=200, description="Vendor name")
-    display_name: Optional[str] = Field(None, max_length=200, description="Display name")
+    display_name: Optional[str] = Field(
+        None, max_length=200, description="Display name"
+    )
     contact_info: Optional[Dict[str, Any]] = Field(None, description="Contact details")
     tenant_id: str = Field(default="default", description="Tenant identifier")
     notes: Optional[str] = Field(None, description="Vendor notes")
     tags: Optional[List[str]] = Field(None, description="Vendor tags")
+    default_gl_account: Optional[str] = Field(
+        None, max_length=10, description="Default GL account code"
+    )
+    aliases: Optional[List[str]] = Field(None, description="Alternative vendor names")
+    payment_terms: Optional[str] = Field(
+        None, max_length=50, description="Payment terms"
+    )
+    payment_terms_days: Optional[int] = Field(
+        None, ge=0, description="Payment terms in days"
+    )
+    vendor_type: Optional[str] = Field(
+        None, max_length=50, description="Vendor type (supplier, subcontractor, etc.)"
+    )
 
 
 class VendorUpdateRequestSchema(BaseModel):
     """Schema for updating an existing vendor."""
 
-    name: Optional[str] = Field(None, min_length=1, max_length=200, description="Vendor name")
-    display_name: Optional[str] = Field(None, max_length=200, description="Display name")
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=200, description="Vendor name"
+    )
+    display_name: Optional[str] = Field(
+        None, max_length=200, description="Display name"
+    )
     contact_info: Optional[Dict[str, Any]] = Field(None, description="Contact details")
     notes: Optional[str] = Field(None, description="Vendor notes")
     tags: Optional[List[str]] = Field(None, description="Vendor tags")
+    default_gl_account: Optional[str] = Field(
+        None, max_length=10, description="Default GL account code"
+    )
+    aliases: Optional[List[str]] = Field(None, description="Alternative vendor names")
+    payment_terms: Optional[str] = Field(
+        None, max_length=50, description="Payment terms"
+    )
+    payment_terms_days: Optional[int] = Field(
+        None, ge=0, description="Payment terms in days"
+    )
+    vendor_type: Optional[str] = Field(
+        None, max_length=50, description="Vendor type (supplier, subcontractor, etc.)"
+    )
+    active: Optional[bool] = Field(None, description="Whether vendor is active")
 
 
 # Delete Response Schema

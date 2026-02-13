@@ -245,6 +245,7 @@ async def lifespan(app: FastAPI):
         # Initialize GL Account Service (79 QuickBooks accounts)
         gl_account_service = GLAccountService(
             config_path=production_settings.GL_ACCOUNTS_CONFIG_PATH,
+            vendor_service=vendor_service,
         )
         await gl_account_service.initialize()
         account_count = len(gl_account_service.get_all_accounts())
@@ -1132,9 +1133,7 @@ async def list_vendors(user: Dict[str, Any] = Depends(get_current_user)):
 
 
 @app.get("/vendors/{vendor_id}", tags=["Vendors"])
-async def get_vendor(
-    vendor_id: str, user: Dict[str, Any] = Depends(get_current_user)
-):
+async def get_vendor(vendor_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     """Get a single vendor by ID."""
     try:
         if not vendor_service:
@@ -1179,6 +1178,20 @@ async def create_vendor(
             notes=request.notes,
             tags=request.tags,
         )
+        # Apply optional DB fields not in base create_vendor signature
+        extra_fields = {}
+        for field in (
+            "default_gl_account",
+            "aliases",
+            "payment_terms",
+            "payment_terms_days",
+            "vendor_type",
+        ):
+            val = getattr(request, field, None)
+            if val is not None:
+                extra_fields[field] = val
+        if extra_fields:
+            vendor = await vendor_service.update_vendor(vendor["id"], extra_fields)
         return vendor
     except HTTPException:
         raise

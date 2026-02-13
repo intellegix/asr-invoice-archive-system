@@ -93,7 +93,10 @@ class DocumentProcessorService:
             raise
 
     async def process_document(
-        self, file_content: bytes, metadata: DocumentMetadata
+        self,
+        file_content: bytes,
+        metadata: DocumentMetadata,
+        request_id: Optional[str] = None,
     ) -> UploadResult:
         """
         Process document through complete pipeline
@@ -107,9 +110,14 @@ class DocumentProcessorService:
         """
         document_id = str(uuid4())
         start_time = datetime.now()
+        log_ctx = {"request_id": request_id or "none", "document_id": document_id}
 
         try:
-            logger.info(f"📋 Processing document: {metadata.filename}")
+            logger.info(
+                "Processing document: %s request_id=%s",
+                metadata.filename,
+                log_ctx["request_id"],
+            )
             logger.info(f"   • Document ID: {document_id}")
             logger.info(f"   • Size: {metadata.file_size} bytes")
             logger.info(f"   • Tenant: {metadata.tenant_id}")

@@ -65,8 +65,13 @@ class GLAccountService:
     Service for managing 79 QuickBooks GL Accounts with sophisticated classification
     """
 
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(
+        self,
+        config_path: Optional[str] = None,
+        vendor_service: Optional[Any] = None,
+    ):
         self.config_path = config_path
+        self._vendor_service = vendor_service
         self.gl_accounts: Dict[str, GLAccount] = {}
         self.keyword_index: Dict[str, List[str]] = {}  # keyword -> [gl_codes]
         self.category_index: Dict[str, List[str]] = {}  # category -> [gl_codes]
@@ -207,7 +212,10 @@ class GLAccountService:
         return self.category_index.copy()
 
     async def classify_document_text(
-        self, document_text: str, vendor_name: Optional[str] = None
+        self,
+        document_text: str,
+        vendor_name: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> GLClassificationResult:
         """
         Classify document using sophisticated keyword matching and vendor analysis
@@ -215,6 +223,7 @@ class GLAccountService:
         Args:
             document_text: Extracted text from document
             vendor_name: Detected vendor name (if available)
+            tenant_id: Tenant for vendor DB lookup (if available)
 
         Returns:
             GLClassificationResult with best match and confidence
@@ -229,9 +238,9 @@ class GLAccountService:
             # Try multiple classification approaches
             results = []
 
-            # Method 1: Vendor-specific mapping
+            # Method 1: Vendor-specific mapping (DB-backed + hardcoded fallback)
             if vendor_name:
-                vendor_result = self._classify_by_vendor(vendor_name)
+                vendor_result = await self._classify_by_vendor(vendor_name, tenant_id)
                 if vendor_result:
                     results.append(vendor_result)
 
@@ -295,11 +304,43 @@ class GLAccountService:
             logger.error(f"GL classification error: {e}")
             raise ClassificationError(f"Failed to classify document: {e}")
 
-    def _classify_by_vendor(self, vendor_name: str) -> Optional[GLClassificationResult]:
-        """Classify based on known vendor patterns"""
+    async def _classify_by_vendor(
+        self, vendor_name: str, tenant_id: Optional[str] = None
+    ) -> Optional[GLClassificationResult]:
+        """Classify based on DB vendor lookup, then fall back to hardcoded patterns."""
+        # --- DB lookup (via VendorService) ---
+        if self._vendor_service:
+            try:
+                matched = await self._vendor_service.match_vendor(
+                    vendor_name, tenant_id
+                )
+                if matched and matched.get("default_gl_account"):
+                    gl_code = matched["default_gl_account"]
+                    account = self.gl_accounts.get(gl_code)
+                    if account:
+                        logger.info(
+                            "Vendor DB match: vendor=%s gl=%s method=database",
+                            vendor_name,
+                            gl_code,
+                        )
+                        return GLClassificationResult(
+                            gl_account_code=gl_code,
+                            gl_account_name=account.name,
+                            category=account.category,
+                            confidence=0.95,
+                            reasoning=(
+                                f"Vendor '{vendor_name}' matched DB vendor "
+                                f"'{matched['name']}' (id={matched['id']})"
+                            ),
+                            keywords_matched=[matched["name"]],
+                            classification_method="vendor_database",
+                        )
+            except Exception:
+                logger.exception("Vendor DB lookup failed for '%s'", vendor_name)
+
+        # --- Hardcoded fallback ---
         vendor_lower = vendor_name.lower()
 
-        # Define vendor to GL account mappings
         vendor_mappings = {
             # Materials/Supplies
             "home depot": "5000",
@@ -343,6 +384,11 @@ class GLAccountService:
             if vendor_pattern in vendor_lower:
                 account = self.gl_accounts.get(gl_code)
                 if account:
+                    logger.info(
+                        "Vendor hardcoded match: vendor=%s gl=%s method=hardcoded",
+                        vendor_name,
+                        gl_code,
+                    )
                     return GLClassificationResult(
                         gl_account_code=gl_code,
                         gl_account_name=account.name,

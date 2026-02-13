@@ -70,6 +70,12 @@ async def init_database(
     _engine = create_async_engine(async_url, **engine_kwargs)
     _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
+    # Import all ORM models so Base.metadata.create_all() registers their tables
+    try:
+        from ..models import AuditTrailRecord, VendorRecord  # noqa: F401
+    except (ImportError, SystemError):
+        from models import AuditTrailRecord, VendorRecord  # noqa: F401
+
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

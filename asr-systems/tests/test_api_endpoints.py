@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
 
+from auth_helpers import AUTH_HEADERS, CSRF_COOKIES, WRITE_HEADERS
 from production_server.api.main import app
 
 
@@ -63,7 +64,7 @@ class TestGLAccountsEndpoint:
     def test_list_gl_accounts(self, client):
         response = client.get(
             "/api/v1/gl-accounts",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -72,7 +73,7 @@ class TestGLAccountsEndpoint:
     def test_gl_accounts_search(self, client):
         response = client.get(
             "/api/v1/gl-accounts?search=fuel",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -101,7 +102,7 @@ class TestScannerDiscoveryEndpoint:
     def test_scanner_discovery_with_auth(self, client):
         response = client.get(
             "/api/scanner/discovery",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -119,7 +120,7 @@ class TestAuditLogEndpoints:
     def test_audit_logs_by_tenant_returns_200(self, client):
         response = client.get(
             "/api/v1/audit-logs?tenant_id=default",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -130,7 +131,7 @@ class TestAuditLogEndpoints:
     def test_audit_logs_by_document_returns_200(self, client):
         response = client.get(
             "/api/v1/audit-logs/nonexistent-doc",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -141,7 +142,7 @@ class TestAuditLogEndpoints:
     def test_audit_logs_without_tenant_returns_empty(self, client):
         response = client.get(
             "/api/v1/audit-logs?tenant_id=unknown-tenant",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -152,14 +153,10 @@ class TestReprocessEndpoints:
     def test_reprocess_document_returns_200(self, client):
         """Reprocessing a non-existent doc should still return a response
         (the service returns an error-status UploadResult, not an exception)."""
-        csrf_token = "test-csrf-token"
         response = client.post(
             "/extract/invoice/test-doc-001",
-            headers={
-                "Authorization": "Bearer test-key",
-                "x-csrf-token": csrf_token,
-            },
-            cookies={"csrf_token": csrf_token},
+            headers=WRITE_HEADERS,
+            cookies=CSRF_COOKIES,
         )
         assert response.status_code == 200
         data = response.json()
@@ -169,7 +166,7 @@ class TestReprocessEndpoints:
     def test_extract_details_returns_200(self, client):
         response = client.get(
             "/extract/invoice/test-doc-001/details",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -181,7 +178,7 @@ class TestSearchEndpoint:
     def test_quick_search_returns_200(self, client):
         response = client.get(
             "/search/quick?q=invoice",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -193,7 +190,7 @@ class TestSettingsEndpoint:
     def test_settings_endpoint_returns_config(self, client):
         response = client.get(
             "/api/v1/settings",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -204,7 +201,7 @@ class TestSettingsEndpoint:
     def test_settings_includes_capabilities(self, client):
         response = client.get(
             "/api/v1/settings",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         data = response.json()
         caps = data["data"]["capabilities"]
@@ -230,14 +227,10 @@ class TestMetricsEndpoints:
 class TestDeleteDocumentEndpoint:
     def test_delete_nonexistent_returns_404(self, client):
         """DELETE for a nonexistent document should return 404."""
-        csrf_token = "test-csrf-token"
         response = client.delete(
             "/api/v1/documents/nonexistent-doc",
-            headers={
-                "Authorization": "Bearer test-key",
-                "x-csrf-token": csrf_token,
-            },
-            cookies={"csrf_token": csrf_token},
+            headers=WRITE_HEADERS,
+            cookies=CSRF_COOKIES,
         )
         assert response.status_code == 404
 
@@ -247,11 +240,8 @@ class TestDeleteDocumentEndpoint:
         long_id = "a" * 65  # exceeds 64-char limit
         response = client.delete(
             f"/api/v1/documents/{long_id}",
-            headers={
-                "Authorization": "Bearer test-key",
-                "x-csrf-token": csrf_token,
-            },
-            cookies={"csrf_token": csrf_token},
+            headers=WRITE_HEADERS,
+            cookies=CSRF_COOKIES,
         )
         assert response.status_code == 422
 
@@ -261,7 +251,7 @@ class TestSearchEndpointExtended:
         """Quick search with empty query returns empty results."""
         response = client.get(
             "/search/quick?q=",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()
@@ -272,7 +262,7 @@ class TestSearchEndpointExtended:
         """Quick search with a query term returns valid structure."""
         response = client.get(
             "/search/quick?q=invoice",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
         data = response.json()

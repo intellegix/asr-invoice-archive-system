@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (277 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 277 tests
+# --- Backend (291 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 291 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -56,7 +56,7 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (277 tests)
+### Backend Test Files (291 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -69,7 +69,7 @@ npm run test:e2e:report                                       # View HTML report
 | `test_dashboard_routes.py` | 17 | /metrics/* endpoint shapes |
 | `test_database_migrations.py` | 6 | Alembic config + DB URL validation |
 | `test_document_processor_service.py` | 10 | Pipeline orchestration + text extraction |
-| `test_gl_account_service.py` | 6 | GL classification |
+| `test_gl_account_service.py` | 14 | GL classification + vendor DB integration |
 | `test_health_endpoints.py` | 9 | Liveness/readiness probes + shutdown flag |
 | `test_multi_tenant_isolation.py` | 8 | Storage/API/scanner tenant scoping |
 | `test_openapi_tags.py` | 4 | OpenAPI schema tag validation |
@@ -82,7 +82,7 @@ npm run test:e2e:report                                       # View HTML report
 | `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
 | `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
 | `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
-| `test_vendor_endpoints.py` | 13 | Vendor CRUD operations, validation, stats endpoint |
+| `test_vendor_endpoints.py` | 19 | Vendor CRUD, validation, stats, DB persistence, audit logging |
 
 ### Frontend Test Files (493 vitest tests)
 
@@ -150,7 +150,7 @@ Client → FastAPI (api/main.py)
 
 **Hyphenated directory imports**: `production-server/` and `document-scanner/` use hyphens but Python needs underscores. `start_server.py` and `main_server.py` handle this via `importlib.util.spec_from_file_location()` to register modules as `production_server.*`. Never try to `import production-server` directly.
 
-**GL accounts are static constants**: The 79 QB accounts live in `shared/core/constants.py` as an in-memory dict indexed by keyword. No database lookup. To add accounts, edit that dict.
+**GL accounts are static constants**: The 79 QB accounts live in `shared/core/constants.py` as an in-memory dict indexed by keyword. No database lookup. To add accounts, edit that dict. However, vendor→GL classification now also checks the VendorService DB (via `default_gl_account` field) before falling back to the hardcoded vendor mapping.
 
 **Payment consensus is mean confidence, not majority vote**: `PaymentDetectionService` averages confidence scores across enabled methods. Method order and thresholds matter.
 
@@ -181,14 +181,16 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 60% on Python 3.11 + 3.12 (277 tests)
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 60% on Python 3.11 + 3.12 (291 tests)
 - **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (493 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
 - Builds + pushes backend/frontend images to ECR
 - Updates ECS services (`backend-service`, `frontend-service`) with new task definitions
+- Task-def validation (no duplicate env vars, secrets check)
 - Post-deploy health checks poll ALB for backend (`/health/live`) and frontend (`/`) readiness
+- Post-deploy smoke tests (readiness probe, GL accounts loaded, API status)
 - Requires `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub secrets
 
 ## Deployment Status
@@ -202,7 +204,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 869 tests | — |
+| Full-Stack Tests | 883 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -216,6 +218,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P49-P54 Security+A11y+API+Tests | Complete | `e4ae99b` |
 | P55-P60 DarkMode+UX+Mobile+Polish | Complete | — |
 | P61-P66 Deploy+Vendors+E2E+Terraform | Complete | — |
+| P67-P72 DB Persistence+Vendor Integration | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 

@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
 
+from auth_helpers import AUTH_HEADERS
 from production_server.api.main import app
 from shared.api.schemas import DOCUMENT_ID_PATTERN, validate_document_id
 
@@ -39,7 +40,7 @@ class TestScannerDiscoveryAuth:
         """Scanner discovery should succeed with auth."""
         response = client.get(
             "/api/scanner/discovery",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 200
 
@@ -47,7 +48,7 @@ class TestScannerDiscoveryAuth:
         """Scanner discovery should list API endpoints."""
         response = client.get(
             "/api/scanner/discovery",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         data = response.json()
         assert "api_endpoints" in data["data"]
@@ -71,7 +72,7 @@ class TestTenantIsolation:
         # With multi-tenant enabled, the header determines tenant.
         response = client.get(
             "/api/v1/gl-accounts?tenant_id=spoofed-tenant",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         # Should still succeed (uses default tenant, not the query param)
         assert response.status_code == 200
@@ -119,7 +120,7 @@ class TestDocumentIdValidation:
         """Document endpoint with path traversal should return 422."""
         response = client.get(
             "/api/v1/documents/../../etc/passwd/status",
-            headers={"Authorization": "Bearer test-key"},
+            headers=AUTH_HEADERS,
         )
         # FastAPI may return 404 for mangled paths, or 422 for validation
         assert response.status_code in (404, 422)

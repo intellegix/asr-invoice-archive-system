@@ -89,6 +89,16 @@ jobs:
             --task-definition "$NEW_TASK_DEF" \
             --force-new-deployment
 
+      - name: Validate task definition (pre-deploy)
+        run: |
+          echo "Checking backend-task-def.json for duplicate env vars..."
+          DUPES=$(jq -r '.containerDefinitions[0].environment // [] | map(.name) | group_by(.) | map(select(length > 1)) | flatten | unique | .[]' asr-systems/backend-task-def.json 2>/dev/null || echo "")
+          if [ -n "$DUPES" ]; then
+            echo "ERROR: Duplicate env vars found: $DUPES"
+            exit 1
+          fi
+          echo "No duplicate env vars — task definition valid."
+
       - name: Post-deploy health check (backend)
         run: |
           ALB_URL="http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com"
@@ -98,12 +108,51 @@ jobs:
             echo "  Attempt $i/30: $STATUS"
             if [ "$STATUS" = "ok" ]; then
               echo "Backend is healthy!"
-              exit 0
+              break
             fi
             sleep 10
           done
-          echo "ERROR: Backend health check failed after 5 minutes"
-          exit 1
+          if [ "$STATUS" != "ok" ]; then
+            echo "ERROR: Backend health check failed after 5 minutes"
+            exit 1
+          fi
+
+      - name: Post-deploy smoke tests (backend)
+        env:
+          SMOKE_API_KEY: ${{ secrets.SMOKE_TEST_API_KEY }}
+        run: |
+          ALB_URL="http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com"
+
+          # Smoke 1: Readiness probe — all components healthy
+          echo "Smoke 1: GET /health/ready"
+          READY=$(curl -sf "$ALB_URL/health/ready" 2>/dev/null)
+          OVERALL=$(echo "$READY" | jq -r '.overall_status' 2>/dev/null || echo "unknown")
+          echo "  overall_status=$OVERALL"
+          if [ "$OVERALL" != "healthy" ] && [ "$OVERALL" != "degraded" ]; then
+            echo "ERROR: Readiness probe returned '$OVERALL'"
+            exit 1
+          fi
+
+          # Smoke 2: GL accounts loaded (79 expected)
+          echo "Smoke 2: GET /api/v1/gl-accounts"
+          GL_RESP=$(curl -sf "$ALB_URL/api/v1/gl-accounts" -H "Authorization: Bearer ${SMOKE_API_KEY:-test-key}" 2>/dev/null)
+          GL_COUNT=$(echo "$GL_RESP" | jq -r '.data.total_count' 2>/dev/null || echo "0")
+          echo "  gl_accounts=$GL_COUNT"
+          if [ "$GL_COUNT" != "79" ]; then
+            echo "ERROR: Expected 79 GL accounts, got $GL_COUNT"
+            exit 1
+          fi
+
+          # Smoke 3: API status operational
+          echo "Smoke 3: GET /api/status"
+          API_STATUS=$(curl -sf "$ALB_URL/api/status" 2>/dev/null | jq -r '.data.status' 2>/dev/null || echo "unknown")
+          echo "  api_status=$API_STATUS"
+          if [ "$API_STATUS" != "operational" ] && [ "$API_STATUS" != "degraded" ]; then
+            echo "ERROR: API status is '$API_STATUS'"
+            exit 1
+          fi
+
+          echo "All smoke tests passed!"
 
   deploy-frontend:
     runs-on: ubuntu-latest

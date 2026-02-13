@@ -110,5 +110,123 @@ class TestGLAccountService:
             assert result.confidence > 0.5
 
 
+class TestGLVendorDBIntegration:
+    """Tests for vendor DB lookup in GL classification."""
+
+    @pytest.fixture
+    async def gl_service_with_vendor(self):
+        """GL service backed by a mock vendor service."""
+        from unittest.mock import AsyncMock
+
+        mock_vs = AsyncMock()
+        mock_vs.match_vendor = AsyncMock(return_value=None)
+        service = GLAccountService(vendor_service=mock_vs)
+        await service.initialize()
+        return service, mock_vs
+
+    @pytest.mark.asyncio
+    async def test_db_vendor_match_returns_gl(self, gl_service_with_vendor):
+        """When VendorService returns a vendor with default_gl_account, use it."""
+        service, mock_vs = gl_service_with_vendor
+        mock_vs.match_vendor.return_value = {
+            "id": "v1",
+            "name": "ACME Lumber",
+            "default_gl_account": "5000",
+        }
+        result = await service.classify_document_text(
+            "invoice for lumber", vendor_name="ACME Lumber", tenant_id="t1"
+        )
+        assert result.gl_account_code == "5000"
+        assert result.confidence >= 0.95  # May be boosted by multi-method agreement
+        assert result.classification_method == "vendor_database"
+        mock_vs.match_vendor.assert_called_once_with("ACME Lumber", "t1")
+
+    @pytest.mark.asyncio
+    async def test_db_vendor_no_gl_falls_back(self, gl_service_with_vendor):
+        """Vendor found but no default_gl_account → fall back to hardcoded."""
+        service, mock_vs = gl_service_with_vendor
+        mock_vs.match_vendor.return_value = {
+            "id": "v2",
+            "name": "Home Depot",
+            "default_gl_account": None,
+        }
+        result = await service.classify_document_text(
+            "invoice for materials", vendor_name="Home Depot"
+        )
+        assert result.gl_account_code == "5000"
+        assert result.classification_method == "vendor_mapping"
+
+    @pytest.mark.asyncio
+    async def test_db_vendor_not_found_falls_back(self, gl_service_with_vendor):
+        """Vendor not in DB → fall back to hardcoded mapping."""
+        service, mock_vs = gl_service_with_vendor
+        mock_vs.match_vendor.return_value = None
+        result = await service.classify_document_text(
+            "SDGE electric", vendor_name="SDGE"
+        )
+        assert result.gl_account_code == "6600"
+        assert result.classification_method == "vendor_mapping"
+
+    @pytest.mark.asyncio
+    async def test_no_vendor_service_falls_back(self):
+        """With no vendor_service, classification uses hardcoded only."""
+        service = GLAccountService()
+        await service.initialize()
+        result = await service.classify_document_text(
+            "materials", vendor_name="Home Depot"
+        )
+        assert result.gl_account_code == "5000"
+        assert result.classification_method == "vendor_mapping"
+
+    @pytest.mark.asyncio
+    async def test_db_error_falls_back(self, gl_service_with_vendor):
+        """If VendorService raises, fall back gracefully to hardcoded."""
+        service, mock_vs = gl_service_with_vendor
+        mock_vs.match_vendor.side_effect = RuntimeError("DB down")
+        result = await service.classify_document_text(
+            "invoice", vendor_name="Home Depot"
+        )
+        assert result.gl_account_code == "5000"
+        assert result.classification_method == "vendor_mapping"
+
+    @pytest.mark.asyncio
+    async def test_tenant_isolation_in_gl_classification(self, gl_service_with_vendor):
+        """tenant_id is passed through to match_vendor."""
+        service, mock_vs = gl_service_with_vendor
+        mock_vs.match_vendor.return_value = None
+        await service.classify_document_text(
+            "invoice for pipes", vendor_name="Ferguson", tenant_id="tenant-x"
+        )
+        mock_vs.match_vendor.assert_called_once_with("Ferguson", "tenant-x")
+
+    @pytest.mark.asyncio
+    async def test_vendor_db_match_logged(self, gl_service_with_vendor, caplog):
+        """Vendor DB match should produce a structured log entry."""
+        import logging
+
+        service, mock_vs = gl_service_with_vendor
+        mock_vs.match_vendor.return_value = {
+            "id": "v-log",
+            "name": "Logged Vendor",
+            "default_gl_account": "6600",
+        }
+        with caplog.at_level(logging.INFO):
+            await service.classify_document_text(
+                "test text", vendor_name="Logged Vendor", tenant_id="t1"
+            )
+        assert any("Vendor DB match" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_hardcoded_match_logged(self, caplog):
+        """Hardcoded vendor match should produce a structured log entry."""
+        import logging
+
+        service = GLAccountService()
+        await service.initialize()
+        with caplog.at_level(logging.INFO):
+            await service.classify_document_text("invoice", vendor_name="Home Depot")
+        assert any("Vendor hardcoded match" in r.message for r in caplog.records)
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
