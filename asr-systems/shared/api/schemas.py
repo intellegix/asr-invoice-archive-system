@@ -339,9 +339,7 @@ class AuditLogEntrySchema(BaseModel):
     id: Optional[int] = Field(None, description="Audit entry ID")
     document_id: str = Field(..., description="Associated document ID")
     event_type: str = Field(..., description="Type of audit event")
-    event_data: Optional[Dict[str, Any]] = Field(
-        None, description="Event payload data"
-    )
+    event_data: Optional[Dict[str, Any]] = Field(None, description="Event payload data")
     user_id: Optional[str] = Field(None, description="User who triggered the event")
     system_component: Optional[str] = Field(
         None, description="System component that generated the event"

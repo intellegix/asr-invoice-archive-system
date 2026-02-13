@@ -1134,7 +1134,9 @@ async def get_settings(
         },
         storage={
             "backend": production_settings.STORAGE_BACKEND,
-            "base_path": production_settings.storage_config.get("base_path", "./storage"),
+            "base_path": production_settings.storage_config.get(
+                "base_path", "./storage"
+            ),
         },
     )
 

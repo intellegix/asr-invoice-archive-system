@@ -472,7 +472,11 @@ class ProductionStorageService:
                 filename = meta.get("filename", "").lower()
                 vendor = meta.get("vendor_name", "").lower()
                 doc_id = meta.get("document_id", "")
-                if query_lower in filename or query_lower in vendor or query_lower in doc_id:
+                if (
+                    query_lower in filename
+                    or query_lower in vendor
+                    or query_lower in doc_id
+                ):
                     results.append(meta)
                     if len(results) >= limit:
                         break
