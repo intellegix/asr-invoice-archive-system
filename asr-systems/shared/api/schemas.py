@@ -374,6 +374,30 @@ class SettingsResponseSchema(BaseModel):
     storage: Dict[str, Any] = Field(..., description="Storage configuration")
 
 
+# Vendor Schemas
+
+
+class VendorCreateRequestSchema(BaseModel):
+    """Schema for creating a new vendor."""
+
+    name: str = Field(..., min_length=1, max_length=200, description="Vendor name")
+    display_name: Optional[str] = Field(None, max_length=200, description="Display name")
+    contact_info: Optional[Dict[str, Any]] = Field(None, description="Contact details")
+    tenant_id: str = Field(default="default", description="Tenant identifier")
+    notes: Optional[str] = Field(None, description="Vendor notes")
+    tags: Optional[List[str]] = Field(None, description="Vendor tags")
+
+
+class VendorUpdateRequestSchema(BaseModel):
+    """Schema for updating an existing vendor."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=200, description="Vendor name")
+    display_name: Optional[str] = Field(None, max_length=200, description="Display name")
+    contact_info: Optional[Dict[str, Any]] = Field(None, description="Contact details")
+    notes: Optional[str] = Field(None, description="Vendor notes")
+    tags: Optional[List[str]] = Field(None, description="Vendor tags")
+
+
 # Delete Response Schema
 
 
@@ -524,6 +548,9 @@ __all__ = [
     "AuditLogListResponseSchema",
     # Settings schema
     "SettingsResponseSchema",
+    # Vendor schemas
+    "VendorCreateRequestSchema",
+    "VendorUpdateRequestSchema",
     # Delete response
     "DeleteDocumentResponseSchema",
     # Validation helpers

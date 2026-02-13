@@ -112,18 +112,3 @@ resource "aws_iam_policy" "documents_s3_access" {
   })
 }
 
-# Outputs
-output "documents_bucket_arn" {
-  description = "ARN of the document storage S3 bucket"
-  value       = aws_s3_bucket.documents.arn
-}
-
-output "documents_bucket_name" {
-  description = "Name of the document storage S3 bucket"
-  value       = aws_s3_bucket.documents.id
-}
-
-output "documents_s3_policy_arn" {
-  description = "ARN of the IAM policy for S3 access"
-  value       = aws_iam_policy.documents_s3_access.arn
-}

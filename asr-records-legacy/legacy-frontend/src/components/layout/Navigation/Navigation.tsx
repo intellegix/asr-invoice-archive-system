@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Upload,
   FileText,
+  Building2,
   Settings,
   BarChart3,
   Folder,
@@ -44,6 +45,12 @@ const navItems: NavItem[] = [
     label: 'Documents',
     icon: FileText,
     description: 'Browse and search documents',
+  },
+  {
+    to: '/vendors',
+    label: 'Vendors',
+    icon: Building2,
+    description: 'Manage vendor directory',
   },
 ];
 

@@ -25,7 +25,6 @@
         {"name": "LOG_LEVEL", "value": "INFO"},
         {"name": "STORAGE_BACKEND", "value": "local"},
         {"name": "DATA_DIR", "value": "/app/data"},
-        {"name": "DATABASE_URL", "value": "sqlite:///./asr_records.db"},
         {"name": "MULTI_TENANT_ENABLED", "value": "false"},
         {"name": "SCANNER_API_ENABLED", "value": "true"},
         {"name": "MAX_SCANNER_CLIENTS", "value": "10"},

@@ -11,6 +11,7 @@ import { Login } from '@/pages/Login';
 
 const Reports = lazy(() => import('@/pages/Reports/Reports').then(m => ({ default: m.Reports })));
 const Settings = lazy(() => import('@/pages/Settings/Settings').then(m => ({ default: m.Settings })));
+const Vendors = lazy(() => import('@/pages/Vendors/Vendors').then(m => ({ default: m.Vendors })));
 
 const PageFallback = () => (
   <div className="flex items-center justify-center h-64">
@@ -44,6 +45,7 @@ const App: React.FC = () => {
                     <Route path="/dashboard" element={<PageErrorBoundary pageName="Dashboard"><Dashboard /></PageErrorBoundary>} />
                     <Route path="/upload" element={<PageErrorBoundary pageName="Upload"><Upload /></PageErrorBoundary>} />
                     <Route path="/documents" element={<PageErrorBoundary pageName="Documents"><Documents /></PageErrorBoundary>} />
+                    <Route path="/vendors" element={<PageErrorBoundary pageName="Vendors"><Vendors /></PageErrorBoundary>} />
                     <Route path="/reports" element={<PageErrorBoundary pageName="Reports"><Reports /></PageErrorBoundary>} />
                     <Route path="/settings" element={<PageErrorBoundary pageName="Settings"><Settings /></PageErrorBoundary>} />
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />

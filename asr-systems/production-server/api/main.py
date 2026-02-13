@@ -43,6 +43,8 @@ from shared.api.schemas import (
     ScannerRegistrationSchema,
     SettingsResponseSchema,
     SystemHealthResponseSchema,
+    VendorCreateRequestSchema,
+    VendorUpdateRequestSchema,
     validate_document_id,
 )
 from shared.core.exceptions import (
@@ -142,6 +144,11 @@ try:
 except (ImportError, SystemError):
     from services.audit_trail_service import AuditTrailService
 
+try:
+    from ..services.vendor_service import VendorService
+except (ImportError, SystemError):
+    from services.vendor_service import VendorService
+
 # Configure logging
 _log_level = (
     getattr(logging, production_settings.LOG_LEVEL)
@@ -168,6 +175,7 @@ document_processor_service: Optional[DocumentProcessorService] = None
 storage_service: Optional[ProductionStorageService] = None
 scanner_manager_service: Optional[ScannerManagerService] = None
 audit_trail_service: Optional[AuditTrailService] = None
+vendor_service: Optional[VendorService] = None
 
 # Per-tenant upload quota tracking: {tenant_id: deque of upload timestamps}
 _upload_timestamps: Dict[str, collections.deque] = {}
@@ -200,7 +208,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager with sophisticated component initialization"""
     global gl_account_service, payment_detection_service, billing_router_service
     global document_processor_service, storage_service, scanner_manager_service
-    global audit_trail_service, _server_start_time
+    global audit_trail_service, vendor_service, _server_start_time
 
     _server_start_time = time.time()
     logger.info("🚀 Starting ASR Production Server...")
@@ -223,6 +231,11 @@ async def lifespan(app: FastAPI):
         )
         await audit_trail_service.initialize()
         logger.info("✅ Audit Trail Service initialized")
+
+        # Initialize vendor service
+        vendor_service = VendorService()
+        await vendor_service.initialize()
+        logger.info("✅ Vendor Service initialized")
 
         # Initialize storage service
         storage_service = ProductionStorageService(production_settings.storage_config)
@@ -313,6 +326,7 @@ async def lifespan(app: FastAPI):
         document_processor_service,
         scanner_manager_service,
         audit_trail_service,
+        vendor_service,
     ]
 
     for service in services_to_cleanup:
@@ -353,6 +367,10 @@ _openapi_tags = [
     {
         "name": "Audit",
         "description": "Audit trail log endpoints.",
+    },
+    {
+        "name": "Vendors",
+        "description": "Vendor CRUD and statistics.",
     },
     {
         "name": "System",
@@ -1084,6 +1102,178 @@ async def quick_search(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Search failed",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Vendor CRUD endpoints (matches frontend VendorService.ts)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/vendors", tags=["Vendors"])
+async def list_vendors(user: Dict[str, Any] = Depends(get_current_user)):
+    """List all vendors."""
+    try:
+        if not vendor_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Vendor service not available",
+            )
+        vendors = await vendor_service.list_vendors(tenant_id=user.get("tenant_id"))
+        return vendors
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"List vendors error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to list vendors",
+        )
+
+
+@app.get("/vendors/{vendor_id}", tags=["Vendors"])
+async def get_vendor(
+    vendor_id: str, user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get a single vendor by ID."""
+    try:
+        if not vendor_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Vendor service not available",
+            )
+        vendor = await vendor_service.get_vendor(vendor_id)
+        if not vendor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Vendor {vendor_id} not found",
+            )
+        return vendor
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get vendor error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get vendor",
+        )
+
+
+@app.post("/vendors", status_code=201, tags=["Vendors"])
+async def create_vendor(
+    request: VendorCreateRequestSchema,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Create a new vendor."""
+    try:
+        if not vendor_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Vendor service not available",
+            )
+        vendor = await vendor_service.create_vendor(
+            name=request.name,
+            tenant_id=request.tenant_id or user.get("tenant_id", "default"),
+            display_name=request.display_name,
+            contact_info=request.contact_info,
+            notes=request.notes,
+            tags=request.tags,
+        )
+        return vendor
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Create vendor error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create vendor",
+        )
+
+
+@app.put("/vendors/{vendor_id}", tags=["Vendors"])
+async def update_vendor(
+    vendor_id: str,
+    request: VendorUpdateRequestSchema,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Update an existing vendor."""
+    try:
+        if not vendor_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Vendor service not available",
+            )
+        updates = request.model_dump(exclude_none=True)
+        vendor = await vendor_service.update_vendor(vendor_id, updates)
+        if not vendor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Vendor {vendor_id} not found",
+            )
+        return vendor
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update vendor error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update vendor",
+        )
+
+
+@app.delete("/vendors/{vendor_id}", tags=["Vendors"])
+async def delete_vendor_endpoint(
+    vendor_id: str, user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Delete a vendor by ID."""
+    try:
+        if not vendor_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Vendor service not available",
+            )
+        deleted = await vendor_service.delete_vendor(vendor_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Vendor {vendor_id} not found",
+            )
+        return {"success": True, "message": "Vendor deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete vendor error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete vendor",
+        )
+
+
+@app.get("/vendors/{vendor_id}/stats", tags=["Vendors"])
+async def get_vendor_stats(
+    vendor_id: str, user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Get statistics for a specific vendor."""
+    try:
+        if not vendor_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Vendor service not available",
+            )
+        stats = await vendor_service.get_vendor_stats(vendor_id)
+        if stats is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Vendor {vendor_id} not found",
+            )
+        return stats
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get vendor stats error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get vendor stats",
         )
 
 

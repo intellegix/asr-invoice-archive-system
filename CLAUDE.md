@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (264 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All tests
+# --- Backend (277 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 277 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -42,21 +42,21 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (482 vitest tests) ---
+# --- Frontend (493 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
 npm run test                                                  # All tests
 npx vitest run                                                # Single run (no watch)
 npx tsc --noEmit                                              # TypeScript type check
 
-# --- E2E / Playwright (78 tests) ---
+# --- E2E / Playwright (99 tests) ---
 # Requires backend (port 8000) + frontend (port 3000) running
 cd asr-records-legacy/legacy-frontend
-npm run test:e2e                                              # All 78 Playwright tests
+npm run test:e2e                                              # All 99 Playwright tests
 npm run test:e2e:headed                                       # With visible browser
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (264 tests)
+### Backend Test Files (277 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -82,8 +82,9 @@ npm run test:e2e:report                                       # View HTML report
 | `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
 | `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
 | `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
+| `test_vendor_endpoints.py` | 13 | Vendor CRUD operations, validation, stats endpoint |
 
-### Frontend Test Files (482 vitest tests)
+### Frontend Test Files (493 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
@@ -91,10 +92,10 @@ npm run test:e2e:report                                       # View HTML report
 | API Services | 6 | 59 | ApiClient (21), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
 | Custom Hooks | 7 | 62 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3), usePermission (4), useAuditLogs (4), useDebounce (4) |
 | Components | 8 | 135 | Button (20), MetricCard (25), Header (23), Navigation (18), ProtectedRoute (4), Skeleton (11), ErrorBoundary (11), DocumentDetailModal (15), PermissionGate (3), exportJson (5) |
-| Pages + App | 7 | 151 | Dashboard (22), Upload (24), Documents (36), Login (18), Settings (10), Reports (8), App routing (10), FilterPanel (13), exportCsv (4) |
+| Pages + App | 8 | 162 | Dashboard (22), Upload (24), Documents (36), Login (18), Settings (10), Reports (8), Vendors (11), App routing (10), FilterPanel (13), exportCsv (4) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
-### E2E Playwright Tests (78 tests)
+### E2E Playwright Tests (99 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -107,6 +108,10 @@ npm run test:e2e:report                                       # View HTML report
 | `e2e/integration.spec.ts` | 11 | API-to-UI data flow, error states, backend health/status |
 | `e2e/reclassify.spec.ts` | 5 | Re-Classify button, feedback, modal close, table columns, search |
 | `e2e/audit-logs.spec.ts` | 3 | Audit Trail heading, empty/entries state, no console errors |
+| `e2e/settings.spec.ts` | 6 | Settings heading, system info, server version, theme toggle, API status |
+| `e2e/login.spec.ts` | 5 | Login form, API key input, submit button, auth redirect, console errors |
+| `e2e/error-handling.spec.ts` | 4 | Invalid route redirect, file type/size info, structured API errors |
+| `e2e/vendors.spec.ts` | 6 | Vendors heading, search, Add Vendor button, summary stats |
 
 ## Architecture
 
@@ -131,7 +136,7 @@ Client → FastAPI (api/main.py)
 - `asr-systems/production-server/` — Main FastAPI app
   - `api/main.py` — FastAPI app with lifespan manager, all route definitions
   - `config/production_settings.py` — Pydantic BaseSettings (env-driven)
-  - `services/` — 6 core services (gl_account, payment_detection, billing_router, document_processor, storage, scanner_manager)
+  - `services/` — 7 core services (gl_account, payment_detection, billing_router, document_processor, storage, scanner_manager, vendor)
   - `middleware/` — tenant_middleware.py, rate_limit_middleware.py, request_logging_middleware.py
   - `utils/` — retry.py (async retry + circuit breaker patterns)
 - `asr-systems/shared/` — Shared models used by all components
@@ -176,8 +181,8 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 60% on Python 3.11 + 3.12 (264 tests)
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (469 tests) on Node 18
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 60% on Python 3.11 + 3.12 (277 tests)
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (493 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
@@ -197,7 +202,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 824 tests | — |
+| Full-Stack Tests | 869 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -210,6 +215,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P43-P48 Audit+Reclassify+Settings | Complete | `03df6ef` |
 | P49-P54 Security+A11y+API+Tests | Complete | `e4ae99b` |
 | P55-P60 DarkMode+UX+Mobile+Polish | Complete | — |
+| P61-P66 Deploy+Vendors+E2E+Terraform | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 

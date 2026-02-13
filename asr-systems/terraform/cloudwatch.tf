@@ -1,23 +1,6 @@
 # ASR Records — CloudWatch Alarms for ECS Services
 # Monitors CPU, memory, and 5xx error counts.
 
-variable "ecs_cluster_name" {
-  description = "ECS cluster name"
-  type        = string
-  default     = "asr-records-legacy-cluster-dev"
-}
-
-variable "backend_service_name" {
-  description = "Backend ECS service name"
-  type        = string
-  default     = "asr-records-backend-service-dev"
-}
-
-variable "alarm_sns_topic_arn" {
-  description = "SNS topic ARN for alarm notifications (leave empty to skip)"
-  type        = string
-  default     = ""
-}
 
 # --------------------------------------------------------------------------
 # CPU alarm — fires when average CPU > 80% for 5 minutes
@@ -71,18 +54,6 @@ resource "aws_cloudwatch_metric_alarm" "backend_memory_high" {
 # 5xx error alarm — fires when > 10 errors in 5 minutes
 # Uses the ALB target group 5xx metric.
 # --------------------------------------------------------------------------
-variable "alb_arn_suffix" {
-  description = "ALB ARN suffix (e.g. app/asr-records-alb/1234567890)"
-  type        = string
-  default     = ""
-}
-
-variable "target_group_arn_suffix" {
-  description = "Target group ARN suffix"
-  type        = string
-  default     = ""
-}
-
 resource "aws_cloudwatch_metric_alarm" "backend_5xx_errors" {
   count               = var.alb_arn_suffix != "" && var.target_group_arn_suffix != "" ? 1 : 0
   alarm_name          = "asr-backend-5xx-errors-${var.environment}"

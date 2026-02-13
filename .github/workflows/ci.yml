@@ -57,7 +57,7 @@ jobs:
       - name: pip-audit (dependency check — blocks on high severity)
         run: pip-audit -r asr-systems/production-server/requirements.txt
 
-      - name: pytest (264 tests, coverage >= 60%)
+      - name: pytest (277 tests, coverage >= 60%)
         working-directory: asr-systems
         run: python -m pytest tests/ -v --tb=short -x --cov=production-server --cov=shared --cov-report=term-missing --cov-fail-under=60
 
@@ -82,7 +82,7 @@ jobs:
       - name: TypeScript type check
         run: npx tsc --noEmit
 
-      - name: Vitest (482 tests)
+      - name: Vitest (493 tests)
         run: npx vitest run
 
   docker:
