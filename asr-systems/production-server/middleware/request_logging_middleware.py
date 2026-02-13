@@ -8,6 +8,7 @@ import time
 import uuid
 from typing import Optional
 
+import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
@@ -29,65 +30,71 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         request.state.request_id = request_id
 
+        # Bind request_id to structlog contextvars so all downstream logs include it
+        structlog.contextvars.bind_contextvars(request_id=request_id)
+
         path = request.url.path
         method = request.method
 
-        # Skip noisy health-check logging
-        if path in SKIP_LOGGING_PATHS:
-            response = await call_next(request)
-            response.headers["X-Request-ID"] = request_id
-            return response
-
-        client_ip = _get_client_ip(request)
-        start_time = time.perf_counter()
-
-        logger.info(
-            "request_started",
-            extra={
-                "request_id": request_id,
-                "method": method,
-                "path": path,
-                "client_ip": client_ip,
-                "user_agent": request.headers.get("User-Agent", ""),
-            },
-        )
-
         try:
-            response = await call_next(request)
-        except Exception:
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            logger.error(
-                "request_failed",
+            # Skip noisy health-check logging
+            if path in SKIP_LOGGING_PATHS:
+                response = await call_next(request)
+                response.headers["X-Request-ID"] = request_id
+                return response
+
+            client_ip = _get_client_ip(request)
+            start_time = time.perf_counter()
+
+            logger.info(
+                "request_started",
                 extra={
                     "request_id": request_id,
                     "method": method,
                     "path": path,
-                    "duration_ms": round(duration_ms, 2),
+                    "client_ip": client_ip,
+                    "user_agent": request.headers.get("User-Agent", ""),
                 },
-                exc_info=True,
             )
-            raise
 
-        duration_ms = (time.perf_counter() - start_time) * 1000
+            try:
+                response = await call_next(request)
+            except Exception:
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.error(
+                    "request_failed",
+                    extra={
+                        "request_id": request_id,
+                        "method": method,
+                        "path": path,
+                        "duration_ms": round(duration_ms, 2),
+                    },
+                    exc_info=True,
+                )
+                raise
 
-        response.headers["X-Request-ID"] = request_id
-        response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
+            duration_ms = (time.perf_counter() - start_time) * 1000
 
-        log_level = logging.WARNING if response.status_code >= 400 else logging.INFO
-        logger.log(
-            log_level,
-            "request_completed",
-            extra={
-                "request_id": request_id,
-                "method": method,
-                "path": path,
-                "status_code": response.status_code,
-                "duration_ms": round(duration_ms, 2),
-                "client_ip": client_ip,
-            },
-        )
+            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
 
-        return response
+            log_level = logging.WARNING if response.status_code >= 400 else logging.INFO
+            logger.log(
+                log_level,
+                "request_completed",
+                extra={
+                    "request_id": request_id,
+                    "method": method,
+                    "path": path,
+                    "status_code": response.status_code,
+                    "duration_ms": round(duration_ms, 2),
+                    "client_ip": client_ip,
+                },
+            )
+
+            return response
+        finally:
+            structlog.contextvars.clear_contextvars()
 
 
 def _get_client_ip(request: Request) -> str:

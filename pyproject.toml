@@ -17,3 +17,4 @@ ignore_missing_imports = true
 mypy_path = "asr-systems"
 warn_return_any = true
 warn_unused_configs = true
+check_untyped_defs = true

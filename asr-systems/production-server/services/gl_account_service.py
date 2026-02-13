@@ -7,6 +7,7 @@ import asyncio
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -16,6 +17,7 @@ import yaml
 from shared.core.constants import GL_ACCOUNT_CATEGORIES, GL_ACCOUNTS
 from shared.core.exceptions import ClassificationError, ValidationError
 from shared.core.models import GLAccount
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
@@ -78,12 +80,15 @@ class GLAccountService:
         self.initialized = False
 
     async def initialize(self):
-        """Initialize GL Account service with 79 QuickBooks accounts"""
+        """Initialize GL Account service — tries DB first, then YAML, then constants."""
         try:
             logger.info("Initializing GL Account Service...")
 
-            # Load all 79 GL accounts from constants
-            self._load_gl_accounts()
+            # Try loading from database first
+            db_loaded = await self._load_from_database()
+            if not db_loaded:
+                # Fallback: YAML config → constants
+                self._load_gl_accounts()
 
             # Build keyword index for fast searching
             self._build_keyword_index()
@@ -101,6 +106,45 @@ class GLAccountService:
         except Exception as e:
             logger.error(f"Failed to initialize GL Account Service: {e}")
             raise ClassificationError(f"GL Account service initialization failed: {e}")
+
+    async def _load_from_database(self) -> bool:
+        """Try to load GL accounts from the gl_accounts table.
+
+        Returns True if at least one account was loaded, False otherwise.
+        """
+        try:
+            from config.database import get_async_session
+            from models.gl_account import GLAccountRecord
+        except (ImportError, SystemError):
+            try:
+                from ..config.database import get_async_session
+                from ..models.gl_account import GLAccountRecord
+            except (ImportError, SystemError):
+                return False
+
+        try:
+            async with get_async_session() as session:
+                stmt = select(GLAccountRecord).where(GLAccountRecord.active.is_(True))
+                result = await session.execute(stmt)
+                rows = result.scalars().all()
+                if not rows:
+                    return False
+
+                for row in rows:
+                    self.gl_accounts[row.code] = GLAccount(
+                        code=row.code,
+                        name=row.name,
+                        category=row.category,
+                        keywords=row.keywords or [],
+                        active=row.active,
+                    )
+                logger.info(
+                    "Loaded %d GL accounts from database", len(self.gl_accounts)
+                )
+                return True
+        except Exception as e:
+            logger.warning("Failed to load GL accounts from database: %s", e)
+            return False
 
     def _load_gl_accounts(self) -> None:
         """Load GL accounts from YAML config, falling back to constants."""
@@ -451,6 +495,158 @@ class GLAccountService:
                     )
 
         return None
+
+    # ------------------------------------------------------------------
+    # CRUD operations (DB-backed)
+    # ------------------------------------------------------------------
+
+    async def create_gl_account(
+        self,
+        code: str,
+        name: str,
+        category: str,
+        keywords: Optional[List[str]] = None,
+        description: str = "",
+        tenant_id: str = "default",
+    ) -> Dict[str, Any]:
+        """Create a new GL account in the database and in-memory cache."""
+        try:
+            from config.database import get_async_session
+            from models.gl_account import GLAccountRecord
+        except (ImportError, SystemError):
+            from ..config.database import get_async_session
+            from ..models.gl_account import GLAccountRecord
+
+        async with get_async_session() as session:
+            row = GLAccountRecord(
+                code=code,
+                name=name,
+                category=category,
+                keywords=keywords or [],
+                description=description,
+                tenant_id=tenant_id,
+            )
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+
+        # Update in-memory cache
+        self.gl_accounts[code] = GLAccount(
+            code=code,
+            name=name,
+            category=category,
+            keywords=keywords or [],
+            active=True,
+        )
+        self._build_keyword_index()
+        self._build_category_index()
+
+        logger.info("Created GL account %s: %s", code, name)
+        return self._gl_record_to_dict(row)
+
+    async def update_gl_account(
+        self, code: str, updates: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
+        """Update a GL account in the database and refresh cache."""
+        try:
+            from config.database import get_async_session
+            from models.gl_account import GLAccountRecord
+        except (ImportError, SystemError):
+            from ..config.database import get_async_session
+            from ..models.gl_account import GLAccountRecord
+
+        allowed = {"name", "category", "keywords", "active", "description"}
+
+        async with get_async_session() as session:
+            stmt = select(GLAccountRecord).where(GLAccountRecord.code == code)
+            result = await session.execute(stmt)
+            row = result.scalar_one_or_none()
+            if row is None:
+                return None
+
+            for key, value in updates.items():
+                if key in allowed:
+                    setattr(row, key, value)
+            row.updated_at = datetime.now(timezone.utc)
+            await session.commit()
+            await session.refresh(row)
+
+            # Refresh in-memory cache
+            if row.active:
+                self.gl_accounts[code] = GLAccount(
+                    code=code,
+                    name=row.name,
+                    category=row.category,
+                    keywords=row.keywords or [],
+                    active=row.active,
+                )
+            elif code in self.gl_accounts:
+                del self.gl_accounts[code]
+
+            self._build_keyword_index()
+            self._build_category_index()
+
+            logger.info("Updated GL account %s", code)
+            return self._gl_record_to_dict(row)
+
+    async def delete_gl_account(self, code: str) -> bool:
+        """Delete a GL account from the database and cache."""
+        try:
+            from config.database import get_async_session
+            from models.gl_account import GLAccountRecord
+        except (ImportError, SystemError):
+            from ..config.database import get_async_session
+            from ..models.gl_account import GLAccountRecord
+
+        async with get_async_session() as session:
+            stmt = select(GLAccountRecord).where(GLAccountRecord.code == code)
+            result = await session.execute(stmt)
+            row = result.scalar_one_or_none()
+            if row is None:
+                return False
+            await session.delete(row)
+            await session.commit()
+
+        # Remove from cache
+        self.gl_accounts.pop(code, None)
+        self._build_keyword_index()
+        self._build_category_index()
+
+        logger.info("Deleted GL account %s", code)
+        return True
+
+    async def list_gl_accounts_from_db(
+        self, category: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """List GL accounts directly from the database."""
+        try:
+            from config.database import get_async_session
+            from models.gl_account import GLAccountRecord
+        except (ImportError, SystemError):
+            from ..config.database import get_async_session
+            from ..models.gl_account import GLAccountRecord
+
+        async with get_async_session() as session:
+            stmt = select(GLAccountRecord)
+            if category:
+                stmt = stmt.where(GLAccountRecord.category == category.upper())
+            stmt = stmt.order_by(GLAccountRecord.code)
+            result = await session.execute(stmt)
+            return [self._gl_record_to_dict(r) for r in result.scalars().all()]
+
+    @staticmethod
+    def _gl_record_to_dict(row) -> Dict[str, Any]:
+        return {
+            "code": row.code,
+            "name": row.name,
+            "category": row.category,
+            "keywords": row.keywords or [],
+            "active": row.active,
+            "description": row.description or "",
+            "tenant_id": row.tenant_id,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+        }
 
     def validate_gl_account(self, gl_code: str) -> bool:
         """Validate if GL account code exists and is active"""

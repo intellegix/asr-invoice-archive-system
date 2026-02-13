@@ -367,6 +367,16 @@ class ProductionSettings(BaseSettings):
     )
 
     @property
+    def database_dialect(self) -> str:
+        """Parse dialect from DATABASE_URL (returns 'sqlite' or 'postgresql')."""
+        url = self.DATABASE_URL
+        if url.startswith("sqlite"):
+            return "sqlite"
+        if url.startswith("postgresql"):
+            return "postgresql"
+        return url.split("://")[0] if "://" in url else "unknown"
+
+    @property
     def get_api_host(self) -> str:
         """Get production-aware API host"""
         if self.AWS_DEPLOYMENT_MODE or self.RENDER_DEPLOYMENT_MODE:

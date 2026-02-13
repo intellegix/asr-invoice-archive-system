@@ -39,11 +39,15 @@ from shared.api.schemas import (
     ClassificationResponseSchema,
     DeleteDocumentResponseSchema,
     DocumentUploadResponseSchema,
+    GLAccountCreateRequestSchema,
+    GLAccountUpdateRequestSchema,
     ScannerHeartbeatSchema,
     ScannerRegistrationSchema,
     SettingsResponseSchema,
     SystemHealthResponseSchema,
     VendorCreateRequestSchema,
+    VendorImportRequestSchema,
+    VendorImportResultSchema,
     VendorUpdateRequestSchema,
     validate_document_id,
 )
@@ -135,9 +139,17 @@ except (ImportError, SystemError):
     from api.dashboard_routes import register_dashboard_routes
 
 try:
-    from ..config.database import close_database, init_database
+    from ..config.database import (
+        check_database_connectivity,
+        close_database,
+        init_database,
+    )
 except (ImportError, SystemError):
-    from config.database import close_database, init_database
+    from config.database import (
+        check_database_connectivity,
+        close_database,
+        init_database,
+    )
 
 try:
     from ..services.audit_trail_service import AuditTrailService
@@ -149,13 +161,19 @@ try:
 except (ImportError, SystemError):
     from services.vendor_service import VendorService
 
-# Configure logging
-_log_level = (
-    getattr(logging, production_settings.LOG_LEVEL)
-    if production_settings
-    else logging.INFO
-)
-logging.basicConfig(level=_log_level)
+try:
+    from ..services.vendor_import_export import VendorImportExportService
+except (ImportError, SystemError):
+    from services.vendor_import_export import VendorImportExportService
+
+# Configure structured logging
+try:
+    from ..config.logging_config import configure_logging
+except (ImportError, SystemError):
+    from config.logging_config import configure_logging
+
+if production_settings:
+    configure_logging(production_settings.LOG_LEVEL, production_settings.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 # Security
@@ -176,6 +194,7 @@ storage_service: Optional[ProductionStorageService] = None
 scanner_manager_service: Optional[ScannerManagerService] = None
 audit_trail_service: Optional[AuditTrailService] = None
 vendor_service: Optional[VendorService] = None
+vendor_import_export_service: Optional[VendorImportExportService] = None
 
 # Per-tenant upload quota tracking: {tenant_id: deque of upload timestamps}
 _upload_timestamps: Dict[str, collections.deque] = {}
@@ -224,6 +243,25 @@ async def lifespan(app: FastAPI):
         )
         logger.info("✅ Database engine initialized")
 
+        # Verify DB connectivity and warn about SQLite in production
+        db_check = await check_database_connectivity()
+        if db_check["status"] == "connected":
+            logger.info(
+                "Database connectivity verified: dialect=%s latency=%.1fms",
+                db_check["dialect"],
+                db_check["latency_ms"],
+            )
+            if (
+                db_check["dialect"] == "sqlite"
+                and production_settings.is_production
+                and not production_settings.DEBUG
+            ):
+                logger.warning(
+                    "⚠️ SQLite detected in production mode — data will be lost on ECS/Fargate restarts. Use PostgreSQL for durability."
+                )
+        else:
+            logger.error("Database connectivity check failed: %s", db_check)
+
         # Initialize audit trail service
         audit_trail_service = AuditTrailService(
             enabled=production_settings.AUDIT_TRAIL_ENABLED,
@@ -236,6 +274,10 @@ async def lifespan(app: FastAPI):
         vendor_service = VendorService()
         await vendor_service.initialize()
         logger.info("✅ Vendor Service initialized")
+
+        # Initialize vendor import/export service
+        vendor_import_export_service = VendorImportExportService(vendor_service)
+        logger.info("✅ Vendor Import/Export Service initialized")
 
         # Initialize storage service
         storage_service = ProductionStorageService(production_settings.storage_config)
@@ -591,6 +633,12 @@ async def _build_health_response() -> SystemHealthResponseSchema:
     )
 
     try:
+        # Database connectivity
+        db_health = await check_database_connectivity()
+        health_status.components["database"] = db_health
+        if db_health.get("status") not in ("connected",):
+            health_status.overall_status = "unhealthy"
+
         # GL Account Service
         if gl_account_service:
             accounts = gl_account_service.get_all_accounts()
@@ -899,6 +947,99 @@ async def list_gl_accounts(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve GL accounts",
+        )
+
+
+@app.post("/api/v1/gl-accounts", status_code=201, tags=["GL Accounts"])
+async def create_gl_account(
+    request: GLAccountCreateRequestSchema,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Create a new GL account."""
+    try:
+        if not gl_account_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="GL Account service not available",
+            )
+        result = await gl_account_service.create_gl_account(
+            code=request.code,
+            name=request.name,
+            category=request.category,
+            keywords=request.keywords,
+            description=request.description or "",
+            tenant_id=request.tenant_id,
+        )
+        return APISuccessResponseSchema(message="GL account created", data=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Create GL account error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create GL account",
+        )
+
+
+@app.put("/api/v1/gl-accounts/{code}", tags=["GL Accounts"])
+async def update_gl_account_endpoint(
+    code: str,
+    request: GLAccountUpdateRequestSchema,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Update an existing GL account."""
+    try:
+        if not gl_account_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="GL Account service not available",
+            )
+        updates = request.model_dump(exclude_none=True)
+        result = await gl_account_service.update_gl_account(code, updates)
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"GL account {code} not found",
+            )
+        return APISuccessResponseSchema(message="GL account updated", data=result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Update GL account error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update GL account",
+        )
+
+
+@app.delete("/api/v1/gl-accounts/{code}", tags=["GL Accounts"])
+async def delete_gl_account_endpoint(
+    code: str,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Delete a GL account."""
+    try:
+        if not gl_account_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="GL Account service not available",
+            )
+        deleted = await gl_account_service.delete_gl_account(code)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"GL account {code} not found",
+            )
+        return APISuccessResponseSchema(
+            message="GL account deleted", data={"code": code}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Delete GL account error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete GL account",
         )
 
 
@@ -1287,6 +1428,118 @@ async def get_vendor_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get vendor stats",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Vendor Import/Export endpoints
+# ---------------------------------------------------------------------------
+
+
+@app.get("/vendors/export", tags=["Vendors"])
+async def export_vendors(
+    format: str = "json",
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Export all vendors in JSON or CSV format."""
+    try:
+        if not vendor_import_export_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Import/export service not available",
+            )
+        tenant_id = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
+
+        if format == "csv":
+            csv_data = await vendor_import_export_service.export_vendors_csv(
+                tenant_id=tenant_id
+            )
+            return JSONResponse(
+                content={"success": True, "format": "csv", "data": csv_data},
+            )
+        else:
+            json_data = await vendor_import_export_service.export_vendors_json(
+                tenant_id=tenant_id
+            )
+            return {"success": True, "format": "json", "data": json_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Export vendors error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export vendors",
+        )
+
+
+@app.post(
+    "/vendors/import",
+    response_model=VendorImportResultSchema,
+    tags=["Vendors"],
+)
+async def import_vendors(
+    body: VendorImportRequestSchema,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Import vendors from JSON payload."""
+    try:
+        if not vendor_import_export_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Import/export service not available",
+            )
+        tenant_id = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
+
+        # Collect valid GL codes for validation
+        gl_codes: set = set()
+        if gl_account_service and gl_account_service.gl_accounts:
+            gl_codes = set(gl_account_service.gl_accounts.keys())
+
+        result = await vendor_import_export_service.import_vendors_json(
+            data=body.vendors,
+            mode=body.mode,
+            tenant_id=tenant_id,
+            gl_codes=gl_codes if gl_codes else None,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Import vendors error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to import vendors",
+        )
+
+
+@app.post("/vendors/import/validate", tags=["Vendors"])
+async def validate_vendor_import(
+    body: VendorImportRequestSchema,
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Dry-run validation of vendor import data."""
+    try:
+        if not vendor_import_export_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Import/export service not available",
+            )
+        gl_codes: set = set()
+        if gl_account_service and gl_account_service.gl_accounts:
+            gl_codes = set(gl_account_service.gl_accounts.keys())
+
+        result = vendor_import_export_service.validate_import_data(
+            data=body.vendors,
+            gl_codes=gl_codes if gl_codes else None,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Validate vendor import error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to validate import data",
         )
 
 

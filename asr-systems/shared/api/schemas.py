@@ -374,6 +374,36 @@ class SettingsResponseSchema(BaseModel):
     storage: Dict[str, Any] = Field(..., description="Storage configuration")
 
 
+# GL Account CRUD Schemas
+
+
+class GLAccountCreateRequestSchema(BaseModel):
+    """Schema for creating a new GL account."""
+
+    code: str = Field(..., min_length=1, max_length=10, description="GL account code")
+    name: str = Field(..., min_length=1, max_length=200, description="GL account name")
+    category: str = Field(
+        ..., min_length=1, max_length=50, description="Account category"
+    )
+    keywords: Optional[List[str]] = Field(None, description="Classification keywords")
+    description: Optional[str] = Field(None, description="Account description")
+    tenant_id: str = Field(default="default", description="Tenant identifier")
+
+
+class GLAccountUpdateRequestSchema(BaseModel):
+    """Schema for updating an existing GL account."""
+
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=200, description="GL account name"
+    )
+    category: Optional[str] = Field(
+        None, min_length=1, max_length=50, description="Account category"
+    )
+    keywords: Optional[List[str]] = Field(None, description="Classification keywords")
+    description: Optional[str] = Field(None, description="Account description")
+    active: Optional[bool] = Field(None, description="Whether account is active")
+
+
 # Vendor Schemas
 
 
@@ -543,6 +573,29 @@ class DocumentFilterSchema(BaseModel):
     scanner_id: Optional[str] = Field(None, description="Filter by scanner ID")
 
 
+class VendorImportRequestSchema(BaseModel):
+    """Schema for vendor bulk import request."""
+
+    vendors: List[Dict[str, Any]] = Field(
+        ..., min_length=1, description="List of vendor records to import"
+    )
+    mode: str = Field(
+        default="merge",
+        pattern="^(merge|overwrite|append)$",
+        description="Import mode: merge, overwrite, or append",
+    )
+
+
+class VendorImportResultSchema(BaseModel):
+    """Schema for vendor import result."""
+
+    success: bool = Field(..., description="Whether import succeeded")
+    created: int = Field(default=0, description="Number of vendors created")
+    updated: int = Field(default=0, description="Number of vendors updated")
+    skipped: int = Field(default=0, description="Number of vendors skipped")
+    errors: List[str] = Field(default_factory=list, description="Validation errors")
+
+
 # Export all schemas
 __all__ = [
     # Auth schemas
@@ -581,9 +634,14 @@ __all__ = [
     "AuditLogListResponseSchema",
     # Settings schema
     "SettingsResponseSchema",
+    # GL Account CRUD schemas
+    "GLAccountCreateRequestSchema",
+    "GLAccountUpdateRequestSchema",
     # Vendor schemas
     "VendorCreateRequestSchema",
     "VendorUpdateRequestSchema",
+    "VendorImportRequestSchema",
+    "VendorImportResultSchema",
     # Delete response
     "DeleteDocumentResponseSchema",
     # Validation helpers

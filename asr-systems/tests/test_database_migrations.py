@@ -160,7 +160,7 @@ class TestAlembicMigrationChain:
         cfg.set_main_option("script_location", str(self._alembic_root / "alembic"))
         script = ScriptDirectory.from_config(cfg)
         revisions = list(script.walk_revisions())
-        assert len(revisions) == 3  # 0001, 0002, 0003
+        assert len(revisions) == 4  # 0001, 0002, 0003, 0004
 
         # Verify linear chain: each revision (except first) has exactly one down_revision
         heads = script.get_heads()

@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (499 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 499 tests
+# --- Backend (583 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 583 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -56,7 +56,7 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (492 tests)
+### Backend Test Files (583 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -87,6 +87,13 @@ npm run test:e2e:report                                       # View HTML report
 | `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
 | `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
 | `test_vendor_endpoints.py` | 19 | Vendor CRUD, validation, stats, DB persistence, audit logging |
+| `test_database_health.py` | 12 | DB connectivity, health probe, CORS parsing, dialect property |
+| `test_structured_logging.py` | 10 | structlog JSON/text format, contextvars, extra merging |
+| `test_gl_account_db.py` | 13 | GL account ORM CRUD, API endpoints, migration seeding |
+| `test_document_processor_coverage.py` | 14 | Pipeline edge cases, text extraction, reprocess, request_id |
+| `test_billing_router_coverage.py` | 9 | 4 destination paths, no consensus, audit trail, cleanup |
+| `test_middleware_coverage.py` | 10 | Request ID, response time, CSRF edge cases, rate limit, tenant |
+| `test_vendor_import_export.py` | 16 | Export CSV/JSON, import merge/overwrite/append, validation |
 
 ### Frontend Test Files (493 vitest tests)
 
@@ -140,7 +147,7 @@ Client → FastAPI (api/main.py)
 - `asr-systems/production-server/` — Main FastAPI app
   - `api/main.py` — FastAPI app with lifespan manager, all route definitions
   - `config/production_settings.py` — Pydantic BaseSettings (env-driven)
-  - `services/` — 7 core services (gl_account, payment_detection, billing_router, document_processor, storage, scanner_manager, vendor)
+  - `services/` — 8 core services (gl_account, payment_detection, billing_router, document_processor, storage, scanner_manager, vendor, vendor_import_export)
   - `middleware/` — tenant_middleware.py, rate_limit_middleware.py, request_logging_middleware.py
   - `utils/` — retry.py (async retry + circuit breaker patterns)
 - `asr-systems/shared/` — Shared models used by all components
@@ -154,7 +161,7 @@ Client → FastAPI (api/main.py)
 
 **Hyphenated directory imports**: `production-server/` and `document-scanner/` use hyphens but Python needs underscores. `start_server.py` and `main_server.py` handle this via `importlib.util.spec_from_file_location()` to register modules as `production_server.*`. Never try to `import production-server` directly.
 
-**GL accounts are static constants**: The 79 QB accounts live in `shared/core/constants.py` as an in-memory dict indexed by keyword. No database lookup. To add accounts, edit that dict. Vendor→GL classification is DB-only: `GLAccountService._classify_by_vendor()` queries VendorService for `default_gl_account` (seeded by Alembic migration 0003). No hardcoded fallback.
+**GL accounts are DB-backed**: 79 QB accounts are seeded by Alembic migration 0004 from `shared/core/constants.py`. `GLAccountService.initialize()` loads from DB first, falls back to constants. CRUD endpoints at `/api/v1/gl-accounts`. Vendor→GL classification is also DB-only: `GLAccountService._classify_by_vendor()` queries VendorService for `default_gl_account` (seeded by Alembic migration 0003). No hardcoded fallback.
 
 **Payment consensus is mean confidence, not majority vote**: `PaymentDetectionService` averages confidence scores across enabled methods. Method order and thresholds matter.
 
@@ -185,7 +192,7 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 65% on Python 3.11 + 3.12 (499 tests)
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 70% on Python 3.11 + 3.12 (583 tests)
 - **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (493 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
@@ -208,7 +215,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 1091 tests | — |
+| Full-Stack Tests | 1175 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -223,6 +230,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P55-P60 DarkMode+UX+Mobile+Polish | Complete | — |
 | P61-P66 Deploy+Vendors+E2E+Terraform | Complete | — |
 | P67-P72 DB Persistence+Vendor Integration | Complete | — |
+| P73-P80 Production Hardening Sprint | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 

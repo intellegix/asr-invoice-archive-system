@@ -72,9 +72,13 @@ async def init_database(
 
     # Import all ORM models so Base.metadata.create_all() registers their tables
     try:
-        from ..models import AuditTrailRecord, VendorRecord  # noqa: F401
+        from ..models import (  # noqa: F401
+            AuditTrailRecord,
+            GLAccountRecord,
+            VendorRecord,
+        )
     except (ImportError, SystemError):
-        from models import AuditTrailRecord, VendorRecord  # noqa: F401
+        from models import AuditTrailRecord, GLAccountRecord, VendorRecord  # noqa: F401
 
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -99,3 +103,28 @@ def get_async_session() -> AsyncSession:
     if _session_factory is None:
         raise RuntimeError("Database not initialized — call init_database() first")
     return _session_factory()
+
+
+async def check_database_connectivity() -> dict:
+    """Execute a lightweight SELECT 1 to verify DB reachability.
+
+    Returns a dict with status, dialect, and latency_ms.
+    """
+    import asyncio
+    import time
+
+    import sqlalchemy as sa
+
+    if _engine is None:
+        return {"status": "not_initialized", "dialect": None, "latency_ms": None}
+
+    try:
+        start = time.perf_counter()
+        async with asyncio.timeout(2):
+            async with _engine.connect() as conn:
+                await conn.execute(sa.text("SELECT 1"))
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
+        dialect = _engine.url.get_backend_name()
+        return {"status": "connected", "dialect": dialect, "latency_ms": latency_ms}
+    except Exception as e:
+        return {"status": "error", "dialect": None, "latency_ms": None, "error": str(e)}

@@ -15,19 +15,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# Configure logging before importing other modules
-# Use UTF-8 encoding for handlers to support emoji/unicode on Windows
-_stream_handler = logging.StreamHandler(sys.stdout)
-_stream_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-)
+# Configure structured logging before importing other modules
+from config.logging_config import configure_logging
 
-_file_handler = logging.FileHandler("asr_production_server.log", encoding="utf-8")
-_file_handler.setFormatter(
-    logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+configure_logging(
+    log_level=os.environ.get("LOG_LEVEL", "INFO"),
+    log_format=os.environ.get("LOG_FORMAT", "text"),
 )
-
-logging.basicConfig(level=logging.INFO, handlers=[_stream_handler, _file_handler])
 
 # Force UTF-8 on stdout for Windows console
 if sys.platform == "win32":
