@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Filter, Download, FileText, CheckCircle, Clock, AlertCircle, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/common/Button';
@@ -20,6 +20,25 @@ export const Documents: React.FC = () => {
   const [viewingDocumentId, setViewingDocumentId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { currentPage, pageSize, setCurrentPage, setPageSize } = useDocumentView();
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [showExportMenu]);
+
+  const handleExportKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowExportMenu(false);
+    }
+  }, []);
 
   // Real API calls - preserves all backend sophistication
   const { data: documents = [], isLoading } = useDocuments(filters, currentPage, pageSize);
@@ -127,12 +146,12 @@ export const Documents: React.FC = () => {
         <thead>
           <tr>
             <th>Document</th>
-            <th>Vendor</th>
+            <th className="hidden md:table-cell">Vendor</th>
             <th>Amount</th>
-            <th>Payment Status</th>
+            <th className="hidden md:table-cell">Payment Status</th>
             <th>GL Account</th>
-            <th>Destination</th>
-            <th>Confidence</th>
+            <th className="hidden md:table-cell">Destination</th>
+            <th className="hidden md:table-cell">Confidence</th>
             <th>Processed</th>
             <th></th>
           </tr>
@@ -153,7 +172,7 @@ export const Documents: React.FC = () => {
                   </div>
                 </div>
               </td>
-              <td>
+              <td className="hidden md:table-cell">
                 <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {doc.classification?.vendor_name || 'Unknown'}
                 </div>
@@ -163,7 +182,7 @@ export const Documents: React.FC = () => {
                   ${doc.classification?.amount?.toLocaleString() || '0'}
                 </div>
               </td>
-              <td>
+              <td className="hidden md:table-cell">
                 <span className={getPaymentStatusBadge(doc.classification?.payment_status)}>
                   {doc.classification?.payment_status || 'unknown'}
                 </span>
@@ -173,12 +192,12 @@ export const Documents: React.FC = () => {
                   {doc.classification?.gl_account_code} - {doc.classification?.expense_category}
                 </div>
               </td>
-              <td>
+              <td className="hidden md:table-cell">
                 <span className={getBillingDestinationBadge(doc.classification?.routing_destination)}>
                   {formatDestination(doc.classification?.routing_destination)}
                 </span>
               </td>
-              <td>
+              <td className="hidden md:table-cell">
                 <div className="flex items-center space-x-1">
                   <span
                     className={`text-sm font-medium ${
@@ -299,24 +318,28 @@ export const Documents: React.FC = () => {
             >
               Filters
             </Button>
-            <div className="relative">
+            <div className="relative" ref={exportMenuRef} onKeyDown={handleExportKeyDown}>
               <Button
                 variant="outline"
                 leftIcon={<Download className="h-4 w-4" />}
                 onClick={() => setShowExportMenu(!showExportMenu)}
                 disabled={displayedDocuments.length === 0}
+                aria-haspopup="true"
+                aria-expanded={showExportMenu}
               >
                 Export
               </Button>
               {showExportMenu && (
-                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
+                <div role="menu" className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
                   <button
+                    role="menuitem"
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-md"
                     onClick={() => { exportDocumentsCsv(displayedDocuments); setShowExportMenu(false); }}
                   >
                     Export CSV
                   </button>
                   <button
+                    role="menuitem"
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-md"
                     onClick={() => { exportDocumentsJson(displayedDocuments); setShowExportMenu(false); }}
                   >
@@ -443,7 +466,10 @@ export const Documents: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={displayedDocuments.length < pageSize}
+                  disabled={
+                    displayedDocuments.length < pageSize ||
+                    (searchMutation.data?.total != null && currentPage * pageSize >= searchMutation.data.total)
+                  }
                   onClick={() => setCurrentPage(currentPage + 1)}
                   aria-label="Go to next page"
                 >

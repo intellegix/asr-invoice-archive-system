@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import toast from 'react-hot-toast';
 import { Documents } from '../Documents';
@@ -361,5 +361,24 @@ describe('Documents', () => {
     const buttons = nav.querySelectorAll('button');
     const currentBtn = Array.from(buttons).find(btn => btn.getAttribute('aria-current') === 'page');
     expect(currentBtn).toBeTruthy();
+  });
+
+  // --- P56: Export menu accessibility ---
+
+  it('export button has aria-haspopup and aria-expanded attributes', () => {
+    renderDocuments();
+    const exportBtn = screen.getByText('Export').closest('button')!;
+    expect(exportBtn).toHaveAttribute('aria-haspopup', 'true');
+    expect(exportBtn).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('closes export menu on Escape key', async () => {
+    renderDocuments();
+    const exportBtn = screen.getByText('Export').closest('button')!;
+    await userEvent.click(exportBtn);
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    // Fire Escape on the menu container
+    fireEvent.keyDown(exportBtn.parentElement!, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 });

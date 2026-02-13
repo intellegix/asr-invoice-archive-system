@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { X, FileText, CheckCircle, RefreshCw } from 'lucide-react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { X, FileText, CheckCircle, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { useDocumentReprocess } from '@/hooks/api/useDocuments';
@@ -17,6 +17,13 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const reprocessMutation = useDocumentReprocess();
+
+  const handleDownload = useCallback(() => {
+    if (!doc) return;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+    const url = `${baseUrl}/api/v1/documents/${doc.id}/download`;
+    window.open(url, '_blank');
+  }, [doc]);
 
   useEffect(() => {
     if (!doc) return;
@@ -241,6 +248,10 @@ export const DocumentDetailModal: React.FC<DocumentDetailModalProps> = ({
         {/* Footer */}
         <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-6 py-4 rounded-b-xl">
           <div className="flex justify-end space-x-3">
+            <Button variant="outline" onClick={handleDownload}>
+              <Download className="h-4 w-4 mr-1.5 inline-block" />
+              Download
+            </Button>
             <PermissionGate resource="classifications" action="classify">
               <Button
                 variant="primary"

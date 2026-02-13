@@ -49,8 +49,7 @@ export const useCreateVendor = () => {
       invalidateQueries.vendors();
       toast.success(`Vendor "${newVendor.name}" created successfully`);
     },
-    onError: (error: any) => {
-      console.error('Create vendor error:', error);
+    onError: () => {
       toast.error('Failed to create vendor');
     },
   });
@@ -75,8 +74,7 @@ export const useUpdateVendor = () => {
       invalidateQueries.vendors();
       toast.success(`Vendor "${updatedVendor.name}" updated successfully`);
     },
-    onError: (error: any) => {
-      console.error('Update vendor error:', error);
+    onError: () => {
       toast.error('Failed to update vendor');
     },
   });
@@ -101,8 +99,7 @@ export const useDeleteVendor = () => {
       invalidateQueries.vendors();
       toast.success('Vendor deleted successfully');
     },
-    onError: (error: any) => {
-      console.error('Delete vendor error:', error);
+    onError: () => {
       toast.error('Failed to delete vendor');
     },
   });

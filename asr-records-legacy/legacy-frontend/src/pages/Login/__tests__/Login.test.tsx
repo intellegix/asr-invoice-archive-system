@@ -46,6 +46,7 @@ const renderLogin = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   useAuthStore.setState({
     isAuthenticated: false,
     tenantId: null,
@@ -264,5 +265,41 @@ describe('Login page', () => {
     const { container } = renderLogin();
     const card = container.querySelector('.bg-white.dark\\:bg-gray-800');
     expect(card).toBeInTheDocument();
+  });
+
+  // --- P58: Tenant ID persistence ---
+
+  it('renders Remember tenant ID checkbox', () => {
+    renderLogin();
+    expect(screen.getByLabelText('Remember tenant ID')).toBeInTheDocument();
+  });
+
+  it('restores tenant ID from localStorage on mount', () => {
+    localStorage.setItem('asr-remembered-tenant', 'acme-corp');
+    renderLogin();
+    expect(screen.getByLabelText('Tenant ID')).toHaveValue('acme-corp');
+  });
+
+  it('saves tenant ID to localStorage when remember is checked on login', async () => {
+    const user = userEvent.setup();
+    mockLogin.mockResolvedValueOnce({
+      authenticated: true,
+      tenant_id: 'saved-tenant',
+      message: 'OK',
+      server_version: '2.0.0',
+      capabilities: {},
+    });
+
+    renderLogin();
+
+    await user.type(screen.getByLabelText('API Key'), 'sk-ant-key-1234567890');
+    await user.clear(screen.getByLabelText('Tenant ID'));
+    await user.type(screen.getByLabelText('Tenant ID'), 'saved-tenant');
+    await user.click(screen.getByLabelText('Remember tenant ID'));
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(localStorage.getItem('asr-remembered-tenant')).toBe('saved-tenant');
+    });
   });
 });

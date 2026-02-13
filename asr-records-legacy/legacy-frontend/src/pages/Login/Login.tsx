@@ -8,7 +8,12 @@ import { AuthService } from '@/services/api/auth';
 
 export const Login: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
-  const [tenantId, setTenantId] = useState('default');
+  const [rememberTenant, setRememberTenant] = useState(() => {
+    return !!localStorage.getItem('asr-remembered-tenant');
+  });
+  const [tenantId, setTenantId] = useState(() => {
+    return localStorage.getItem('asr-remembered-tenant') || 'default';
+  });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,6 +35,11 @@ export const Login: React.FC = () => {
     try {
       const response = await AuthService.login(apiKey, tenantId);
       if (response.authenticated) {
+        if (rememberTenant) {
+          localStorage.setItem('asr-remembered-tenant', tenantId);
+        } else {
+          localStorage.removeItem('asr-remembered-tenant');
+        }
         login(apiKey, tenantId);
         toast.success('Signed in successfully');
         navigate(from, { replace: true });
@@ -114,6 +124,21 @@ export const Login: React.FC = () => {
                   className="input pl-10 w-full"
                 />
               </div>
+            </div>
+
+            {/* Remember tenant */}
+            <div className="flex items-center">
+              <input
+                id="remember-tenant"
+                type="checkbox"
+                checked={rememberTenant}
+                onChange={(e) => setRememberTenant(e.target.checked)}
+                disabled={isLoading}
+                className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <label htmlFor="remember-tenant" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                Remember tenant ID
+              </label>
             </div>
 
             {/* Submit */}

@@ -85,8 +85,8 @@ export const useFileUpload = () => {
 
     try {
       await Promise.allSettled(uploadPromises);
-    } catch (error) {
-      console.error('Batch upload error:', error);
+    } catch {
+      // Individual upload errors already handled per-file via toast
     }
   }, [uploadFile]);
 

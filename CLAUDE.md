@@ -34,7 +34,7 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 
 ```bash
 # --- Backend (264 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 264 tests
+python -m pytest asr-systems/tests/ -v                        # All tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -42,7 +42,7 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (469 vitest tests) ---
+# --- Frontend (482 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
 npm run test                                                  # All tests
 npx vitest run                                                # Single run (no watch)
@@ -83,15 +83,15 @@ npm run test:e2e:report                                       # View HTML report
 | `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
 | `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
 
-### Frontend Test Files (469 vitest tests)
+### Frontend Test Files (482 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
 | Zustand Stores | 4 | 75 | auth (15), documents (33), ui (23), themePersistence (4) |
 | API Services | 6 | 59 | ApiClient (21), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
 | Custom Hooks | 7 | 62 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3), usePermission (4), useAuditLogs (4), useDebounce (4) |
-| Components | 8 | 131 | Button (20), MetricCard (25), Header (23), Navigation (17), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10), DocumentDetailModal (13), PermissionGate (3), exportJson (5) |
-| Pages + App | 7 | 142 | Dashboard (22), Upload (22), Documents (34), Login (15), Settings (8), Reports (8), App routing (10), FilterPanel (13), exportCsv (4) |
+| Components | 8 | 135 | Button (20), MetricCard (25), Header (23), Navigation (18), ProtectedRoute (4), Skeleton (11), ErrorBoundary (11), DocumentDetailModal (15), PermissionGate (3), exportJson (5) |
+| Pages + App | 7 | 151 | Dashboard (22), Upload (24), Documents (36), Login (18), Settings (10), Reports (8), App routing (10), FilterPanel (13), exportCsv (4) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
 ### E2E Playwright Tests (78 tests)
@@ -197,7 +197,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 811 tests | — |
+| Full-Stack Tests | 824 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -208,7 +208,8 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P32-P37 DarkMode+A11y+Polish | Complete | — |
 | P38-P42 UX Polish+Mobile | Complete | — |
 | P43-P48 Audit+Reclassify+Settings | Complete | `03df6ef` |
-| P49-P54 Security+A11y+API+Tests | Complete | — |
+| P49-P54 Security+A11y+API+Tests | Complete | `e4ae99b` |
+| P55-P60 DarkMode+UX+Mobile+Polish | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 

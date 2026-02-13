@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { Upload as UploadIcon, FileText, CheckCircle, AlertCircle, Clock } from 'lucide-react';
-import { useDropzone } from 'react-dropzone';
+import { useDropzone, type FileRejection } from 'react-dropzone';
+import toast from 'react-hot-toast';
 import { useFileUpload } from '@/hooks/upload/useFileUpload';
 import { useSystemStatus, useSystemInfo } from '@/hooks/api/useSystemStatus';
 import { useDashboardMetrics } from '@/hooks/api/useDashboard';
@@ -25,8 +26,24 @@ export const Upload: React.FC = () => {
     }
   }, [uploadFile, uploadMultipleFiles]);
 
+  const onDropRejected = useCallback((rejections: FileRejection[]) => {
+    for (const rejection of rejections) {
+      const { file, errors } = rejection;
+      for (const err of errors) {
+        if (err.code === 'file-too-large') {
+          toast.error(`"${file.name}" is too large (max 10MB)`);
+        } else if (err.code === 'file-invalid-type') {
+          toast.error(`"${file.name}" has an unsupported file type (PDF, PNG, JPG only)`);
+        } else {
+          toast.error(`"${file.name}" was rejected: ${err.message}`);
+        }
+      }
+    }
+  }, []);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       'application/pdf': ['.pdf'],
       'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.tiff']

@@ -43,7 +43,6 @@ export const useDocumentUpload = () => {
       toast.success(`${file.name} uploaded successfully and being processed`);
     },
     onError: (error: any, { file }) => {
-      console.error('Upload error:', error);
       toast.error(`Failed to upload ${file.name}: ${error.message}`);
     },
   });
@@ -54,8 +53,7 @@ export const useDocumentSearch = () => {
   return useMutation({
     mutationFn: ({ query, filters }: { query: string; filters?: DocumentFilters }) =>
       documentsAPI.search(query, filters),
-    onError: (error: any) => {
-      console.error('Search error:', error);
+    onError: () => {
       toast.error('Search failed. Please try again.');
     },
   });
@@ -86,8 +84,7 @@ export const useDocumentReprocess = () => {
 
       toast.success('Document reprocessing started');
     },
-    onError: (error: any) => {
-      console.error('Reprocess error:', error);
+    onError: () => {
       toast.error('Failed to reprocess document');
     },
   });
@@ -107,8 +104,7 @@ export const useDocumentDelete = () => {
 
       toast.success('Document deleted successfully');
     },
-    onError: (error: any) => {
-      console.error('Delete error:', error);
+    onError: () => {
       toast.error('Failed to delete document');
     },
   });
@@ -135,8 +131,7 @@ export const useDocumentBatchProcess = () => {
 
       toast.success(`Started batch processing of ${documentIds.length} documents`);
     },
-    onError: (error: any) => {
-      console.error('Batch process error:', error);
+    onError: () => {
       toast.error('Failed to start batch processing');
     },
   });

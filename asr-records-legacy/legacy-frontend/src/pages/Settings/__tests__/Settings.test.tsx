@@ -1,5 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Settings } from '../Settings';
 import { useSystemStatus, useSystemInfo } from '@/hooks/api/useSystemStatus';
 import { useTenantId } from '@/stores/auth';
@@ -17,11 +19,17 @@ vi.mock('@/stores/auth', () => ({
   useTenantId: vi.fn(),
 }));
 
+vi.mock('react-hot-toast', () => ({
+  default: { success: vi.fn(), error: vi.fn() },
+}));
+
+const mockSetTheme = vi.fn();
+const mockUpdatePreference = vi.fn();
 vi.mock('@/stores/ui/uiStore', () => ({
-  useTheme: () => ({ theme: 'light', setTheme: vi.fn(), toggle: vi.fn() }),
+  useTheme: () => ({ theme: 'light', setTheme: mockSetTheme, toggle: vi.fn() }),
   useViewPreferences: () => ({
     preferences: { documentsView: 'table', itemsPerPage: 50, sortBy: 'created_at', sortDirection: 'desc' },
-    update: vi.fn(),
+    update: mockUpdatePreference,
   }),
 }));
 
@@ -180,5 +188,23 @@ describe('Settings', () => {
     expect(screen.getByText('Document Processed')).toBeInTheDocument();
     expect(screen.getByText('Classification Failed')).toBeInTheDocument();
     expect(screen.getByText('Manual Review Required')).toBeInTheDocument();
+  });
+
+  // --- P57: Settings save toast feedback ---
+
+  it('shows toast when theme is changed', async () => {
+    setupLoaded();
+    renderSettings();
+    const themeSelect = screen.getByLabelText('Theme selector');
+    await userEvent.selectOptions(themeSelect, 'dark');
+    expect(toast.success).toHaveBeenCalledWith('Theme updated');
+  });
+
+  it('shows toast when items per page is changed', async () => {
+    setupLoaded();
+    renderSettings();
+    const pageSelect = screen.getByLabelText('Items per page selector');
+    await userEvent.selectOptions(pageSelect, '100');
+    expect(toast.success).toHaveBeenCalledWith('Preferences updated');
   });
 });

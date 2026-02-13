@@ -199,4 +199,22 @@ describe('DocumentDetailModal', () => {
     const btn = screen.getByText('Re-Classify');
     expect(btn).not.toBeDisabled();
   });
+
+  // --- P59: Download button ---
+
+  it('renders Download button in footer', () => {
+    renderModal();
+    expect(screen.getByText('Download')).toBeInTheDocument();
+  });
+
+  it('opens download URL when Download is clicked', () => {
+    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    renderModal();
+    fireEvent.click(screen.getByText('Download'));
+    expect(windowOpenSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/documents/doc-001/download'),
+      '_blank',
+    );
+    windowOpenSpy.mockRestore();
+  });
 });

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Server, Database, Shield, Activity, CheckCircle, AlertCircle, Palette, Bell } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSystemStatus, useSystemInfo } from '@/hooks/api/useSystemStatus';
 import { useTenantId } from '@/stores/auth';
 import { useTheme, useViewPreferences } from '@/stores/ui/uiStore';
@@ -203,7 +204,7 @@ export const Settings: React.FC = () => {
               <span className="text-sm text-gray-500 dark:text-gray-400">Theme</span>
               <select
                 value={theme}
-                onChange={(e) => setTheme(e.target.value as 'light' | 'dark')}
+                onChange={(e) => { setTheme(e.target.value as 'light' | 'dark'); toast.success('Theme updated'); }}
                 className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 aria-label="Theme selector"
               >
@@ -215,7 +216,7 @@ export const Settings: React.FC = () => {
               <span className="text-sm text-gray-500 dark:text-gray-400">Items per Page</span>
               <select
                 value={preferences.itemsPerPage}
-                onChange={(e) => updatePreference('itemsPerPage', Number(e.target.value))}
+                onChange={(e) => { updatePreference('itemsPerPage', Number(e.target.value)); toast.success('Preferences updated'); }}
                 className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 aria-label="Items per page selector"
               >

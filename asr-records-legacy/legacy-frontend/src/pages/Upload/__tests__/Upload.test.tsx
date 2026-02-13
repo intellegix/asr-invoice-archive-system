@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import toast from 'react-hot-toast';
 import { Upload } from '../Upload';
 import { useFileUpload } from '@/hooks/upload/useFileUpload';
 import { renderWithProviders } from '@/tests/helpers/renderWithProviders';
@@ -26,12 +27,20 @@ vi.mock('@/hooks/upload/useFileUpload', () => ({
   })),
 }));
 
+let capturedOnDropRejected: ((rejections: any[]) => void) | undefined;
 vi.mock('react-dropzone', () => ({
-  useDropzone: vi.fn(({ onDrop }: { onDrop: (files: File[]) => void }) => ({
-    getRootProps: () => ({ onClick: vi.fn(), onDrop }),
-    getInputProps: () => ({ type: 'file' }),
-    isDragActive: false,
-  })),
+  useDropzone: vi.fn(({ onDrop, onDropRejected }: { onDrop: (files: File[]) => void; onDropRejected?: (rejections: any[]) => void }) => {
+    capturedOnDropRejected = onDropRejected;
+    return {
+      getRootProps: () => ({ onClick: vi.fn(), onDrop }),
+      getInputProps: () => ({ type: 'file' }),
+      isDragActive: false,
+    };
+  }),
+}));
+
+vi.mock('react-hot-toast', () => ({
+  default: { success: vi.fn(), error: vi.fn() },
 }));
 
 // Mock the new hooks used by Upload
@@ -364,5 +373,29 @@ describe('Upload', () => {
     });
     renderUpload();
     expect(screen.getByText(/96\.5%/)).toBeInTheDocument();
+  });
+
+  // --- P56: Upload rejection feedback ---
+
+  it('shows toast when file is rejected for being too large', () => {
+    renderUpload();
+    capturedOnDropRejected?.([
+      {
+        file: new File(['x'], 'huge.pdf', { type: 'application/pdf' }),
+        errors: [{ code: 'file-too-large', message: 'File is larger than 10485760 bytes' }],
+      },
+    ]);
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('too large'));
+  });
+
+  it('shows toast when file is rejected for invalid type', () => {
+    renderUpload();
+    capturedOnDropRejected?.([
+      {
+        file: new File(['x'], 'data.exe', { type: 'application/octet-stream' }),
+        errors: [{ code: 'file-invalid-type', message: 'File type must be one of ...' }],
+      },
+    ]);
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('unsupported file type'));
   });
 });
