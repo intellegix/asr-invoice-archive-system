@@ -57,9 +57,53 @@ jobs:
       - name: pip-audit (dependency check — blocks on high severity)
         run: pip-audit -r asr-systems/production-server/requirements.txt
 
-      - name: pytest (583 tests, coverage >= 70%)
+      - name: pytest (651+ tests, coverage >= 72%)
         working-directory: asr-systems
-        run: python -m pytest tests/ -v --tb=short -x --cov=production-server --cov=shared --cov-report=term-missing --cov-fail-under=70
+        run: python -m pytest tests/ -v --tb=short -x --cov=production-server --cov=shared --cov-report=term-missing --cov-fail-under=72
+
+  test-pg:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: asr_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: asr-systems/production-server/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r asr-systems/production-server/requirements-dev.txt
+
+      - name: Create production_server symlink
+        run: ln -s production-server asr-systems/production_server
+
+      - name: Run PostgreSQL subset tests
+        working-directory: asr-systems
+        env:
+          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/asr_test
+          ANTHROPIC_API_KEY: test-key-for-ci
+          DEBUG: "true"
+          PYTHONPATH: .
+        run: python -m pytest tests/test_database_health.py tests/test_database_migrations.py tests/test_multi_tenant_isolation.py -v --tb=short
 
   frontend-test:
     runs-on: ubuntu-latest

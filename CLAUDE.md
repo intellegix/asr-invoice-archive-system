@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (583 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 583 tests
+# --- Backend (650 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 650 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -71,7 +71,7 @@ npm run test:e2e:report                                       # View HTML report
 | `test_document_processor_service.py` | 10 | Pipeline orchestration + text extraction |
 | `test_gl_account_service.py` | 15 | GL classification + vendor DB integration |
 | `test_health_endpoints.py` | 9 | Liveness/readiness probes + shutdown flag |
-| `test_multi_tenant_isolation.py` | 8 | Storage/API/scanner tenant scoping |
+| `test_multi_tenant_isolation.py` | 28 | Storage/API/scanner/vendor/GL/import tenant scoping |
 | `test_openapi_tags.py` | 4 | OpenAPI schema tag validation |
 | `test_payment_detection_service.py` | 13 | 5-method consensus |
 | `test_rate_limit_middleware.py` | 19 | Sliding window, 429s, memory management |
@@ -87,13 +87,16 @@ npm run test:e2e:report                                       # View HTML report
 | `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
 | `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
 | `test_vendor_endpoints.py` | 19 | Vendor CRUD, validation, stats, DB persistence, audit logging |
-| `test_database_health.py` | 12 | DB connectivity, health probe, CORS parsing, dialect property |
+| `test_database_health.py` | 19 | DB connectivity, health probe, CORS, dialect, PG enforcement, metrics |
 | `test_structured_logging.py` | 10 | structlog JSON/text format, contextvars, extra merging |
 | `test_gl_account_db.py` | 13 | GL account ORM CRUD, API endpoints, migration seeding |
 | `test_document_processor_coverage.py` | 14 | Pipeline edge cases, text extraction, reprocess, request_id |
 | `test_billing_router_coverage.py` | 9 | 4 destination paths, no consensus, audit trail, cleanup |
 | `test_middleware_coverage.py` | 10 | Request ID, response time, CSRF edge cases, rate limit, tenant |
 | `test_vendor_import_export.py` | 16 | Export CSV/JSON, import merge/overwrite/append, validation |
+| `test_vendor_tenant_isolation.py` | 16 | Vendor cross-tenant get/update/delete, API 404s |
+| `test_gl_account_tenant_isolation.py` | 12 | GL cross-tenant update/delete, ownership checks, API 403s |
+| `test_prometheus_metrics.py` | 12 | Path normalization, metrics service, middleware, /metrics |
 
 ### Frontend Test Files (493 vitest tests)
 
@@ -192,7 +195,8 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 70% on Python 3.11 + 3.12 (583 tests)
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 72% on Python 3.11 + 3.12 (650 tests)
+- **PostgreSQL tests** (`test-pg` job, continue-on-error): migrations, DB health, tenant isolation against PostgreSQL 15
 - **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (493 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
@@ -215,7 +219,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 1175 tests | — |
+| Full-Stack Tests | 1242 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -231,6 +235,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P61-P66 Deploy+Vendors+E2E+Terraform | Complete | — |
 | P67-P72 DB Persistence+Vendor Integration | Complete | — |
 | P73-P80 Production Hardening Sprint | Complete | — |
+| P81-P85 Tenant Isolation+PG+Metrics | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 

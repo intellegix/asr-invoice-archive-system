@@ -78,6 +78,11 @@ class ProductionSettings(BaseSettings):
         description="Database connection recycle time (seconds)",
     )
 
+    REQUIRE_POSTGRESQL: bool = Field(
+        default=False,
+        description="When true, startup fails if DATABASE_URL uses SQLite",
+    )
+
     # API Configuration
     API_HOST: str = Field(
         default="127.0.0.1",
@@ -298,6 +303,16 @@ class ProductionSettings(BaseSettings):
         description="Enable OpenTelemetry instrumentation",
     )
 
+    METRICS_ENABLED: bool = Field(
+        default=False,
+        description="Enable Prometheus /metrics endpoint",
+    )
+
+    METRICS_PATH: str = Field(
+        default="/metrics",
+        description="Path for Prometheus metrics endpoint",
+    )
+
     ENABLE_DOCS: bool = Field(
         default=False,
         description="Enable OpenAPI docs (/docs, /redoc) independently of DEBUG",
@@ -451,6 +466,13 @@ class ProductionSettings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_configuration(self) -> "ProductionSettings":
         """Validate production configuration"""
+
+        # Validate REQUIRE_POSTGRESQL
+        if self.REQUIRE_POSTGRESQL and self.DATABASE_URL.startswith("sqlite"):
+            raise ValueError(
+                "REQUIRE_POSTGRESQL is set but DATABASE_URL uses SQLite. "
+                "Provide a PostgreSQL DATABASE_URL."
+            )
 
         # Validate Claude AI configuration
         if self.is_production and not self.ANTHROPIC_API_KEY:

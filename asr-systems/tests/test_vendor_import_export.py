@@ -64,14 +64,14 @@ def _make_svc(vendors=None):
         _vendors.append(new)
         return new
 
-    async def _update_vendor(vendor_id, updates):
+    async def _update_vendor(vendor_id, updates, tenant_id=None):
         for v in _vendors:
             if v["id"] == vendor_id:
                 v.update(updates)
                 return v
         return None
 
-    async def _delete_vendor(vendor_id):
+    async def _delete_vendor(vendor_id, tenant_id=None):
         for i, v in enumerate(_vendors):
             if v["id"] == vendor_id:
                 _vendors.pop(i)

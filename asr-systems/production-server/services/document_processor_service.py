@@ -231,6 +231,27 @@ class DocumentProcessorService:
             logger.info(f"   • Payment Status: {payment_result.payment_status}")
             logger.info(f"   • Billing Destination: {routing_result.destination}")
 
+            # Record Prometheus metrics
+            try:
+                from services.metrics_service import (
+                    observe_document_processing_time,
+                    record_document_processed,
+                )
+            except ImportError:
+                try:
+                    from .metrics_service import (
+                        observe_document_processing_time,
+                        record_document_processed,
+                    )
+                except ImportError:
+                    observe_document_processing_time = None
+                    record_document_processed = None
+
+            if record_document_processed:
+                record_document_processed(metadata.tenant_id, "completed")
+            if observe_document_processing_time:
+                observe_document_processing_time(processing_time / 1000)
+
             return result
 
         except Exception as e:

@@ -125,6 +125,24 @@ async def check_database_connectivity() -> dict:
                 await conn.execute(sa.text("SELECT 1"))
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
         dialect = _engine.url.get_backend_name()
-        return {"status": "connected", "dialect": dialect, "latency_ms": latency_ms}
+        is_pg = dialect in ("postgresql", "asyncpg")
+
+        result: dict = {
+            "status": "connected",
+            "dialect": dialect,
+            "latency_ms": latency_ms,
+            "is_production_ready": is_pg,
+        }
+
+        # Include pool metrics for PostgreSQL (pooled engines only)
+        if is_pg and hasattr(_engine, "pool"):
+            pool = _engine.pool
+            result["pool_status"] = {
+                "size": getattr(pool, "size", None),
+                "checked_out": getattr(pool, "checkedout", None),
+                "overflow": getattr(pool, "overflow", None),
+            }
+
+        return result
     except Exception as e:
         return {"status": "error", "dialect": None, "latency_ms": None, "error": str(e)}

@@ -166,6 +166,11 @@ try:
 except (ImportError, SystemError):
     from services.vendor_import_export import VendorImportExportService
 
+try:
+    from ..middleware.metrics_middleware import PrometheusMiddleware
+except (ImportError, SystemError):
+    from middleware.metrics_middleware import PrometheusMiddleware
+
 # Configure structured logging
 try:
     from ..config.logging_config import configure_logging
@@ -227,8 +232,10 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager with sophisticated component initialization"""
     global gl_account_service, payment_detection_service, billing_router_service
     global document_processor_service, storage_service, scanner_manager_service
-    global audit_trail_service, vendor_service, _server_start_time
+    global audit_trail_service, vendor_service, vendor_import_export_service
+    global _server_start_time, _shutting_down
 
+    _shutting_down = False
     _server_start_time = time.time()
     logger.info("🚀 Starting ASR Production Server...")
     logger.info("Initializing sophisticated document processing capabilities...")
@@ -352,7 +359,6 @@ async def lifespan(app: FastAPI):
 
     yield  # Application runs here
 
-    global _shutting_down
     _shutting_down = True
     logger.info(
         "🛑 Shutting down ASR Production Server — draining in-flight requests..."
@@ -452,6 +458,10 @@ app.add_middleware(
 
 # Add request logging middleware (outermost — runs first/last)
 app.add_middleware(RequestLoggingMiddleware, log_format=production_settings.LOG_FORMAT)
+
+# Add Prometheus metrics middleware (after request logging, before rate limit)
+if production_settings.METRICS_ENABLED:
+    app.add_middleware(PrometheusMiddleware)
 
 # Add tenant middleware if multi-tenant enabled
 if production_settings.MULTI_TENANT_ENABLED:
@@ -638,6 +648,14 @@ async def _build_health_response() -> SystemHealthResponseSchema:
         health_status.components["database"] = db_health
         if db_health.get("status") not in ("connected",):
             health_status.overall_status = "unhealthy"
+        elif (
+            db_health.get("dialect") in ("sqlite", "aiosqlite")
+            and production_settings.is_production
+            and not production_settings.DEBUG
+        ):
+            db_health["degraded"] = True
+            db_health["warning"] = "SQLite in production — ephemeral storage risk"
+            health_status.overall_status = "degraded"
 
         # GL Account Service
         if gl_account_service:
@@ -729,6 +747,30 @@ async def _build_health_response() -> SystemHealthResponseSchema:
         health_status.overall_status = "unhealthy"
 
     return health_status
+
+
+# ---------------------------------------------------------------------------
+# Prometheus metrics endpoint
+# ---------------------------------------------------------------------------
+
+if production_settings.METRICS_ENABLED:
+
+    @app.get(production_settings.METRICS_PATH, tags=["System"])
+    async def prometheus_metrics():
+        """Expose Prometheus metrics in text format."""
+        try:
+            from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+            from starlette.responses import Response as StarletteResponse
+
+            return StarletteResponse(
+                content=generate_latest(),
+                media_type=CONTENT_TYPE_LATEST,
+            )
+        except ImportError:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="prometheus-client not installed",
+            )
 
 
 # Document processing endpoints
@@ -962,13 +1004,15 @@ async def create_gl_account(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="GL Account service not available",
             )
+        # Override schema tenant_id with the authenticated user's tenant
+        auth_tenant = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
         result = await gl_account_service.create_gl_account(
             code=request.code,
             name=request.name,
             category=request.category,
             keywords=request.keywords,
             description=request.description or "",
-            tenant_id=request.tenant_id,
+            tenant_id=auth_tenant,
         )
         return APISuccessResponseSchema(message="GL account created", data=result)
     except HTTPException:
@@ -995,7 +1039,15 @@ async def update_gl_account_endpoint(
                 detail="GL Account service not available",
             )
         updates = request.model_dump(exclude_none=True)
-        result = await gl_account_service.update_gl_account(code, updates)
+        auth_tenant = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
+        result = await gl_account_service.update_gl_account(
+            code, updates, tenant_id=auth_tenant
+        )
+        if result == "__FORBIDDEN__":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot modify GL account {code} — owned by another tenant",
+            )
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1024,7 +1076,15 @@ async def delete_gl_account_endpoint(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="GL Account service not available",
             )
-        deleted = await gl_account_service.delete_gl_account(code)
+        auth_tenant = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
+        deleted = await gl_account_service.delete_gl_account(
+            code, tenant_id=auth_tenant
+        )
+        if deleted == "__FORBIDDEN__":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Cannot delete GL account {code} — owned by another tenant",
+            )
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1273,6 +1333,42 @@ async def list_vendors(user: Dict[str, Any] = Depends(get_current_user)):
         )
 
 
+@app.get("/vendors/export", tags=["Vendors"])
+async def export_vendors(
+    format: str = "json",
+    user: Dict[str, Any] = Depends(get_current_user),
+):
+    """Export all vendors in JSON or CSV format."""
+    try:
+        if not vendor_import_export_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Import/export service not available",
+            )
+        tenant_id = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
+
+        if format == "csv":
+            csv_data = await vendor_import_export_service.export_vendors_csv(
+                tenant_id=tenant_id
+            )
+            return JSONResponse(
+                content={"success": True, "format": "csv", "data": csv_data},
+            )
+        else:
+            json_data = await vendor_import_export_service.export_vendors_json(
+                tenant_id=tenant_id
+            )
+            return {"success": True, "format": "json", "data": json_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Export vendors error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to export vendors",
+        )
+
+
 @app.get("/vendors/{vendor_id}", tags=["Vendors"])
 async def get_vendor(vendor_id: str, user: Dict[str, Any] = Depends(get_current_user)):
     """Get a single vendor by ID."""
@@ -1282,7 +1378,9 @@ async def get_vendor(vendor_id: str, user: Dict[str, Any] = Depends(get_current_
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Vendor service not available",
             )
-        vendor = await vendor_service.get_vendor(vendor_id)
+        vendor = await vendor_service.get_vendor(
+            vendor_id, tenant_id=user.get("tenant_id")
+        )
         if not vendor:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1332,7 +1430,9 @@ async def create_vendor(
             if val is not None:
                 extra_fields[field] = val
         if extra_fields:
-            vendor = await vendor_service.update_vendor(vendor["id"], extra_fields)
+            vendor = await vendor_service.update_vendor(
+                vendor["id"], extra_fields, tenant_id=user.get("tenant_id")
+            )
         return vendor
     except HTTPException:
         raise
@@ -1358,7 +1458,9 @@ async def update_vendor(
                 detail="Vendor service not available",
             )
         updates = request.model_dump(exclude_none=True)
-        vendor = await vendor_service.update_vendor(vendor_id, updates)
+        vendor = await vendor_service.update_vendor(
+            vendor_id, updates, tenant_id=user.get("tenant_id")
+        )
         if not vendor:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1386,7 +1488,9 @@ async def delete_vendor_endpoint(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Vendor service not available",
             )
-        deleted = await vendor_service.delete_vendor(vendor_id)
+        deleted = await vendor_service.delete_vendor(
+            vendor_id, tenant_id=user.get("tenant_id")
+        )
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1414,7 +1518,9 @@ async def get_vendor_stats(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Vendor service not available",
             )
-        stats = await vendor_service.get_vendor_stats(vendor_id)
+        stats = await vendor_service.get_vendor_stats(
+            vendor_id, tenant_id=user.get("tenant_id")
+        )
         if stats is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -1432,44 +1538,8 @@ async def get_vendor_stats(
 
 
 # ---------------------------------------------------------------------------
-# Vendor Import/Export endpoints
+# Vendor Import/Export endpoints (export route moved above {vendor_id})
 # ---------------------------------------------------------------------------
-
-
-@app.get("/vendors/export", tags=["Vendors"])
-async def export_vendors(
-    format: str = "json",
-    user: Dict[str, Any] = Depends(get_current_user),
-):
-    """Export all vendors in JSON or CSV format."""
-    try:
-        if not vendor_import_export_service:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Import/export service not available",
-            )
-        tenant_id = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
-
-        if format == "csv":
-            csv_data = await vendor_import_export_service.export_vendors_csv(
-                tenant_id=tenant_id
-            )
-            return JSONResponse(
-                content={"success": True, "format": "csv", "data": csv_data},
-            )
-        else:
-            json_data = await vendor_import_export_service.export_vendors_json(
-                tenant_id=tenant_id
-            )
-            return {"success": True, "format": "json", "data": json_data}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Export vendors error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to export vendors",
-        )
 
 
 @app.post(
@@ -1528,9 +1598,11 @@ async def validate_vendor_import(
         if gl_account_service and gl_account_service.gl_accounts:
             gl_codes = set(gl_account_service.gl_accounts.keys())
 
+        tenant_id = user.get("tenant_id", production_settings.DEFAULT_TENANT_ID)
         result = vendor_import_export_service.validate_import_data(
             data=body.vendors,
             gl_codes=gl_codes if gl_codes else None,
+            tenant_id=tenant_id,
         )
         return result
     except HTTPException:

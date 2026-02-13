@@ -131,6 +131,7 @@ class VendorImportExportService:
         self,
         data: List[Dict[str, Any]],
         gl_codes: Optional[set] = None,
+        tenant_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Dry-run validation without executing import."""
         errors = self._validate_import_data(data, gl_codes)
@@ -179,7 +180,7 @@ class VendorImportExportService:
             # Delete all tenant vendors first
             existing = await self.vendor_service.list_vendors(tenant_id=tenant_id)
             for v in existing:
-                await self.vendor_service.delete_vendor(v["id"])
+                await self.vendor_service.delete_vendor(v["id"], tenant_id=tenant_id)
 
         # Build name→vendor lookup for merge/append
         existing_vendors = await self.vendor_service.list_vendors(tenant_id=tenant_id)
@@ -200,7 +201,9 @@ class VendorImportExportService:
                     for k, v in row.items()
                     if k != "name" and k in VENDOR_EXPORT_FIELDS
                 }
-                await self.vendor_service.update_vendor(existing["id"], updates)
+                await self.vendor_service.update_vendor(
+                    existing["id"], updates, tenant_id=tenant_id
+                )
                 updated += 1
             else:
                 # Create new vendor
@@ -231,7 +234,7 @@ class VendorImportExportService:
                             extra_updates[f] = row[f]
                     if extra_updates:
                         await self.vendor_service.update_vendor(
-                            new_vendor["id"], extra_updates
+                            new_vendor["id"], extra_updates, tenant_id=tenant_id
                         )
                 created += 1
 

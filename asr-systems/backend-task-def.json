@@ -33,7 +33,8 @@
         {"name": "OTEL_ENABLED", "value": "false"},
         {"name": "ENABLE_DOCS", "value": "false"},
         {"name": "CSRF_ENABLED", "value": "true"},
-        {"name": "RATE_LIMIT_ENABLED", "value": "true"}
+        {"name": "RATE_LIMIT_ENABLED", "value": "true"},
+        {"name": "REQUIRE_POSTGRESQL", "value": "true"}
       ],
       "secrets": [
         {

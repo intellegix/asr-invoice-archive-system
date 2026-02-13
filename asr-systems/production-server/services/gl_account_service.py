@@ -303,6 +303,19 @@ class GLAccountService:
             if category_result:
                 results.append(category_result)
 
+            # Record Prometheus metric for classification
+            def _record_gl_metric(result: GLClassificationResult) -> None:
+                try:
+                    from services.metrics_service import record_gl_classification
+                except ImportError:
+                    try:
+                        from .metrics_service import record_gl_classification
+                    except ImportError:
+                        return
+                record_gl_classification(
+                    result.classification_method, result.gl_account_code
+                )
+
             # Select best result based on confidence
             if results:
                 best_result = max(results, key=lambda x: x.confidence)
@@ -323,6 +336,7 @@ class GLAccountService:
                         )
                         best_result.reasoning += f" (Confidence boosted by {len(same_account_results)} matching methods)"
 
+                _record_gl_metric(best_result)
                 return best_result
             else:
                 # Default to miscellaneous expense if no matches
@@ -330,7 +344,7 @@ class GLAccountService:
                 default_account = self.gl_accounts.get(default_code)
 
                 if default_account:
-                    return GLClassificationResult(
+                    default_result = GLClassificationResult(
                         gl_account_code=default_code,
                         gl_account_name=default_account.name,
                         category=default_account.category,
@@ -339,6 +353,8 @@ class GLAccountService:
                         keywords_matched=[],
                         classification_method="default",
                     )
+                    _record_gl_metric(default_result)
+                    return default_result
                 else:
                     raise ClassificationError(
                         "Unable to classify document and default account not available"
@@ -545,9 +561,19 @@ class GLAccountService:
         return self._gl_record_to_dict(row)
 
     async def update_gl_account(
-        self, code: str, updates: Dict[str, Any]
+        self,
+        code: str,
+        updates: Dict[str, Any],
+        tenant_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Update a GL account in the database and refresh cache."""
+        """Update a GL account in the database and refresh cache.
+
+        When *tenant_id* is provided, only accounts owned by that tenant
+        (or the global "default" tenant) can be updated. Returns ``None``
+        if the account belongs to a different tenant.  A special string
+        ``"__FORBIDDEN__"`` is returned when the caller is trying to
+        modify a global account they don't own.
+        """
         try:
             from config.database import get_async_session
             from models.gl_account import GLAccountRecord
@@ -563,6 +589,16 @@ class GLAccountService:
             row = result.scalar_one_or_none()
             if row is None:
                 return None
+
+            # Tenant ownership check
+            if tenant_id is not None and row.tenant_id != tenant_id:
+                logger.warning(
+                    "Tenant %s attempted to update GL account %s owned by %s",
+                    tenant_id,
+                    code,
+                    row.tenant_id,
+                )
+                return "__FORBIDDEN__"  # type: ignore[return-value]
 
             for key, value in updates.items():
                 if key in allowed:
@@ -589,8 +625,16 @@ class GLAccountService:
             logger.info("Updated GL account %s", code)
             return self._gl_record_to_dict(row)
 
-    async def delete_gl_account(self, code: str) -> bool:
-        """Delete a GL account from the database and cache."""
+    async def delete_gl_account(
+        self, code: str, tenant_id: Optional[str] = None
+    ) -> Any:
+        """Delete a GL account from the database and cache.
+
+        When *tenant_id* is provided, only accounts owned by that tenant
+        can be deleted. Seeded accounts (tenant_id="default") cannot be
+        deleted by non-default tenants. Returns ``False`` if not found,
+        ``"__FORBIDDEN__"`` if ownership check fails, ``True`` on success.
+        """
         try:
             from config.database import get_async_session
             from models.gl_account import GLAccountRecord
@@ -604,6 +648,17 @@ class GLAccountService:
             row = result.scalar_one_or_none()
             if row is None:
                 return False
+
+            # Tenant ownership check
+            if tenant_id is not None and row.tenant_id != tenant_id:
+                logger.warning(
+                    "Tenant %s attempted to delete GL account %s owned by %s",
+                    tenant_id,
+                    code,
+                    row.tenant_id,
+                )
+                return "__FORBIDDEN__"
+
             await session.delete(row)
             await session.commit()
 
@@ -616,9 +671,15 @@ class GLAccountService:
         return True
 
     async def list_gl_accounts_from_db(
-        self, category: Optional[str] = None
+        self,
+        category: Optional[str] = None,
+        tenant_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """List GL accounts directly from the database."""
+        """List GL accounts directly from the database.
+
+        When *tenant_id* is provided, returns global ("default") accounts
+        plus accounts owned by that specific tenant.
+        """
         try:
             from config.database import get_async_session
             from models.gl_account import GLAccountRecord
@@ -626,10 +687,19 @@ class GLAccountService:
             from ..config.database import get_async_session
             from ..models.gl_account import GLAccountRecord
 
+        from sqlalchemy import or_
+
         async with get_async_session() as session:
             stmt = select(GLAccountRecord)
             if category:
                 stmt = stmt.where(GLAccountRecord.category == category.upper())
+            if tenant_id is not None:
+                stmt = stmt.where(
+                    or_(
+                        GLAccountRecord.tenant_id == "default",
+                        GLAccountRecord.tenant_id == tenant_id,
+                    )
+                )
             stmt = stmt.order_by(GLAccountRecord.code)
             result = await session.execute(stmt)
             return [self._gl_record_to_dict(r) for r in result.scalars().all()]

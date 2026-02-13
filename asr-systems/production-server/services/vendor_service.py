@@ -60,11 +60,19 @@ class VendorService:
             logger.exception("Failed to list vendors")
             return []
 
-    async def get_vendor(self, vendor_id: str) -> Optional[Dict[str, Any]]:
-        """Return a single vendor by id, or ``None``."""
+    async def get_vendor(
+        self, vendor_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Return a single vendor by id, or ``None``.
+
+        When *tenant_id* is provided the query is scoped so that only
+        vendors belonging to that tenant are returned.
+        """
         try:
             async with get_async_session() as session:
                 stmt = select(VendorRecord).where(VendorRecord.id == vendor_id)
+                if tenant_id is not None:
+                    stmt = stmt.where(VendorRecord.tenant_id == tenant_id)
                 result = await session.execute(stmt)
                 row = result.scalar_one_or_none()
                 return self._row_to_dict(row) if row else None
@@ -107,9 +115,16 @@ class VendorService:
             raise
 
     async def update_vendor(
-        self, vendor_id: str, updates: Dict[str, Any]
+        self,
+        vendor_id: str,
+        updates: Dict[str, Any],
+        tenant_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Apply partial updates to a vendor. Returns updated vendor or ``None``."""
+        """Apply partial updates to a vendor. Returns updated vendor or ``None``.
+
+        When *tenant_id* is provided the lookup is scoped to that tenant,
+        preventing cross-tenant modification.
+        """
         allowed = {
             "name",
             "display_name",
@@ -126,6 +141,8 @@ class VendorService:
         try:
             async with get_async_session() as session:
                 stmt = select(VendorRecord).where(VendorRecord.id == vendor_id)
+                if tenant_id is not None:
+                    stmt = stmt.where(VendorRecord.tenant_id == tenant_id)
                 result = await session.execute(stmt)
                 row = result.scalar_one_or_none()
                 if row is None:
@@ -149,11 +166,19 @@ class VendorService:
             logger.exception("Failed to update vendor %s", vendor_id)
             raise
 
-    async def delete_vendor(self, vendor_id: str) -> bool:
-        """Delete a vendor. Returns ``True`` if found and removed."""
+    async def delete_vendor(
+        self, vendor_id: str, tenant_id: Optional[str] = None
+    ) -> bool:
+        """Delete a vendor. Returns ``True`` if found and removed.
+
+        When *tenant_id* is provided the lookup is scoped to that tenant,
+        preventing cross-tenant deletion.
+        """
         try:
             async with get_async_session() as session:
                 stmt = select(VendorRecord).where(VendorRecord.id == vendor_id)
+                if tenant_id is not None:
+                    stmt = stmt.where(VendorRecord.tenant_id == tenant_id)
                 result = await session.execute(stmt)
                 row = result.scalar_one_or_none()
                 if row is None:
@@ -171,9 +196,11 @@ class VendorService:
             logger.exception("Failed to delete vendor %s", vendor_id)
             return False
 
-    async def get_vendor_stats(self, vendor_id: str) -> Optional[Dict[str, Any]]:
+    async def get_vendor_stats(
+        self, vendor_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Return stats for a vendor, or ``None`` if not found."""
-        vendor = await self.get_vendor(vendor_id)
+        vendor = await self.get_vendor(vendor_id, tenant_id=tenant_id)
         if vendor is None:
             return None
 
