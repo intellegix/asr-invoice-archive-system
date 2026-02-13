@@ -34,18 +34,19 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 
 ```bash
 # --- Backend (650 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 650 tests
+python -m pytest asr-systems/tests/ -v                        # All tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
-python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
+python -m pytest asr-systems/tests/test_gl_account_service.py -v  # Single file
+python -m pytest asr-systems/tests/test_vendor_service.py::TestVendorCRUD -v  # Single class
+python -m pytest asr-systems/tests/test_vendor_service.py::TestVendorCRUD::test_create -v  # Single test
 python asr-systems/integration_test.py                        # Integration tests
 python asr-systems/tests/load_test.py                         # Load tests (50+ concurrent)
-python asr-systems/performance_validation.py                  # Performance benchmarks
-python asr-systems/system_verification.py                     # Deployment readiness check
 
 # --- Frontend (493 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
-npm run test                                                  # All tests
+npm run test                                                  # All tests (watch mode)
 npx vitest run                                                # Single run (no watch)
+npx vitest run src/components/Header                          # Single component
 npx tsc --noEmit                                              # TypeScript type check
 
 # --- E2E / Playwright (99 tests) ---
@@ -54,78 +55,13 @@ cd asr-records-legacy/legacy-frontend
 npm run test:e2e                                              # All 99 Playwright tests
 npm run test:e2e:headed                                       # With visible browser
 npm run test:e2e:report                                       # View HTML report
+
+# --- Linting & Formatting ---
+python -m black asr-systems/production-server/ asr-systems/tests/   # Format Python
+python -m isort asr-systems/production-server/ asr-systems/tests/   # Sort imports
+python -m mypy asr-systems/production-server/                       # Type check (may warn on hyphenated dir)
+python -m bandit -r asr-systems/production-server/ -ll              # Security scan
 ```
-
-### Backend Test Files (583 tests)
-
-| File | Tests | Coverage |
-|------|-------|----------|
-| `test_api_endpoints.py` | 27 | FastAPI routes, DELETE, search, health via TestClient |
-| `test_audit_trail_service.py` | 5 | Audit trail persistence |
-| `test_auth_endpoints.py` | 11 | /auth/login + /auth/me endpoints |
-| `test_billing_router_service.py` | 12 | Routing logic + destinations |
-| `test_config_loading.py` | 15 | GL accounts + routing rules YAML + Pydantic v2 settings |
-| `test_csrf_middleware.py` | 7 | CSRF double-submit cookie validation |
-| `test_dashboard_routes.py` | 17 | /metrics/* endpoint shapes |
-| `test_database_migrations.py` | 13 | Alembic config, DB URL validation, migration chain, seed data |
-| `test_document_processor_service.py` | 10 | Pipeline orchestration + text extraction |
-| `test_gl_account_service.py` | 15 | GL classification + vendor DB integration |
-| `test_health_endpoints.py` | 9 | Liveness/readiness probes + shutdown flag |
-| `test_multi_tenant_isolation.py` | 28 | Storage/API/scanner/vendor/GL/import tenant scoping |
-| `test_openapi_tags.py` | 4 | OpenAPI schema tag validation |
-| `test_payment_detection_service.py` | 13 | 5-method consensus |
-| `test_rate_limit_middleware.py` | 19 | Sliding window, 429s, memory management |
-| `test_request_logging_middleware.py` | 10 | Correlation IDs, client IP, response headers |
-| `test_retry_circuit_breaker.py` | 9 | Async retry + circuit breaker patterns |
-| `test_scanner_manager_service.py` | 15 | Scanner registration/heartbeat |
-| `test_security_hardening.py` | 13 | CSRF secure flag, auth, tenant isolation, doc ID validation |
-| `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
-| `test_shared_api_client.py` | 19 | HTTP client, retry logic, error classification |
-| `test_shared_exceptions.py` | 37 | Exception constructors, to_dict(), handle_exception() |
-| `test_shared_file_utils.py` | 45 | File hash, copy/move/delete, archive, JSON I/O |
-| `test_shared_validation.py` | 99 | 14 validation/sanitization functions |
-| `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
-| `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
-| `test_vendor_endpoints.py` | 19 | Vendor CRUD, validation, stats, DB persistence, audit logging |
-| `test_database_health.py` | 19 | DB connectivity, health probe, CORS, dialect, PG enforcement, metrics |
-| `test_structured_logging.py` | 10 | structlog JSON/text format, contextvars, extra merging |
-| `test_gl_account_db.py` | 13 | GL account ORM CRUD, API endpoints, migration seeding |
-| `test_document_processor_coverage.py` | 14 | Pipeline edge cases, text extraction, reprocess, request_id |
-| `test_billing_router_coverage.py` | 9 | 4 destination paths, no consensus, audit trail, cleanup |
-| `test_middleware_coverage.py` | 10 | Request ID, response time, CSRF edge cases, rate limit, tenant |
-| `test_vendor_import_export.py` | 16 | Export CSV/JSON, import merge/overwrite/append, validation |
-| `test_vendor_tenant_isolation.py` | 16 | Vendor cross-tenant get/update/delete, API 404s |
-| `test_gl_account_tenant_isolation.py` | 12 | GL cross-tenant update/delete, ownership checks, API 403s |
-| `test_prometheus_metrics.py` | 12 | Path normalization, metrics service, middleware, /metrics |
-
-### Frontend Test Files (493 vitest tests)
-
-| Category | Files | Tests | Coverage |
-|----------|-------|-------|----------|
-| Zustand Stores | 4 | 75 | auth (15), documents (33), ui (23), themePersistence (4) |
-| API Services | 6 | 59 | ApiClient (21), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
-| Custom Hooks | 7 | 62 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3), usePermission (4), useAuditLogs (4), useDebounce (4) |
-| Components | 8 | 135 | Button (20), MetricCard (25), Header (23), Navigation (18), ProtectedRoute (4), Skeleton (11), ErrorBoundary (11), DocumentDetailModal (15), PermissionGate (3), exportJson (5) |
-| Pages + App | 8 | 162 | Dashboard (22), Upload (24), Documents (36), Login (18), Settings (10), Reports (8), Vendors (11), App routing (10), FilterPanel (13), exportCsv (4) |
-| Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
-
-### E2E Playwright Tests (99 tests)
-
-| File | Tests | Coverage |
-|------|-------|----------|
-| `e2e/startup.spec.ts` | 5 | Health endpoint, frontend load, Vite proxy, redirect, console errors |
-| `e2e/dashboard.spec.ts` | 13 | Page title, MetricCards, Recent Docs, Payment Dist, Quick Actions |
-| `e2e/upload.spec.ts` | 13 | Dropzone, file types, size limit, feature cards, System Status |
-| `e2e/documents.spec.ts` | 14 | Search, filters, table/empty state, summary stats, export |
-| `e2e/navigation.spec.ts` | 10 | Sidebar, nav links, active state, routing, header consistency |
-| `e2e/responsive.spec.ts` | 4 | 4 viewports, metric reflow, tablet upload, mobile documents |
-| `e2e/integration.spec.ts` | 11 | API-to-UI data flow, error states, backend health/status |
-| `e2e/reclassify.spec.ts` | 5 | Re-Classify button, feedback, modal close, table columns, search |
-| `e2e/audit-logs.spec.ts` | 3 | Audit Trail heading, empty/entries state, no console errors |
-| `e2e/settings.spec.ts` | 6 | Settings heading, system info, server version, theme toggle, API status |
-| `e2e/login.spec.ts` | 5 | Login form, API key input, submit button, auth redirect, console errors |
-| `e2e/error-handling.spec.ts` | 4 | Invalid route redirect, file type/size info, structured API errors |
-| `e2e/vendors.spec.ts` | 6 | Vendors heading, search, Add Vendor button, summary stats |
 
 ## Architecture
 
@@ -133,25 +69,30 @@ npm run test:e2e:report                                       # View HTML report
 
 ```
 Client → FastAPI (api/main.py)
+       → PrometheusMiddleware (HTTP metrics, path normalization)
        → TenantMiddleware (X-Tenant-ID header / JWT)
-       → RateLimitMiddleware (slowapi, 100 req/min default)
+       → RequestLoggingMiddleware (correlation IDs, structlog)
+       → RateLimitMiddleware (sliding window, 100 req/min default)
        → HTTPBearer auth
        → DocumentProcessorService (orchestrator)
-           ├── GLAccountService (79 QB accounts, keyword-indexed, in-memory)
+           ├── GLAccountService (79 QB accounts, DB-backed, keyword-indexed)
            ├── PaymentDetectionService (5-method consensus: Claude Vision,
            │     Claude Text, Regex, Keywords, Amount Analysis)
            ├── BillingRouterService (4 destinations: open/closed × payable/receivable)
            └── ProductionStorageService (local filesystem / S3 via boto3)
        → Audit trail logged with confidence scores
+       → Prometheus business metrics recorded
 ```
 
 ### Key Directories
 
 - `asr-systems/production-server/` — Main FastAPI app
-  - `api/main.py` — FastAPI app with lifespan manager, all route definitions
-  - `config/production_settings.py` — Pydantic BaseSettings (env-driven)
-  - `services/` — 8 core services (gl_account, payment_detection, billing_router, document_processor, storage, scanner_manager, vendor, vendor_import_export)
-  - `middleware/` — tenant_middleware.py, rate_limit_middleware.py, request_logging_middleware.py
+  - `api/main.py` — FastAPI app with lifespan manager, all route definitions (~1650 lines)
+  - `config/production_settings.py` — Pydantic BaseSettings (env-driven, ~480 lines)
+  - `config/database.py` — SQLAlchemy async engine, session factory, connectivity check
+  - `services/` — 9 core services (gl_account, payment_detection, billing_router, document_processor, storage, scanner_manager, vendor, vendor_import_export, metrics)
+  - `middleware/` — tenant, rate_limit, request_logging, metrics (Prometheus)
+  - `models/` — SQLAlchemy ORM models (vendor.py, gl_account.py, audit_trail.py)
   - `utils/` — retry.py (async retry + circuit breaker patterns)
 - `asr-systems/shared/` — Shared models used by all components
   - `core/constants.py` — GL_ACCOUNTS dict (79 accounts), PAYMENT_INDICATORS
@@ -160,25 +101,43 @@ Client → FastAPI (api/main.py)
 - `asr-systems/document-scanner/` — Desktop scanner client (Tkinter GUI, SQLite offline queue)
 - `asr-records-legacy/legacy-frontend/` — React/Vite frontend served by Nginx
 
+### Multi-Tenant Isolation Model
+
+The system uses a **dual-scoping model** for tenant isolation:
+
+- **Vendor CRUD** is tenant-scoped: `get_vendor()`, `update_vendor()`, `delete_vendor()`, `get_vendor_stats()` all accept `tenant_id` and add `.where(VendorRecord.tenant_id == tenant_id)`. API endpoints pass `user.get("tenant_id")` from auth context.
+- **GL Account classification is global**: All tenants share the 79 seeded accounts (tenant_id="default") for invoice classification. But **GL CRUD is tenant-owned**: `update/delete_gl_account()` return a `"__FORBIDDEN__"` sentinel when a tenant tries to modify another tenant's account. The API layer maps this to HTTP 403.
+- **`list_gl_accounts_from_db()`** uses `sqlalchemy.or_()` to return global ("default") + the calling tenant's own accounts.
+- **`create_gl_account`** always overrides the schema's `tenant_id` with the authenticated user's tenant — never trust client-supplied tenant.
+
+### Prometheus Metrics
+
+- `middleware/metrics_middleware.py` — HTTP Counter/Histogram/Gauge with path normalization (`/vendors/abc123` → `/vendors/{id}`)
+- `services/metrics_service.py` — Business metrics (documents, GL, payments, vendors)
+- `/metrics` endpoint gated by `METRICS_ENABLED` setting (default: False)
+- Both modules use `_get_or_create()` guard to handle the dual-import problem (hyphenated directory loads module twice)
+
 ### Important Gotchas
 
-**Hyphenated directory imports**: `production-server/` and `document-scanner/` use hyphens but Python needs underscores. `start_server.py` and `main_server.py` handle this via `importlib.util.spec_from_file_location()` to register modules as `production_server.*`. Never try to `import production-server` directly.
+**Hyphenated directory imports**: `production-server/` uses hyphens but Python needs underscores. `start_server.py` and `main_server.py` handle this via `importlib.util.spec_from_file_location()`. This causes **dual-import**: modules load as both `services.X` and `production_server.services.X`. Prometheus metrics and any module-level singletons must guard against this.
 
-**GL accounts are DB-backed**: 79 QB accounts are seeded by Alembic migration 0004 from `shared/core/constants.py`. `GLAccountService.initialize()` loads from DB first, falls back to constants. CRUD endpoints at `/api/v1/gl-accounts`. Vendor→GL classification is also DB-only: `GLAccountService._classify_by_vendor()` queries VendorService for `default_gl_account` (seeded by Alembic migration 0003). No hardcoded fallback.
+**Route order matters for FastAPI**: Static routes (`/vendors/export`) MUST be defined before path param routes (`/vendors/{vendor_id}`), or FastAPI matches "export" as a vendor_id. The export route is intentionally placed before the `{vendor_id}` route in api/main.py.
 
-**Payment consensus is mean confidence, not majority vote**: `PaymentDetectionService` averages confidence scores across enabled methods. Method order and thresholds matter.
+**GL accounts are DB-backed**: 79 QB accounts are seeded by Alembic migration 0004 from `shared/core/constants.py`. `GLAccountService.initialize()` loads from DB first, falls back to constants. Vendor→GL classification is DB-only: `GLAccountService._classify_by_vendor()` queries VendorService for `default_gl_account` (seeded by Alembic migration 0003).
 
-**Swagger docs require DEBUG=true**: `/docs` and `/redoc` endpoints are disabled when `DEBUG=false` (production default).
+**`_shutting_down` global in api/main.py**: The lifespan function resets `_shutting_down = False` at startup. This is critical for TestClient reuse across test classes — without it, the `/health/ready` endpoint returns 503.
+
+**`vendor_import_export_service` must be in globals**: All module-level service variables used inside the lifespan function must be listed in the `global` declaration, or they remain local and the module-level var stays `None`.
+
+**Payment consensus is mean confidence, not majority vote**: `PaymentDetectionService` averages confidence scores across enabled methods.
+
+**Swagger docs require DEBUG=true**: `/docs` and `/redoc` are disabled when `DEBUG=false` (production default).
 
 **Git Bash path mangling**: On Windows, Git Bash converts `/health` to a Windows path. Use double-slash: `curl http://localhost:8000//health`.
 
-**ECS uses Secrets Manager for API key**: The `backend-task-def.json` pulls `ANTHROPIC_API_KEY` from AWS Secrets Manager via `valueFrom`. The task role (`ecsTaskRole`) must have `secretsmanager:GetSecretValue` permission.
+**Docker Compose requires JWT_SECRET_KEY**: `docker-compose.yml` uses `${JWT_SECRET_KEY:?...}` — the container will fail to start without it.
 
-**Docker Compose requires JWT_SECRET_KEY**: `docker-compose.yml` uses `${JWT_SECRET_KEY:?...}` — the container will fail to start if this env var is not set.
-
-**CORS restricted to localhost**: Production settings default CORS origins to `["http://localhost:3000", "http://localhost:5173"]`. Add your domain to `CORS_ALLOWED_ORIGINS` env var for other deployments.
-
-**Default port differs by entry point**: `start_server.py` defaults to port 8080 (`API_PORT` env var). Docker Compose maps to 8000 internally.
+**Default port differs by entry point**: `start_server.py` defaults to 8080 (`API_PORT`). Docker Compose maps to 8000.
 
 ## Required Environment Variables
 
@@ -186,108 +145,43 @@ Client → FastAPI (api/main.py)
 ANTHROPIC_API_KEY=sk-ant-...    # Required - Claude AI for document analysis
 ```
 
-Key optional vars: `DEBUG` (false), `API_PORT` (8000), `DATABASE_URL` (sqlite default), `STORAGE_BACKEND` (local/s3), `MULTI_TENANT_ENABLED` (false), `JWT_SECRET_KEY` (required for Docker), `SCANNER_API_ENABLED` (true), `LOG_FORMAT` (text), `OTEL_ENABLED` (false), `ENABLE_DOCS` (false). Full list in `asr-systems/.env.example`.
+Key optional vars: `DEBUG` (false), `API_PORT` (8000), `DATABASE_URL` (sqlite default), `STORAGE_BACKEND` (local/s3), `MULTI_TENANT_ENABLED` (false), `JWT_SECRET_KEY` (required for Docker), `SCANNER_API_ENABLED` (true), `LOG_FORMAT` (text/json), `METRICS_ENABLED` (false), `METRICS_PATH` (/metrics), `REQUIRE_POSTGRESQL` (false), `ENABLE_DOCS` (false). Full list in `asr-systems/.env.example`.
 
 ## Dependencies
 
-Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uvicorn, anthropic, pydantic + pydantic-settings, SQLAlchemy, PyPDF2, pdfplumber, Pillow, structlog, python-jose, aiofiles, boto3. Dev: pytest, pytest-asyncio, pytest-cov, black, isort, mypy, bandit, pip-audit.
+Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uvicorn, anthropic, pydantic + pydantic-settings, SQLAlchemy, PyPDF2, pdfplumber, Pillow, structlog, python-jose, aiofiles, boto3, prometheus-client. Dev: pytest, pytest-asyncio, pytest-cov, black, isort, mypy, bandit, pip-audit.
 
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 72% on Python 3.11 + 3.12 (650 tests)
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 72% on Python 3.11 + 3.12
 - **PostgreSQL tests** (`test-pg` job, continue-on-error): migrations, DB health, tenant isolation against PostgreSQL 15
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (493 tests) on Node 18
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
 - Builds + pushes backend/frontend images to ECR
 - Updates ECS services (`backend-service`, `frontend-service`) with new task definitions
-- Task-def validation (no duplicate env vars, secrets check)
-- Post-deploy health checks poll ALB for backend (`/health/live`) and frontend (`/`) readiness
-- Post-deploy smoke tests (readiness probe, GL accounts loaded, API status)
-- Requires `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub secrets
-
-## Deployment Status
-
-| Option | Status | Commit |
-|--------|--------|--------|
-| Source Code | Working | — |
-| Windows EXE | Working | `802008f` |
-| Docker | Working | `a0d36e9` |
-| AWS ECS | Working | `8749d85` |
-| CI Pipeline | Green | `8749d85` |
-| Deploy Pipeline | Green | `8749d85` |
-| System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 1242 tests | — |
-| P1-P6 Feature Pass | Complete | `6abf88e` |
-| P7-P9 Type Safety | Complete | `7702a6c` |
-| P10-P12 Metrics+Hardening | Complete | `cabc69d` |
-| P13 Login+Auth Flow | Complete | `0d84a7a` |
-| P14-P18 Plan | Complete | — |
-| P20-P25 Infra+Quality | Complete | — |
-| P26-P31 Housekeeping+Hardening | Complete | — |
-| P32-P37 DarkMode+A11y+Polish | Complete | — |
-| P38-P42 UX Polish+Mobile | Complete | — |
-| P43-P48 Audit+Reclassify+Settings | Complete | `03df6ef` |
-| P49-P54 Security+A11y+API+Tests | Complete | `e4ae99b` |
-| P55-P60 DarkMode+UX+Mobile+Polish | Complete | — |
-| P61-P66 Deploy+Vendors+E2E+Terraform | Complete | — |
-| P67-P72 DB Persistence+Vendor Integration | Complete | — |
-| P73-P80 Production Hardening Sprint | Complete | — |
-| P81-P85 Tenant Isolation+PG+Metrics | Complete | — |
+- Task-def validation (no duplicate env vars, secrets check, Alembic chain linearity)
+- Post-deploy health checks + smoke tests (readiness, GL accounts=79, API status)
 
 ## Operational Runbook (AWS ECS)
 
-### CloudWatch Log Groups
-
-```
-/ecs/asr-records-legacy-backend-dev    # Backend container logs (JSON format)
-/ecs/asr-records-legacy-frontend-dev   # Nginx access/error logs
-```
-
-View logs: `aws logs tail /ecs/asr-records-legacy-backend-dev --follow --region us-west-2`
-
-### Manual Deployment
-
 ```bash
-# 1. Build and push backend image
+# CloudWatch logs
+aws logs tail /ecs/asr-records-legacy-backend-dev --follow --region us-west-2
+
+# Manual deployment
 aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 206362095382.dkr.ecr.us-west-2.amazonaws.com
 docker build -f production-server/Dockerfile -t 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest .
 docker push 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest
-
-# 2. Register new task definition and update service
 aws ecs register-task-definition --cli-input-json file://backend-task-def.json --region us-west-2
 aws ecs update-service --cluster asr-records-legacy-cluster-dev --service backend-service --force-new-deployment --region us-west-2
-```
 
-### Alarm Status
-
-```bash
-# List all alarms
-aws cloudwatch describe-alarms --alarm-name-prefix "asr-records" --region us-west-2
-
-# SNS topic (requires terraform/sns.tf applied with alert_email set)
-aws sns list-subscriptions-by-topic --topic-arn "arn:aws:sns:us-west-2:206362095382:asr-records-alarms-dev" --region us-west-2
-```
-
-### ECS Exec (Interactive Shell)
-
-```bash
-# Requires: ECS Exec enabled on service, ssmmessages:* permissions on task role
-aws ecs execute-command \
-  --cluster asr-records-legacy-cluster-dev \
-  --task <TASK_ID> \
-  --container backend \
-  --interactive \
-  --command "/bin/sh" \
-  --region us-west-2
-```
-
-### Health Checks
-
-```bash
-# Via ALB
+# Health checks via ALB
 curl http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com/health/live
 curl http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com/health/ready
+
+# ECS Exec (interactive shell)
+aws ecs execute-command --cluster asr-records-legacy-cluster-dev --task <TASK_ID> --container backend --interactive --command "/bin/sh" --region us-west-2
 ```
