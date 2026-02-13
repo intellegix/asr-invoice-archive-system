@@ -18,6 +18,7 @@ export const Documents: React.FC = () => {
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [viewingDocumentId, setViewingDocumentId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { currentPage, pageSize, setCurrentPage, setPageSize } = useDocumentView();
 
   // Real API calls - preserves all backend sophistication
@@ -219,18 +220,41 @@ export const Documents: React.FC = () => {
                   >
                     View
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteMutation.mutate(doc.id, {
-                      onSuccess: () => toast.success('Document deleted'),
-                      onError: () => toast.error('Failed to delete document'),
-                    })}
-                    className="text-red-600 hover:text-red-700"
-                    disabled={deleteMutation.isPending}
-                  >
-                    Delete
-                  </Button>
+                  {confirmDeleteId === doc.id ? (
+                    <span className="inline-flex items-center gap-1 text-xs">
+                      <span className="text-gray-600 dark:text-gray-400">Delete?</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          deleteMutation.mutate(doc.id, {
+                            onSuccess: () => { toast.success('Document deleted'); setConfirmDeleteId(null); },
+                            onError: () => { toast.error('Failed to delete document'); setConfirmDeleteId(null); },
+                          });
+                        }}
+                        className="text-red-600 hover:text-red-700"
+                        disabled={deleteMutation.isPending}
+                      >
+                        Yes
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmDeleteId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setConfirmDeleteId(doc.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -260,6 +284,7 @@ export const Documents: React.FC = () => {
               type="text"
               placeholder="Search documents, vendors, or GL accounts..."
               className="input pl-10"
+              aria-label="Search documents, vendors, or GL accounts"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -402,16 +427,17 @@ export const Documents: React.FC = () => {
                   <option value={100}>100/page</option>
                 </select>
               </div>
-              <div className="flex space-x-1">
+              <nav aria-label="Pagination" className="flex space-x-1">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage(currentPage - 1)}
+                  aria-label="Go to previous page"
                 >
                   Previous
                 </Button>
-                <Button variant="outline" size="sm" className="bg-primary-50 text-primary-600">
+                <Button variant="outline" size="sm" className="bg-primary-50 text-primary-600" aria-current="page">
                   {currentPage}
                 </Button>
                 <Button
@@ -419,10 +445,11 @@ export const Documents: React.FC = () => {
                   size="sm"
                   disabled={displayedDocuments.length < pageSize}
                   onClick={() => setCurrentPage(currentPage + 1)}
+                  aria-label="Go to next page"
                 >
                   Next
                 </Button>
-              </div>
+              </nav>
             </div>
           </div>
         )}

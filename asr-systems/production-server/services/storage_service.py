@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from shared.core.exceptions import StorageError
 
@@ -449,6 +449,37 @@ class ProductionStorageService:
         except Exception as e:
             logger.error(f"❌ S3 deletion failed: {e}")
             return False
+
+    async def search_documents(
+        self, query: str, limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """Search stored documents by filename or vendor substring match."""
+        results: List[Dict[str, Any]] = []
+        if not self.initialized or self.storage_backend != "local":
+            return results
+
+        query_lower = query.lower()
+        metadata_dir = self.base_path / "metadata"
+        if not metadata_dir.exists():
+            return results
+
+        import json
+
+        for meta_file in metadata_dir.glob("**/*.json"):
+            try:
+                with meta_file.open("r") as f:
+                    meta = json.load(f)
+                filename = meta.get("filename", "").lower()
+                vendor = meta.get("vendor_name", "").lower()
+                doc_id = meta.get("document_id", "")
+                if query_lower in filename or query_lower in vendor or query_lower in doc_id:
+                    results.append(meta)
+                    if len(results) >= limit:
+                        break
+            except Exception:
+                continue
+
+        return results
 
     async def get_storage_statistics(self) -> Dict[str, Any]:
         """Get storage usage statistics"""

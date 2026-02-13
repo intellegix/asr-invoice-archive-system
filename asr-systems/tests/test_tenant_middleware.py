@@ -108,11 +108,11 @@ class TestHeaderExtraction:
 
 
 class TestFallback:
-    def test_fallback_to_query_param(self, client):
-        """When no header is provided, tenant_id query param should be used."""
+    def test_query_param_ignored(self, client):
+        """Query param tenant_id is ignored (security: only header allowed)."""
         response = client.get("/api/v1/test?tenant_id=from-query")
         data = response.json()
-        assert data["tenant_id"] == "from-query"
+        assert data["tenant_id"] == DEFAULT_TENANT_ID
 
     def test_fallback_to_default_when_no_header_or_query(self, client):
         """When neither header nor query param, default tenant should be used."""

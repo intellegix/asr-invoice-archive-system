@@ -297,16 +297,37 @@ describe('Documents', () => {
     vi.useRealTimers();
   });
 
-  // --- P38: Delete feedback toasts ---
+  // --- P38: Delete feedback toasts (with P51 confirmation) ---
 
-  it('shows success toast when delete succeeds', async () => {
+  it('shows confirmation before deleting', async () => {
+    renderDocuments();
+    const deleteButtons = screen.getAllByText('Delete');
+    await userEvent.click(deleteButtons[0]);
+    // After first click, confirmation prompt appears
+    expect(screen.getByText('Delete?')).toBeInTheDocument();
+    expect(screen.getByText('Yes')).toBeInTheDocument();
+    expect(screen.getByText('Cancel')).toBeInTheDocument();
+  });
+
+  it('shows success toast when delete confirmed', async () => {
     mockDeleteMutate.mockImplementation((_id: string, opts: any) => {
       opts?.onSuccess?.();
     });
     renderDocuments();
     const deleteButtons = screen.getAllByText('Delete');
     await userEvent.click(deleteButtons[0]);
+    // Confirm deletion
+    await userEvent.click(screen.getByText('Yes'));
     expect(mockToastSuccess).toHaveBeenCalledWith('Document deleted');
+  });
+
+  it('cancels delete when Cancel is clicked', async () => {
+    renderDocuments();
+    const deleteButtons = screen.getAllByText('Delete');
+    await userEvent.click(deleteButtons[0]);
+    await userEvent.click(screen.getByText('Cancel'));
+    // Confirmation should be dismissed, Delete button visible again
+    expect(screen.queryByText('Delete?')).not.toBeInTheDocument();
   });
 
   it('shows error toast when delete fails', async () => {
@@ -316,6 +337,29 @@ describe('Documents', () => {
     renderDocuments();
     const deleteButtons = screen.getAllByText('Delete');
     await userEvent.click(deleteButtons[0]);
+    await userEvent.click(screen.getByText('Yes'));
     expect(mockToastError).toHaveBeenCalledWith('Failed to delete document');
+  });
+
+  // --- P51: Accessibility ---
+
+  it('search input has aria-label', () => {
+    renderDocuments();
+    const input = screen.getByPlaceholderText(/Search documents/);
+    expect(input).toHaveAttribute('aria-label', 'Search documents, vendors, or GL accounts');
+  });
+
+  it('pagination has nav with aria-label', () => {
+    renderDocuments();
+    const nav = screen.getByRole('navigation', { name: 'Pagination' });
+    expect(nav).toBeInTheDocument();
+  });
+
+  it('current page button has aria-current="page"', () => {
+    renderDocuments();
+    const nav = screen.getByRole('navigation', { name: 'Pagination' });
+    const buttons = nav.querySelectorAll('button');
+    const currentBtn = Array.from(buttons).find(btn => btn.getAttribute('aria-current') === 'page');
+    expect(currentBtn).toBeTruthy();
   });
 });

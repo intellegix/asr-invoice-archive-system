@@ -167,4 +167,13 @@ describe('Navigation', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(useUIStore.getState().sidebarCollapsed).toBe(true);
   });
+
+  // --- P55: Dark mode variants ---
+
+  it('active nav link includes dark mode classes', () => {
+    renderNavigation(['/dashboard']);
+    const dashboardLink = getNavLink('Dashboard');
+    expect(dashboardLink.className).toContain('dark:bg-primary-950');
+    expect(dashboardLink.className).toContain('dark:text-primary-300');
+  });
 });

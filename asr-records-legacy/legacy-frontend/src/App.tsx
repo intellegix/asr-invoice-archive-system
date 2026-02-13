@@ -28,10 +28,16 @@ const App: React.FC = () => {
       <Route path="/*" element={
         <ProtectedRoute>
           <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex">
+            <a
+              href="#main-content"
+              className="skip-to-content"
+            >
+              Skip to content
+            </a>
             <Navigation />
             <div className="flex-1 flex flex-col">
               <Header />
-              <main className="flex-1 p-6">
+              <main id="main-content" className="flex-1 p-6" tabIndex={-1}>
                 <Suspense fallback={<PageFallback />}>
                   <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />

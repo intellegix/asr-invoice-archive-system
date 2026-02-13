@@ -344,6 +344,17 @@ class ProductionSettings(BaseSettings):
         description="Enable CSRF double-submit cookie protection",
     )
 
+    FORCE_HTTPS: bool = Field(
+        default=False,
+        description="Force HTTPS (sets CSRF cookie secure flag, use behind TLS termination)",
+    )
+
+    # Per-tenant upload quota
+    MAX_UPLOADS_PER_TENANT_PER_HOUR: int = Field(
+        default=100,
+        description="Maximum document uploads per tenant per hour",
+    )
+
     # Health Check Configuration
     HEALTH_CHECK_ENABLED: bool = Field(
         default=True,

@@ -122,3 +122,19 @@ describe('PageErrorBoundary', () => {
     expect(screen.getByText('Reload page')).toBeInTheDocument();
   });
 });
+
+// --- P55: Dark mode variants ---
+
+describe('ErrorBoundary dark mode', () => {
+  it('fallback UI includes dark mode classes', () => {
+    const { container } = render(
+      <ErrorBoundary>
+        <ThrowingComponent />
+      </ErrorBoundary>
+    );
+    const alert = container.querySelector('[role="alert"]');
+    expect(alert?.className).toContain('dark:bg-gray-900');
+    const heading = alert?.querySelector('h2');
+    expect(heading?.className).toContain('dark:text-gray-100');
+  });
+});

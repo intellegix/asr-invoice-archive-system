@@ -30,6 +30,15 @@
   }
 }
 
+/* Skip-to-content link — visible only on focus for keyboard navigation */
+.skip-to-content {
+  @apply absolute z-[100] -top-full left-4 bg-primary-600 text-white px-4 py-2 rounded-b-lg font-medium text-sm transition-all;
+}
+
+.skip-to-content:focus {
+  @apply top-0;
+}
+
 /* Component utilities */
 @layer components {
   .btn {

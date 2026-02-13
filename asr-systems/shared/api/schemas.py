@@ -3,6 +3,7 @@ ASR Systems - Shared API Schemas
 Common API schemas for communication between Production Server and Document Scanner
 """
 
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
@@ -18,6 +19,19 @@ from ..core.models import (
     ProcessingStatus,
     SystemType,
 )
+
+# Document ID validation pattern — prevents path traversal in URL path params
+DOCUMENT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+
+
+def validate_document_id(document_id: str) -> str:
+    """Validate a document ID against the safe pattern."""
+    if not DOCUMENT_ID_PATTERN.match(document_id):
+        raise ValueError(
+            "Invalid document ID: must be 1-64 alphanumeric, hyphen, or underscore characters"
+        )
+    return document_id
+
 
 # Auth Schemas
 
@@ -362,6 +376,17 @@ class SettingsResponseSchema(BaseModel):
     storage: Dict[str, Any] = Field(..., description="Storage configuration")
 
 
+# Delete Response Schema
+
+
+class DeleteDocumentResponseSchema(BaseModel):
+    """Schema for document deletion responses."""
+
+    success: bool = Field(..., description="Whether deletion succeeded")
+    message: str = Field(..., description="Status message")
+    document_id: str = Field(..., description="Deleted document ID")
+
+
 # Error Response Schemas
 
 
@@ -501,4 +526,9 @@ __all__ = [
     "AuditLogListResponseSchema",
     # Settings schema
     "SettingsResponseSchema",
+    # Delete response
+    "DeleteDocumentResponseSchema",
+    # Validation helpers
+    "validate_document_id",
+    "DOCUMENT_ID_PATTERN",
 ]

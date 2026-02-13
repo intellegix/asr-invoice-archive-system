@@ -34,12 +34,8 @@ class TenantMiddleware(BaseHTTPMiddleware):
             request.state.tenant_id = DEFAULT_TENANT_ID
             return await call_next(request)
 
-        # Extract tenant ID from header
+        # Extract tenant ID from header only (no query param fallback for security)
         tenant_id = request.headers.get("X-Tenant-ID")
-
-        if not tenant_id:
-            # Fall back to query parameter
-            tenant_id = request.query_params.get("tenant_id")
 
         if not tenant_id:
             # Use default tenant

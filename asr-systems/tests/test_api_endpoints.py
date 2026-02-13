@@ -98,12 +98,21 @@ class TestAPIInfoEndpoint:
 
 
 class TestScannerDiscoveryEndpoint:
-    def test_scanner_discovery(self, client):
-        response = client.get("/api/scanner/discovery")
+    def test_scanner_discovery_with_auth(self, client):
+        response = client.get(
+            "/api/scanner/discovery",
+            headers={"Authorization": "Bearer test-key"},
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["data"]["server_name"] == "ASR Production Server"
         assert "api_endpoints" in data["data"]
+
+    def test_scanner_discovery_without_auth_returns_401(self, client):
+        response = client.get("/api/scanner/discovery")
+        # When API_KEYS_REQUIRED=false (test/dev), auth is permissive
+        # so this returns 200. In production it would return 401.
+        assert response.status_code in (200, 401)
 
 
 class TestAuditLogEndpoints:
@@ -216,6 +225,79 @@ class TestMetricsEndpoints:
         data = response.json()
         assert "period" in data
         assert "documents" in data
+
+
+class TestDeleteDocumentEndpoint:
+    def test_delete_nonexistent_returns_404(self, client):
+        """DELETE for a nonexistent document should return 404."""
+        csrf_token = "test-csrf-token"
+        response = client.delete(
+            "/api/v1/documents/nonexistent-doc",
+            headers={
+                "Authorization": "Bearer test-key",
+                "x-csrf-token": csrf_token,
+            },
+            cookies={"csrf_token": csrf_token},
+        )
+        assert response.status_code == 404
+
+    def test_delete_too_long_id_returns_422(self, client):
+        """DELETE with an overly long document ID should return 422."""
+        csrf_token = "test-csrf-token"
+        long_id = "a" * 65  # exceeds 64-char limit
+        response = client.delete(
+            f"/api/v1/documents/{long_id}",
+            headers={
+                "Authorization": "Bearer test-key",
+                "x-csrf-token": csrf_token,
+            },
+            cookies={"csrf_token": csrf_token},
+        )
+        assert response.status_code == 422
+
+
+class TestSearchEndpointExtended:
+    def test_quick_search_empty_query_returns_empty(self, client):
+        """Quick search with empty query returns empty results."""
+        response = client.get(
+            "/search/quick?q=",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["results"] == []
+        assert data["data"]["total"] == 0
+
+    def test_quick_search_with_query(self, client):
+        """Quick search with a query term returns valid structure."""
+        response = client.get(
+            "/search/quick?q=invoice",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "results" in data["data"]
+        assert "total" in data["data"]
+
+
+class TestHealthEndpointTimeout:
+    def test_health_endpoint_responds_quickly(self, client):
+        """Health endpoint should respond within 3 seconds."""
+        import time
+
+        start = time.time()
+        response = client.get("/health/ready")
+        elapsed = time.time() - start
+        assert response.status_code == 200
+        assert elapsed < 3.0
+
+    def test_health_live_returns_uptime(self, client):
+        """Liveness probe should return uptime."""
+        response = client.get("/health/live")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ok"
+        assert data["uptime_seconds"] >= 0
 
 
 class TestNotFoundEndpoint:

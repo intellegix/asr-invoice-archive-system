@@ -89,6 +89,22 @@ jobs:
             --task-definition "$NEW_TASK_DEF" \
             --force-new-deployment
 
+      - name: Post-deploy health check (backend)
+        run: |
+          ALB_URL="http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com"
+          echo "Waiting for backend to become healthy..."
+          for i in $(seq 1 30); do
+            STATUS=$(curl -sf "$ALB_URL/health/live" 2>/dev/null | jq -r '.status' 2>/dev/null || echo "unreachable")
+            echo "  Attempt $i/30: $STATUS"
+            if [ "$STATUS" = "ok" ]; then
+              echo "Backend is healthy!"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "ERROR: Backend health check failed after 5 minutes"
+          exit 1
+
   deploy-frontend:
     runs-on: ubuntu-latest
     needs: ci-check
@@ -133,3 +149,19 @@ jobs:
             --service frontend-service \
             --task-definition "$NEW_TASK_DEF" \
             --force-new-deployment
+
+      - name: Post-deploy health check (frontend)
+        run: |
+          ALB_URL="http://asr-records-alb-757932068.us-west-2.elb.amazonaws.com"
+          echo "Waiting for frontend to become healthy..."
+          for i in $(seq 1 20); do
+            HTTP_CODE=$(curl -sf -o /dev/null -w '%{http_code}' "$ALB_URL/" 2>/dev/null || echo "000")
+            echo "  Attempt $i/20: HTTP $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "Frontend is healthy!"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "ERROR: Frontend health check failed after ~3 minutes"
+          exit 1

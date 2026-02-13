@@ -222,8 +222,8 @@ const NavigationItem: React.FC<NavigationItemProps> = ({ item, onNavigate }) => 
         clsx(
           'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors group',
           isActive
-            ? 'bg-primary-50 text-primary-700 border-r-2 border-primary-600'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            ? 'bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 border-r-2 border-primary-600 dark:border-primary-400'
+            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
         )
       }
     >
@@ -232,7 +232,7 @@ const NavigationItem: React.FC<NavigationItemProps> = ({ item, onNavigate }) => 
           <item.icon
             className={clsx(
               'mr-3 h-5 w-5 flex-shrink-0',
-              isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-500'
+              isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-400 dark:text-gray-500 group-hover:text-gray-500'
             )}
           />
           <div className="flex-1">
@@ -248,7 +248,7 @@ const NavigationItem: React.FC<NavigationItemProps> = ({ item, onNavigate }) => 
               <p
                 className={clsx(
                   'text-xs mt-0.5',
-                  isActive ? 'text-primary-600' : 'text-gray-500'
+                  isActive ? 'text-primary-600 dark:text-primary-400' : 'text-gray-500 dark:text-gray-400'
                 )}
               >
                 {item.description}

@@ -9,6 +9,7 @@ Enterprise document processing server with sophisticated capabilities
 """
 
 import asyncio
+import collections
 import logging
 import os
 
@@ -36,11 +37,13 @@ from shared.api.schemas import (
     AuthLoginResponseSchema,
     AuthMeResponseSchema,
     ClassificationResponseSchema,
+    DeleteDocumentResponseSchema,
     DocumentUploadResponseSchema,
     ScannerHeartbeatSchema,
     ScannerRegistrationSchema,
     SettingsResponseSchema,
     SystemHealthResponseSchema,
+    validate_document_id,
 )
 from shared.core.exceptions import (
     ASRException,
@@ -165,6 +168,31 @@ document_processor_service: Optional[DocumentProcessorService] = None
 storage_service: Optional[ProductionStorageService] = None
 scanner_manager_service: Optional[ScannerManagerService] = None
 audit_trail_service: Optional[AuditTrailService] = None
+
+# Per-tenant upload quota tracking: {tenant_id: deque of upload timestamps}
+_upload_timestamps: Dict[str, collections.deque] = {}
+
+
+def _check_upload_quota(tenant_id: str) -> None:
+    """Enforce per-tenant upload quota. Raises HTTPException(429) if exceeded."""
+    max_uploads = production_settings.MAX_UPLOADS_PER_TENANT_PER_HOUR
+    now = time.time()
+    cutoff = now - 3600  # 1 hour window
+
+    if tenant_id not in _upload_timestamps:
+        _upload_timestamps[tenant_id] = collections.deque()
+
+    dq = _upload_timestamps[tenant_id]
+    # Prune old entries
+    while dq and dq[0] < cutoff:
+        dq.popleft()
+
+    if len(dq) >= max_uploads:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Upload quota exceeded: {max_uploads} uploads per hour per tenant",
+        )
+    dq.append(now)
 
 
 @asynccontextmanager
@@ -370,7 +398,11 @@ if production_settings.MULTI_TENANT_ENABLED:
 
 # Add CSRF protection if enabled
 if production_settings.CSRF_ENABLED:
-    app.add_middleware(CSRFMiddleware, enabled=production_settings.CSRF_ENABLED)
+    app.add_middleware(
+        CSRFMiddleware,
+        enabled=production_settings.CSRF_ENABLED,
+        secure=production_settings.is_production or production_settings.FORCE_HTTPS,
+    )
 
 # Add rate limiting if enabled
 if production_settings.RATE_LIMIT_ENABLED:
@@ -575,18 +607,27 @@ async def _build_health_response() -> SystemHealthResponseSchema:
         else:
             health_status.components["billing_router"] = {"status": "not_initialized"}
 
-        # Storage Service
+        # Storage Service (with timeout to prevent health check from hanging)
         if storage_service:
-            storage_health = await storage_service.get_health()
-            storage_healthy = (
-                storage_health.get("status") == "healthy"
-                if isinstance(storage_health, dict)
-                else bool(storage_health)
-            )
-            health_status.components["storage"] = {
-                "status": "healthy" if storage_healthy else "unhealthy",
-                "backend": production_settings.STORAGE_BACKEND,
-            }
+            try:
+                storage_health = await asyncio.wait_for(
+                    storage_service.get_health(), timeout=2.0
+                )
+                storage_healthy = (
+                    storage_health.get("status") == "healthy"
+                    if isinstance(storage_health, dict)
+                    else bool(storage_health)
+                )
+                health_status.components["storage"] = {
+                    "status": "healthy" if storage_healthy else "unhealthy",
+                    "backend": production_settings.STORAGE_BACKEND,
+                }
+            except asyncio.TimeoutError:
+                health_status.components["storage"] = {
+                    "status": "degraded",
+                    "reason": "health check timed out",
+                    "backend": production_settings.STORAGE_BACKEND,
+                }
         else:
             health_status.components["storage"] = {"status": "not_initialized"}
 
@@ -640,6 +681,9 @@ async def upload_document(
                 detail="Document processor service not available",
             )
 
+        # Enforce per-tenant upload quota
+        _check_upload_quota(user["tenant_id"])
+
         # Validate file
         if not file.filename:
             raise ValidationError("Filename is required")
@@ -681,6 +725,7 @@ async def get_document_status(
 ):
     """Get document processing status"""
     try:
+        validate_document_id(document_id)
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -715,6 +760,7 @@ async def classify_document(
 ):
     """Trigger document classification through sophisticated pipeline"""
     try:
+        validate_document_id(document_id)
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -749,6 +795,57 @@ async def classify_document(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to classify document",
+        )
+
+
+# Document deletion endpoint
+@app.delete(
+    "/api/v1/documents/{document_id}",
+    response_model=APISuccessResponseSchema,
+    tags=["Documents"],
+)
+async def delete_document(
+    document_id: str, user: Dict[str, Any] = Depends(get_current_user)
+):
+    """Delete a document by ID"""
+    try:
+        validate_document_id(document_id)
+        if not storage_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Storage service not available",
+            )
+
+        deleted = await storage_service.delete_document(document_id)
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document {document_id} not found",
+            )
+
+        # Log to audit trail
+        if audit_trail_service:
+            await audit_trail_service.log_event(
+                document_id=document_id,
+                event_type="document_deleted",
+                event_data={"deleted_by": user.get("tenant_id")},
+                tenant_id=user.get("tenant_id"),
+            )
+
+        return APISuccessResponseSchema(
+            message="Document deleted",
+            data={"document_id": document_id, "success": True},
+        )
+
+    except HTTPException:
+        raise
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.error(f"Document deletion error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete document",
         )
 
 
@@ -851,6 +948,7 @@ async def get_document_audit_logs(
 ):
     """Get audit trail entries for a specific document."""
     try:
+        validate_document_id(document_id)
         if not audit_trail_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -893,6 +991,7 @@ async def reprocess_document(
 ):
     """Reprocess an existing document through the classification pipeline."""
     try:
+        validate_document_id(document_id)
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -928,6 +1027,7 @@ async def get_extract_details(
 ):
     """Get classification details for a document."""
     try:
+        validate_document_id(document_id)
         if not document_processor_service:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -970,11 +1070,13 @@ async def quick_search(
 ):
     """Quick search across documents by filename or vendor."""
     try:
-        # Storage layer doesn't have full-text search yet.
-        # Return an empty set so the frontend gets a valid 200 response.
+        results = []
+        if q.strip() and storage_service:
+            results = await storage_service.search_documents(q.strip(), limit=limit)
+
         return APISuccessResponseSchema(
             message="Search results",
-            data={"results": [], "total": 0, "query": q},
+            data={"results": results, "total": len(results), "query": q},
         )
 
     except Exception as e:
@@ -1127,6 +1229,26 @@ async def validation_exception_handler(request, exc: ValidationError):
             message="Validation error",
             errors=[{"error_type": "ValidationError", "message": str(exc)}],
         ).model_dump(),
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request, exc: ValueError):
+    """Handle ValueError (e.g. document ID validation failures)."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "message": "Validation error",
+            "errors": [
+                {
+                    "error_code": "VALIDATION_ERROR",
+                    "error_type": "ValueError",
+                    "message": str(exc),
+                }
+            ],
+            "timestamp": datetime.utcnow().isoformat(),
+        },
     )
 
 
@@ -1324,8 +1446,10 @@ async def get_api_info():
 if production_settings.SCANNER_API_ENABLED:
 
     @app.get("/api/scanner/discovery", tags=["Scanner"])
-    async def scanner_discovery():
-        """Scanner server discovery endpoint"""
+    async def scanner_discovery(
+        user: Dict[str, Any] = Depends(get_current_user),
+    ):
+        """Scanner server discovery endpoint (requires authentication)"""
         try:
             return APISuccessResponseSchema(
                 message="Server discovery successful",

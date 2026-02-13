@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (244 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All tests
+# --- Backend (264 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 264 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -42,25 +42,25 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (453 vitest tests) ---
+# --- Frontend (469 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
 npm run test                                                  # All tests
 npx vitest run                                                # Single run (no watch)
 npx tsc --noEmit                                              # TypeScript type check
 
-# --- E2E / Playwright (76 tests) ---
+# --- E2E / Playwright (78 tests) ---
 # Requires backend (port 8000) + frontend (port 3000) running
 cd asr-records-legacy/legacy-frontend
-npm run test:e2e                                              # All 76 Playwright tests
+npm run test:e2e                                              # All 78 Playwright tests
 npm run test:e2e:headed                                       # With visible browser
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (244 tests)
+### Backend Test Files (264 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
-| `test_api_endpoints.py` | 10 | FastAPI routes via TestClient |
+| `test_api_endpoints.py` | 27 | FastAPI routes, DELETE, search, health via TestClient |
 | `test_audit_trail_service.py` | 5 | Audit trail persistence |
 | `test_auth_endpoints.py` | 11 | /auth/login + /auth/me endpoints |
 | `test_billing_router_service.py` | 12 | Routing logic + destinations |
@@ -71,29 +71,30 @@ npm run test:e2e:report                                       # View HTML report
 | `test_document_processor_service.py` | 10 | Pipeline orchestration + text extraction |
 | `test_gl_account_service.py` | 6 | GL classification |
 | `test_health_endpoints.py` | 9 | Liveness/readiness probes + shutdown flag |
-| `test_multi_tenant_isolation.py` | 9 | Storage/API/scanner tenant scoping |
+| `test_multi_tenant_isolation.py` | 8 | Storage/API/scanner tenant scoping |
 | `test_openapi_tags.py` | 4 | OpenAPI schema tag validation |
 | `test_payment_detection_service.py` | 13 | 5-method consensus |
 | `test_rate_limit_middleware.py` | 19 | Sliding window, 429s, memory management |
 | `test_request_logging_middleware.py` | 10 | Correlation IDs, client IP, response headers |
 | `test_retry_circuit_breaker.py` | 9 | Async retry + circuit breaker patterns |
 | `test_scanner_manager_service.py` | 15 | Scanner registration/heartbeat |
+| `test_security_hardening.py` | 13 | CSRF secure flag, auth, tenant isolation, doc ID validation |
 | `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
-| `test_storage_service.py` | 14 | Local CRUD + tenant isolation + path traversal |
-| `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
+| `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
+| `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
 
-### Frontend Test Files (453 vitest tests)
+### Frontend Test Files (469 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
 | Zustand Stores | 4 | 75 | auth (15), documents (33), ui (23), themePersistence (4) |
 | API Services | 6 | 59 | ApiClient (21), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
-| Custom Hooks | 5 | 51 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3) |
-| Components | 8 | 125 | Button (20), MetricCard (25), Header (23), Navigation (17), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10), DocumentDetailModal (13), useDebounce (4) |
-| Pages + App | 7 | 142 | Dashboard (22), Upload (22), Documents (29), Login (15), Settings (8), Reports (8), App routing (10), FilterPanel (13), exportCsv (4) |
+| Custom Hooks | 7 | 62 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3), usePermission (4), useAuditLogs (4), useDebounce (4) |
+| Components | 8 | 131 | Button (20), MetricCard (25), Header (23), Navigation (17), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10), DocumentDetailModal (13), PermissionGate (3), exportJson (5) |
+| Pages + App | 7 | 142 | Dashboard (22), Upload (22), Documents (34), Login (15), Settings (8), Reports (8), App routing (10), FilterPanel (13), exportCsv (4) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
-### E2E Playwright Tests (76 tests)
+### E2E Playwright Tests (78 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -102,8 +103,10 @@ npm run test:e2e:report                                       # View HTML report
 | `e2e/upload.spec.ts` | 13 | Dropzone, file types, size limit, feature cards, System Status |
 | `e2e/documents.spec.ts` | 14 | Search, filters, table/empty state, summary stats, export |
 | `e2e/navigation.spec.ts` | 10 | Sidebar, nav links, active state, routing, header consistency |
-| `e2e/responsive.spec.ts` | 7 | 4 viewports, metric reflow, tablet upload, mobile documents |
+| `e2e/responsive.spec.ts` | 4 | 4 viewports, metric reflow, tablet upload, mobile documents |
 | `e2e/integration.spec.ts` | 11 | API-to-UI data flow, error states, backend health/status |
+| `e2e/reclassify.spec.ts` | 5 | Re-Classify button, feedback, modal close, table columns, search |
+| `e2e/audit-logs.spec.ts` | 3 | Audit Trail heading, empty/entries state, no console errors |
 
 ## Architecture
 
@@ -173,13 +176,14 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (advisory), pytest with coverage >= 60% on Python 3.11 + 3.12 (244 tests)
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (453 tests) on Node 18
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 60% on Python 3.11 + 3.12 (264 tests)
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (469 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
 - Builds + pushes backend/frontend images to ECR
 - Updates ECS services (`backend-service`, `frontend-service`) with new task definitions
+- Post-deploy health checks poll ALB for backend (`/health/live`) and frontend (`/`) readiness
 - Requires `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` GitHub secrets
 
 ## Deployment Status
@@ -193,7 +197,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 773 tests | — |
+| Full-Stack Tests | 811 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -203,6 +207,8 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P26-P31 Housekeeping+Hardening | Complete | — |
 | P32-P37 DarkMode+A11y+Polish | Complete | — |
 | P38-P42 UX Polish+Mobile | Complete | — |
+| P43-P48 Audit+Reclassify+Settings | Complete | `03df6ef` |
+| P49-P54 Security+A11y+API+Tests | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 

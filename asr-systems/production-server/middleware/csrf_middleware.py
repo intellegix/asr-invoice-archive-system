@@ -34,9 +34,10 @@ CSRF_EXEMPT_PATHS: Set[str] = {
 class CSRFMiddleware(BaseHTTPMiddleware):
     """Double-submit cookie CSRF protection."""
 
-    def __init__(self, app, enabled: bool = True):
+    def __init__(self, app, enabled: bool = True, secure: bool = False):
         super().__init__(app)
         self.enabled = enabled
+        self.secure = secure
 
     @staticmethod
     def _generate_token() -> str:
@@ -48,6 +49,15 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             path in CSRF_EXEMPT_PATHS
             or path.startswith("/docs")
             or path.startswith("/redoc")
+        )
+
+    def _set_csrf_cookie(self, response: Response, token: str) -> None:
+        response.set_cookie(
+            key=CSRF_COOKIE_NAME,
+            value=token,
+            httponly=False,  # JS must be able to read it
+            samesite="lax",
+            secure=self.secure,
         )
 
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -65,13 +75,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method in SAFE_METHODS or self._is_exempt(request.url.path):
             response = await call_next(request)
             if new_token:
-                response.set_cookie(
-                    key=CSRF_COOKIE_NAME,
-                    value=new_token,
-                    httponly=False,  # JS must be able to read it
-                    samesite="lax",
-                    secure=False,  # Set True behind HTTPS termination
-                )
+                self._set_csrf_cookie(response, new_token)
             return response
 
         # State-changing request: validate header matches cookie
@@ -90,11 +94,5 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         if new_token:
-            response.set_cookie(
-                key=CSRF_COOKIE_NAME,
-                value=new_token,
-                httponly=False,
-                samesite="lax",
-                secure=False,
-            )
+            self._set_csrf_cookie(response, new_token)
         return response
