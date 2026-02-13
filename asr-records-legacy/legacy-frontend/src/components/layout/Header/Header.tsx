@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bell, User, Settings, Sun, Moon, LogOut } from 'lucide-react';
+import { Bell, User, Settings, Sun, Moon, LogOut, Menu } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
 import { useUserInfo, useTenantId, useAuthStore } from '@/stores/auth';
-import { useTheme, useNotifications } from '@/stores/ui/uiStore';
+import { useTheme, useNotifications, useSidebarState } from '@/stores/ui/uiStore';
 
 interface HeaderProps {
   className?: string;
@@ -16,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
   const logout = useAuthStore((s) => s.logout);
   const { theme, toggle: toggleTheme } = useTheme();
   const { notifications } = useNotifications();
+  const { toggle: toggleSidebar } = useSidebarState();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -41,6 +42,20 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Close dropdowns on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowNotifications(false);
+        setShowUserMenu(false);
+      }
+    };
+    if (showNotifications || showUserMenu) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showNotifications, showUserMenu]);
+
   const handleSignOut = () => {
     logout();
     setShowUserMenu(false);
@@ -52,6 +67,15 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
       <div className="flex items-center justify-between">
         {/* Left side - Page title and breadcrumbs will be added here later */}
         <div className="flex items-center space-x-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="md:hidden p-2"
+            aria-label="Open menu"
+            onClick={toggleSidebar}
+          >
+            <Menu className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          </Button>
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             ASR Records Legacy
           </h1>

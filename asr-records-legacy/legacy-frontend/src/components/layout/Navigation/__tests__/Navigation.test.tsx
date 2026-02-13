@@ -1,6 +1,7 @@
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { Navigation } from '@/components/layout/Navigation';
 import { renderWithProviders } from '@/tests/helpers/renderWithProviders';
+import { useUIStore } from '@/stores/ui/uiStore';
 
 // Mock the hooks that Navigation now uses
 vi.mock('@/hooks/api/useDashboard', () => ({
@@ -134,5 +135,36 @@ describe('Navigation', () => {
     expect(
       screen.getByText(/Last sync:/)
     ).toBeInTheDocument();
+  });
+
+  // --- P41: Mobile responsive navigation ---
+
+  it('desktop sidebar has hidden md:flex classes', () => {
+    renderNavigation();
+    const desktopNav = screen.getAllByRole('navigation', { name: /main navigation/i })[0];
+    expect(desktopNav.className).toContain('hidden');
+    expect(desktopNav.className).toContain('md:flex');
+  });
+
+  it('renders mobile overlay when sidebarCollapsed is false', () => {
+    // sidebarCollapsed: false means mobile drawer is open
+    useUIStore.setState({ sidebarCollapsed: false });
+    renderNavigation();
+    expect(screen.getByTestId('nav-backdrop')).toBeInTheDocument();
+  });
+
+  it('closes mobile overlay on backdrop click', () => {
+    useUIStore.setState({ sidebarCollapsed: false });
+    renderNavigation();
+    fireEvent.click(screen.getByTestId('nav-backdrop'));
+    // After clicking backdrop, sidebarCollapsed should toggle to true
+    expect(useUIStore.getState().sidebarCollapsed).toBe(true);
+  });
+
+  it('closes mobile overlay on Escape key', () => {
+    useUIStore.setState({ sidebarCollapsed: false });
+    renderNavigation();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(useUIStore.getState().sidebarCollapsed).toBe(true);
   });
 });

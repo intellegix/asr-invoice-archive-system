@@ -258,4 +258,111 @@ describe('Upload', () => {
     expect(screen.getByText('94%')).toBeInTheDocument();
     expect(screen.getByText('6%')).toBeInTheDocument();
   });
+
+  // --- P40: Classification results on upload success ---
+
+  it('shows GL account classification on completed upload', () => {
+    setupWithUploads({
+      uploads: [
+        {
+          id: 'upload-cls',
+          file: new File(['content'], 'classified.pdf', { type: 'application/pdf' }),
+          progress: 100,
+          status: 'completed',
+          result: {
+            id: 'doc-cls',
+            classification: {
+              gl_account_code: '6100',
+              expense_category: 'Office Supplies',
+              payment_status: 'unpaid',
+              routing_destination: 'open_payable',
+              category_confidence: 96.5,
+            },
+          },
+        },
+      ],
+      stats: { total: 1, completed: 1, processing: 0, errors: 0 },
+    });
+    renderUpload();
+    expect(screen.getByText(/6100/)).toBeInTheDocument();
+    expect(screen.getByText(/Office Supplies/)).toBeInTheDocument();
+  });
+
+  it('shows payment status on completed upload', () => {
+    setupWithUploads({
+      uploads: [
+        {
+          id: 'upload-pay',
+          file: new File(['content'], 'pay.pdf', { type: 'application/pdf' }),
+          progress: 100,
+          status: 'completed',
+          result: {
+            id: 'doc-pay',
+            classification: {
+              gl_account_code: '5200',
+              expense_category: 'Materials',
+              payment_status: 'paid',
+              routing_destination: 'closed_payable',
+              category_confidence: 88,
+            },
+          },
+        },
+      ],
+      stats: { total: 1, completed: 1, processing: 0, errors: 0 },
+    });
+    renderUpload();
+    expect(screen.getByText(/Paid/i)).toBeInTheDocument();
+  });
+
+  it('shows routing destination on completed upload', () => {
+    setupWithUploads({
+      uploads: [
+        {
+          id: 'upload-route',
+          file: new File(['content'], 'route.pdf', { type: 'application/pdf' }),
+          progress: 100,
+          status: 'completed',
+          result: {
+            id: 'doc-route',
+            classification: {
+              gl_account_code: '6100',
+              expense_category: 'Office',
+              payment_status: 'unpaid',
+              routing_destination: 'open_payable',
+              category_confidence: 92,
+            },
+          },
+        },
+      ],
+      stats: { total: 1, completed: 1, processing: 0, errors: 0 },
+    });
+    renderUpload();
+    expect(screen.getByText(/open payable/i)).toBeInTheDocument();
+  });
+
+  it('shows confidence percentage on completed upload', () => {
+    setupWithUploads({
+      uploads: [
+        {
+          id: 'upload-conf',
+          file: new File(['content'], 'conf.pdf', { type: 'application/pdf' }),
+          progress: 100,
+          status: 'completed',
+          result: {
+            id: 'doc-conf',
+            classification: {
+              gl_account_code: '6100',
+              expense_category: 'Office',
+              payment_status: 'unpaid',
+              routing_destination: 'open_payable',
+              category_confidence: 96.5,
+            },
+          },
+        },
+      ],
+      stats: { total: 1, completed: 1, processing: 0, errors: 0 },
+    });
+    renderUpload();
+    expect(screen.getByText(/96\.5%/)).toBeInTheDocument();
+  });
 });

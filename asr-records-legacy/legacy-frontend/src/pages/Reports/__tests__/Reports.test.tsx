@@ -19,6 +19,11 @@ vi.mock('@/hooks/api/useDashboard', () => ({
   useTrendData: vi.fn(),
 }));
 
+const mockUseAuditLogs = vi.fn();
+vi.mock('@/hooks/api/useAuditLogs', () => ({
+  useAuditLogs: (...args: any[]) => mockUseAuditLogs(...args),
+}));
+
 vi.mock('react-chartjs-2', () => ({
   Bar: (props: any) => <div data-testid="bar-chart" {...props} />,
   Doughnut: (props: any) => <div data-testid="doughnut-chart" {...props} />,
@@ -104,6 +109,7 @@ const setupLoaded = () => {
   (useTrendData as ReturnType<typeof vi.fn>).mockReturnValue({
     data: mockTrends,
   });
+  mockUseAuditLogs.mockReturnValue({ data: undefined });
 };
 
 const setupLoading = () => {
@@ -114,6 +120,7 @@ const setupLoading = () => {
   (usePaymentStatusDistribution as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined });
   (useGLAccountUsage as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined });
   (useTrendData as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined });
+  mockUseAuditLogs.mockReturnValue({ data: undefined });
 };
 
 // ---------------------------------------------------------------------------
@@ -186,10 +193,36 @@ describe('Reports', () => {
     (usePaymentStatusDistribution as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined });
     (useGLAccountUsage as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined });
     (useTrendData as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined });
+    mockUseAuditLogs.mockReturnValue({ data: undefined });
 
     renderReports();
     expect(screen.getByText('No GL account data available')).toBeInTheDocument();
     expect(screen.getByText('No payment data available')).toBeInTheDocument();
     expect(screen.getByText('No trend data available')).toBeInTheDocument();
+  });
+
+  // --- Audit Trail ---
+
+  it('renders Recent Audit Trail section heading', () => {
+    setupLoaded();
+    renderReports();
+    expect(screen.getByText('Recent Audit Trail')).toBeInTheDocument();
+  });
+
+  it('renders audit entries when data is present', () => {
+    setupLoaded();
+    mockUseAuditLogs.mockReturnValue({
+      data: {
+        data: {
+          entries: [
+            { id: 1, event_type: 'document_classified', document_id: 'doc-001', system_component: 'GLAccountService', timestamp: '2026-02-13T10:00:00Z' },
+          ],
+          total_count: 1,
+        },
+      },
+    });
+    renderReports();
+    expect(screen.getByText('document_classified')).toBeInTheDocument();
+    expect(screen.getByText(/doc-001/)).toBeInTheDocument();
   });
 });

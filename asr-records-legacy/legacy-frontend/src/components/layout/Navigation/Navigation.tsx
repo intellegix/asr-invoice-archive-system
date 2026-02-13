@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,10 +7,12 @@ import {
   Settings,
   BarChart3,
   Folder,
+  X,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useDashboardMetrics } from '@/hooks/api/useDashboard';
 import { useSystemStatus } from '@/hooks/api/useSystemStatus';
+import { useSidebarState } from '@/stores/ui/uiStore';
 
 interface NavigationProps {
   className?: string;
@@ -63,8 +65,23 @@ const secondaryNavItems: NavItem[] = [
 export const Navigation: React.FC<NavigationProps> = ({ className }) => {
   const { data: metrics, isLoading: metricsLoading, dataUpdatedAt } = useDashboardMetrics();
   const { data: systemStatus } = useSystemStatus();
+  const { collapsed, toggle } = useSidebarState();
 
   const isOnline = systemStatus?.status === 'operational';
+  const mobileOpen = !collapsed;
+
+  // Close mobile drawer on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileOpen) {
+        toggle();
+      }
+    };
+    if (mobileOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [mobileOpen, toggle]);
 
   const lastSyncLabel = React.useMemo(() => {
     if (!dataUpdatedAt) return 'Not synced yet';
@@ -76,26 +93,30 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
     return `${hours}h ago`;
   }, [dataUpdatedAt]);
 
-  return (
-    <nav
-      aria-label="Main navigation"
-      className={clsx(
-        'w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col',
-        className
-      )}
-    >
+  const sidebarContent = (
+    <>
       {/* Logo and brand */}
       <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center space-x-3">
-          <div className="h-10 w-10 bg-primary-600 rounded-lg flex items-center justify-center">
-            <Folder className="h-6 w-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 bg-primary-600 rounded-lg flex items-center justify-center">
+              <Folder className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                ASR Records
+              </h2>
+              <p className="text-xs text-gray-500">Legacy Edition</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              ASR Records
-            </h2>
-            <p className="text-xs text-gray-500">Legacy Edition</p>
-          </div>
+          {/* Close button — mobile only */}
+          <button
+            className="md:hidden p-1 rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+            onClick={toggle}
+            aria-label="Close navigation"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -121,7 +142,7 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
       <div className="flex-1 px-4 py-6">
         <div className="space-y-1">
           {navItems.map((item) => (
-            <NavigationItem key={item.to} item={item} />
+            <NavigationItem key={item.to} item={item} onNavigate={mobileOpen ? toggle : undefined} />
           ))}
         </div>
 
@@ -132,7 +153,7 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
           </h3>
           <div className="space-y-1">
             {secondaryNavItems.map((item) => (
-              <NavigationItem key={item.to} item={item} />
+              <NavigationItem key={item.to} item={item} onNavigate={mobileOpen ? toggle : undefined} />
             ))}
           </div>
         </div>
@@ -148,19 +169,55 @@ export const Navigation: React.FC<NavigationProps> = ({ className }) => {
           Last sync: {lastSyncLabel}
         </div>
       </div>
-    </nav>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar — always visible at md+ */}
+      <nav
+        aria-label="Main navigation"
+        className={clsx(
+          'hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700',
+          className,
+        )}
+      >
+        {sidebarContent}
+      </nav>
+
+      {/* Mobile overlay drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={toggle}
+            data-testid="nav-backdrop"
+          />
+          {/* Drawer */}
+          <nav
+            aria-label="Main navigation"
+            className="relative z-50 w-64 h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col shadow-xl"
+          >
+            {sidebarContent}
+          </nav>
+        </div>
+      )}
+    </>
   );
 };
 
 // Navigation Item Component
 interface NavigationItemProps {
   item: NavItem;
+  onNavigate?: () => void;
 }
 
-const NavigationItem: React.FC<NavigationItemProps> = ({ item }) => {
+const NavigationItem: React.FC<NavigationItemProps> = ({ item, onNavigate }) => {
   return (
     <NavLink
       to={item.to}
+      onClick={onNavigate}
       className={({ isActive }) =>
         clsx(
           'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors group',

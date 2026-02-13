@@ -131,7 +131,7 @@ export const mockDashboardMetrics: DashboardMetrics = {
     isPositive: true,
   },
   glAccountsUsed: 32,
-  totalGLAccounts: 40,
+  totalGLAccounts: 79,
   classificationAccuracy: 96.5,
   totalAmountProcessed: 5200000,
   averageProcessingTime: 2.3,

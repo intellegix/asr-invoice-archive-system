@@ -106,6 +106,118 @@ class TestScannerDiscoveryEndpoint:
         assert "api_endpoints" in data["data"]
 
 
+class TestAuditLogEndpoints:
+    def test_audit_logs_by_tenant_returns_200(self, client):
+        response = client.get(
+            "/api/v1/audit-logs?tenant_id=default",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "entries" in data["data"]
+        assert "total_count" in data["data"]
+
+    def test_audit_logs_by_document_returns_200(self, client):
+        response = client.get(
+            "/api/v1/audit-logs/nonexistent-doc",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["entries"] == []
+        assert data["data"]["total_count"] == 0
+
+    def test_audit_logs_without_tenant_returns_empty(self, client):
+        response = client.get(
+            "/api/v1/audit-logs?tenant_id=unknown-tenant",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data"]["total_count"] == 0
+
+
+class TestReprocessEndpoints:
+    def test_reprocess_document_returns_200(self, client):
+        """Reprocessing a non-existent doc should still return a response
+        (the service returns an error-status UploadResult, not an exception)."""
+        csrf_token = "test-csrf-token"
+        response = client.post(
+            "/extract/invoice/test-doc-001",
+            headers={
+                "Authorization": "Bearer test-key",
+                "x-csrf-token": csrf_token,
+            },
+            cookies={"csrf_token": csrf_token},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "document_id" in data["data"]
+
+    def test_extract_details_returns_200(self, client):
+        response = client.get(
+            "/extract/invoice/test-doc-001/details",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["document_id"] == "test-doc-001"
+
+
+class TestSearchEndpoint:
+    def test_quick_search_returns_200(self, client):
+        response = client.get(
+            "/search/quick?q=invoice",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "results" in data["data"]
+
+
+class TestSettingsEndpoint:
+    def test_settings_endpoint_returns_config(self, client):
+        response = client.get(
+            "/api/v1/settings",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["version"] == "2.0.0"
+        assert data["data"]["system_type"] == "production_server"
+
+    def test_settings_includes_capabilities(self, client):
+        response = client.get(
+            "/api/v1/settings",
+            headers={"Authorization": "Bearer test-key"},
+        )
+        data = response.json()
+        caps = data["data"]["capabilities"]
+        assert caps["gl_accounts"]["total"] == 79
+        assert "payment_detection" in caps
+
+
+class TestMetricsEndpoints:
+    def test_metrics_kpis_returns_200(self, client):
+        response = client.get("/metrics/kpis")
+        assert response.status_code == 200
+        data = response.json()
+        assert "totalDocuments" in data
+
+    def test_metrics_trends_returns_200(self, client):
+        response = client.get("/metrics/trends?period=30d")
+        assert response.status_code == 200
+        data = response.json()
+        assert "period" in data
+        assert "documents" in data
+
+
 class TestNotFoundEndpoint:
     def test_404_handler(self, client):
         response = client.get("/api/v1/nonexistent")

@@ -20,7 +20,7 @@ const mockMetrics = {
   paymentAccuracyTrend: { value: 2.1, direction: 'up', period: 'vs last month', isPositive: true },
   totalAmountProcessed: 5200000,
   glAccountsUsed: 32,
-  totalGLAccounts: 40,
+  totalGLAccounts: 79,
   manualReviewRate: 6,
   processingTimeTrend: { value: 5, direction: 'down', period: 'vs last month', isPositive: true },
   recentDocuments: [
@@ -146,7 +146,7 @@ describe('Dashboard', () => {
     setupLoaded();
     renderDashboard();
     expect(screen.getByText('GL Accounts Used')).toBeInTheDocument();
-    expect(screen.getByText('32/40')).toBeInTheDocument();
+    expect(screen.getByText('32/79')).toBeInTheDocument();
   });
 
   // --- Recent Documents ---
@@ -258,5 +258,19 @@ describe('Dashboard', () => {
     const btn = screen.getByText('Review Queue').closest('button')!;
     fireEvent.click(btn);
     expect(btn).toBeInTheDocument();
+  });
+
+  // --- P38: GL count fallback ---
+
+  it('renders GL Accounts Used with 79 fallback when totalGLAccounts missing', () => {
+    (useDashboardMetrics as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { ...mockMetrics, totalGLAccounts: undefined },
+      isLoading: false,
+    });
+    (usePaymentStatusDistribution as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockPaymentDist,
+    });
+    renderDashboard();
+    expect(screen.getByText('32/79')).toBeInTheDocument();
   });
 });

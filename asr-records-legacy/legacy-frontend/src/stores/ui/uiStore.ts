@@ -101,7 +101,7 @@ applyTheme(initialTheme);
 
 export const useUIStore = create<UIStore>((set, get) => ({
   // Initial state
-  sidebarCollapsed: false,
+  sidebarCollapsed: true,
   theme: initialTheme,
   notifications: [],
   globalLoading: false,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, CheckCircle, DollarSign, BarChart3 } from 'lucide-react';
+import { FileText, CheckCircle, DollarSign, BarChart3, ClipboardList } from 'lucide-react';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -22,6 +22,7 @@ import {
   useGLAccountUsage,
   useTrendData,
 } from '@/hooks/api/useDashboard';
+import { useAuditLogs } from '@/hooks/api/useAuditLogs';
 import type { GLAccountUsage, PaymentStatusDistribution, TrendData } from '@/types/api';
 
 ChartJS.register(
@@ -44,6 +45,7 @@ export const Reports: React.FC = () => {
   const { data: paymentDistribution } = usePaymentStatusDistribution();
   const { data: glUsage } = useGLAccountUsage();
   const { data: trends } = useTrendData('30d');
+  const { data: auditData } = useAuditLogs({ limit: 20 });
 
   const chartTextColor = isDark ? '#d1d5db' : '#374151';
   const chartGridColor = isDark ? '#374151' : '#e5e7eb';
@@ -291,6 +293,46 @@ export const Reports: React.FC = () => {
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Closed Receivable</div>
           </div>
+        </div>
+      </div>
+
+      {/* Recent Audit Trail */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Recent Audit Trail</h3>
+          <p className="card-description">Latest audit events across the system</p>
+        </div>
+        <div>
+          {(() => {
+            const entries = (auditData as any)?.data?.entries ?? [];
+            if (entries.length === 0) {
+              return (
+                <div className="flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+                  <ClipboardList className="h-5 w-5 mr-2" />
+                  No audit entries yet
+                </div>
+              );
+            }
+            return (
+              <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                {entries.map((entry: any, i: number) => (
+                  <div key={entry.id ?? i} className="px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {entry.event_type}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {entry.document_id} &middot; {entry.system_component || '--'}
+                      </p>
+                    </div>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
+                      {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '--'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

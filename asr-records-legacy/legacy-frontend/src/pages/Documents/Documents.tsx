@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Download, FileText, CheckCircle, Clock, AlertCircle, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/common/Button';
 import { useDocuments, useDocumentSearch, useDocumentDelete, useDocument } from '@/hooks/api/useDocuments';
 import { useDocumentView } from '@/stores/documents';
+import { useDebounce } from '@/hooks/useDebounce';
 import { FilterPanel } from '@/components/documents/FilterPanel';
 import { DocumentDetailModal } from '@/components/documents/DocumentDetailModal';
 import { exportDocumentsCsv } from '@/utils/exportCsv';
+import { exportDocumentsJson } from '@/utils/exportJson';
 import type { DocumentFilters } from '@/types/api';
 
 export const Documents: React.FC = () => {
@@ -13,6 +16,7 @@ export const Documents: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeQuickFilter, setActiveQuickFilter] = useState<string>('all');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [viewingDocumentId, setViewingDocumentId] = useState<string | null>(null);
   const { currentPage, pageSize, setCurrentPage, setPageSize } = useDocumentView();
 
@@ -22,14 +26,16 @@ export const Documents: React.FC = () => {
   const deleteMutation = useDocumentDelete();
   const { data: viewingDocument } = useDocument(viewingDocumentId || '');
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-    if (query.trim()) {
-      searchMutation.mutate({ query, filters });
-    }
-  };
+  const debouncedQuery = useDebounce(searchQuery, 300);
 
-  const displayedDocuments = searchQuery && searchMutation.data?.documents
+  useEffect(() => {
+    if (debouncedQuery.trim()) {
+      searchMutation.mutate({ query: debouncedQuery, filters });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery, filters]);
+
+  const displayedDocuments = debouncedQuery && searchMutation.data?.documents
     ? searchMutation.data.documents
     : documents;
 
@@ -216,7 +222,10 @@ export const Documents: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => deleteMutation.mutate(doc.id)}
+                    onClick={() => deleteMutation.mutate(doc.id, {
+                      onSuccess: () => toast.success('Document deleted'),
+                      onError: () => toast.error('Failed to delete document'),
+                    })}
                     className="text-red-600 hover:text-red-700"
                     disabled={deleteMutation.isPending}
                   >
@@ -252,7 +261,7 @@ export const Documents: React.FC = () => {
               placeholder="Search documents, vendors, or GL accounts..."
               className="input pl-10"
               value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
@@ -265,14 +274,32 @@ export const Documents: React.FC = () => {
             >
               Filters
             </Button>
-            <Button
-              variant="outline"
-              leftIcon={<Download className="h-4 w-4" />}
-              onClick={() => exportDocumentsCsv(displayedDocuments)}
-              disabled={displayedDocuments.length === 0}
-            >
-              Export
-            </Button>
+            <div className="relative">
+              <Button
+                variant="outline"
+                leftIcon={<Download className="h-4 w-4" />}
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                disabled={displayedDocuments.length === 0}
+              >
+                Export
+              </Button>
+              {showExportMenu && (
+                <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-md"
+                    onClick={() => { exportDocumentsCsv(displayedDocuments); setShowExportMenu(false); }}
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-md"
+                    onClick={() => { exportDocumentsJson(displayedDocuments); setShowExportMenu(false); }}
+                  >
+                    Export JSON
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

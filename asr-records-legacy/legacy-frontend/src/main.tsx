@@ -18,19 +18,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           position="top-right"
           toastOptions={{
             duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
+            className: 'dark:bg-gray-800 dark:text-gray-100',
             success: {
-              style: {
-                background: '#22c55e',
-              },
+              className: 'dark:!bg-green-900 dark:!text-green-100',
             },
             error: {
-              style: {
-                background: '#ef4444',
-              },
+              className: 'dark:!bg-red-900 dark:!text-red-100',
             },
           }}
         />

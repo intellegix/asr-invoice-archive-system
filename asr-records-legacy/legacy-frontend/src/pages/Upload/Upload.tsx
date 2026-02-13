@@ -156,9 +156,33 @@ export const Upload: React.FC = () => {
                 {/* Success result preview */}
                 {upload.result && (
                   <div className="mt-3 p-3 bg-green-50 dark:bg-green-950 rounded-md">
-                    <p className="text-sm text-green-800 dark:text-green-300">
-                      ✓ Document processed successfully with AI classification
+                    <p className="text-sm font-medium text-green-800 dark:text-green-300 mb-2">
+                      Document processed successfully
                     </p>
+                    {upload.result.classification ? (
+                      <div className="grid grid-cols-2 gap-2 text-xs text-green-700 dark:text-green-400">
+                        <div>
+                          <span className="font-medium">GL Account:</span>{' '}
+                          {upload.result.classification.gl_account_code} — {upload.result.classification.expense_category}
+                        </div>
+                        <div>
+                          <span className="font-medium">Payment:</span>{' '}
+                          <span className="capitalize">{upload.result.classification.payment_status}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium">Routing:</span>{' '}
+                          {upload.result.classification.routing_destination?.replace(/_/g, ' ')}
+                        </div>
+                        <div>
+                          <span className="font-medium">Confidence:</span>{' '}
+                          {upload.result.classification.category_confidence}%
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-green-700 dark:text-green-400">
+                        AI classification complete
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

@@ -65,7 +65,7 @@ export const Dashboard: React.FC = () => {
 
         <MetricCard
           title="GL Accounts Used"
-          value={`${metrics?.glAccountsUsed || 0}/${metrics?.totalGLAccounts || 40}`}
+          value={`${metrics?.glAccountsUsed || 0}/${metrics?.totalGLAccounts || 79}`}
           subtitle={`${metrics?.manualReviewRate || 0}% manual review`}
           icon={Clock}
           trend={metrics?.processingTimeTrend || { value: 0, direction: 'down', period: 'vs last month', isPositive: true }}

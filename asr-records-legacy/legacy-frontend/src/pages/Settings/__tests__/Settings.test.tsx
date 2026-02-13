@@ -17,6 +17,14 @@ vi.mock('@/stores/auth', () => ({
   useTenantId: vi.fn(),
 }));
 
+vi.mock('@/stores/ui/uiStore', () => ({
+  useTheme: () => ({ theme: 'light', setTheme: vi.fn(), toggle: vi.fn() }),
+  useViewPreferences: () => ({
+    preferences: { documentsView: 'table', itemsPerPage: 50, sortBy: 'created_at', sortDirection: 'desc' },
+    update: vi.fn(),
+  }),
+}));
+
 const mockStatus = {
   system_type: 'production_server',
   version: '2.0.0',
@@ -156,5 +164,21 @@ describe('Settings', () => {
     expect(screen.getByText('Version')).toBeInTheDocument();
     expect(screen.getByText('2.0.0')).toBeInTheDocument();
     expect(screen.getByText('Tenant ID')).toBeInTheDocument();
+  });
+
+  it('renders User Preferences card with theme selector', () => {
+    setupLoaded();
+    renderSettings();
+    expect(screen.getByText('User Preferences')).toBeInTheDocument();
+    expect(screen.getByLabelText('Theme selector')).toBeInTheDocument();
+  });
+
+  it('renders Notification Preferences card with toggle switches', () => {
+    setupLoaded();
+    renderSettings();
+    expect(screen.getByText('Notification Preferences')).toBeInTheDocument();
+    expect(screen.getByText('Document Processed')).toBeInTheDocument();
+    expect(screen.getByText('Classification Failed')).toBeInTheDocument();
+    expect(screen.getByText('Manual Review Required')).toBeInTheDocument();
   });
 });

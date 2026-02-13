@@ -1,5 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import toast from 'react-hot-toast';
 import { Documents } from '../Documents';
 import { useDocuments } from '@/hooks/api/useDocuments';
 import { useDocumentStore } from '@/stores/documents';
@@ -53,6 +54,10 @@ vi.mock('@/hooks/api/useDocuments', () => ({
   useDocumentDelete: vi.fn(() => ({ mutate: mockDeleteMutate, isPending: false })),
   useDocument: vi.fn(() => ({ data: null })),
 }));
+
+// Capture the real mock references for assertions
+const mockToastSuccess = vi.mocked(toast.success);
+const mockToastError = vi.mocked(toast.error);
 
 // react-hot-toast is imported transitively — stub it to prevent side-effects
 vi.mock('react-hot-toast', () => ({
@@ -266,5 +271,51 @@ describe('Documents', () => {
     expect(nextButton).not.toBeDisabled();
     await userEvent.click(nextButton);
     expect(useDocumentStore.getState().currentPage).toBe(2);
+  });
+
+  // --- P39: Search debounce ---
+
+  it('does not call search mutation immediately on typing', async () => {
+    renderDocuments();
+    const input = screen.getByPlaceholderText(/Search documents/);
+    await userEvent.type(input, 'inv');
+    // mutation should not be called yet (debounce pending)
+    expect(mockSearchMutate).not.toHaveBeenCalled();
+  });
+
+  it('calls search mutation after debounce delay', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderDocuments();
+    const input = screen.getByPlaceholderText(/Search documents/);
+    await userEvent.type(input, 'invoice');
+    // Advance past debounce delay
+    await vi.advanceTimersByTimeAsync(350);
+    expect(mockSearchMutate).toHaveBeenCalledTimes(1);
+    expect(mockSearchMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ query: 'invoice' }),
+    );
+    vi.useRealTimers();
+  });
+
+  // --- P38: Delete feedback toasts ---
+
+  it('shows success toast when delete succeeds', async () => {
+    mockDeleteMutate.mockImplementation((_id: string, opts: any) => {
+      opts?.onSuccess?.();
+    });
+    renderDocuments();
+    const deleteButtons = screen.getAllByText('Delete');
+    await userEvent.click(deleteButtons[0]);
+    expect(mockToastSuccess).toHaveBeenCalledWith('Document deleted');
+  });
+
+  it('shows error toast when delete fails', async () => {
+    mockDeleteMutate.mockImplementation((_id: string, opts: any) => {
+      opts?.onError?.();
+    });
+    renderDocuments();
+    const deleteButtons = screen.getAllByText('Delete');
+    await userEvent.click(deleteButtons[0]);
+    expect(mockToastError).toHaveBeenCalledWith('Failed to delete document');
   });
 });

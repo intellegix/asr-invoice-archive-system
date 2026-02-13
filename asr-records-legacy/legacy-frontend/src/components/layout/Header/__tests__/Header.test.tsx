@@ -190,6 +190,40 @@ describe('Header', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/login');
   });
 
+  // --- P40: Escape key closes dropdowns ---
+
+  it('closes notification dropdown on Escape key', () => {
+    renderHeader();
+    fireEvent.click(screen.getByRole('button', { name: /notifications/i }));
+    expect(screen.getByText('No notifications')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText('No notifications')).not.toBeInTheDocument();
+  });
+
+  it('closes user menu dropdown on Escape key', () => {
+    renderHeader();
+    fireEvent.click(screen.getByRole('button', { name: /user menu/i }));
+    expect(screen.getByText('Sign out')).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText('Sign out')).not.toBeInTheDocument();
+  });
+
+  // --- P41: Hamburger menu button ---
+
+  it('renders hamburger menu button with md:hidden', () => {
+    renderHeader();
+    const menuBtn = screen.getByRole('button', { name: /open menu/i });
+    expect(menuBtn).toBeInTheDocument();
+    expect(menuBtn.className).toContain('md:hidden');
+  });
+
+  it('hamburger button calls toggleSidebar', () => {
+    useUIStore.setState({ sidebarCollapsed: true });
+    renderHeader();
+    fireEvent.click(screen.getByRole('button', { name: /open menu/i }));
+    expect(useUIStore.getState().sidebarCollapsed).toBe(false);
+  });
+
   // --- Dark mode variants ---
 
   it('includes dark variant on header container', () => {

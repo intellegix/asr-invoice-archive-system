@@ -316,6 +316,52 @@ class PaymentDetectionResponseSchema(BaseModel):
     )
 
 
+# Audit Log Schemas
+
+
+class AuditLogEntrySchema(BaseModel):
+    """Schema for a single audit log entry."""
+
+    id: Optional[int] = Field(None, description="Audit entry ID")
+    document_id: str = Field(..., description="Associated document ID")
+    event_type: str = Field(..., description="Type of audit event")
+    event_data: Optional[Dict[str, Any]] = Field(
+        None, description="Event payload data"
+    )
+    user_id: Optional[str] = Field(None, description="User who triggered the event")
+    system_component: Optional[str] = Field(
+        None, description="System component that generated the event"
+    )
+    timestamp: Optional[str] = Field(None, description="ISO-8601 event timestamp")
+    tenant_id: Optional[str] = Field(None, description="Tenant identifier")
+
+
+class AuditLogListResponseSchema(BaseModel):
+    """Schema for audit log listing responses."""
+
+    entries: List[AuditLogEntrySchema] = Field(
+        ..., description="List of audit log entries"
+    )
+    total_count: int = Field(..., description="Total number of entries returned")
+
+
+# Settings Schema
+
+
+class SettingsResponseSchema(BaseModel):
+    """Schema for unified settings endpoint."""
+
+    tenant_id: str = Field(..., description="Current tenant identifier")
+    system_type: str = Field(..., description="System type identifier")
+    version: str = Field(..., description="Server version")
+    capabilities: Dict[str, Any] = Field(
+        ..., description="Server capabilities configuration"
+    )
+    limits: Dict[str, Any] = Field(..., description="System limits")
+    security: Dict[str, Any] = Field(..., description="Security configuration")
+    storage: Dict[str, Any] = Field(..., description="Storage configuration")
+
+
 # Error Response Schemas
 
 
@@ -450,4 +496,9 @@ __all__ = [
     # Utility schemas
     "PaginationSchema",
     "DocumentFilterSchema",
+    # Audit log schemas
+    "AuditLogEntrySchema",
+    "AuditLogListResponseSchema",
+    # Settings schema
+    "SettingsResponseSchema",
 ]

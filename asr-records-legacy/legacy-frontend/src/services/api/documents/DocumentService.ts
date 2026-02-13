@@ -73,4 +73,14 @@ export const documentsAPI = {
   async batchProcess(fileIds: string[]) {
     return apiClient.post('/extract/batch', { file_ids: fileIds });
   },
+
+  // Fetch audit logs for a tenant
+  async fetchAuditLogs(params?: { tenant_id?: string; event_type?: string; limit?: number }) {
+    return apiClient.get('/api/v1/audit-logs', params);
+  },
+
+  // Fetch audit logs for a specific document
+  async fetchDocumentAuditLogs(documentId: string) {
+    return apiClient.get(`/api/v1/audit-logs/${documentId}`);
+  },
 };

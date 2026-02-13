@@ -1,12 +1,29 @@
-import React from 'react';
-import { Server, Database, Shield, Activity, CheckCircle, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Server, Database, Shield, Activity, CheckCircle, AlertCircle, Palette, Bell } from 'lucide-react';
 import { useSystemStatus, useSystemInfo } from '@/hooks/api/useSystemStatus';
 import { useTenantId } from '@/stores/auth';
+import { useTheme, useViewPreferences } from '@/stores/ui/uiStore';
 
 export const Settings: React.FC = () => {
   const { data: systemStatus, isLoading: statusLoading } = useSystemStatus();
   const { data: systemInfo, isLoading: infoLoading } = useSystemInfo();
   const tenantId = useTenantId();
+  const { theme, setTheme } = useTheme();
+  const { preferences, update: updatePreference } = useViewPreferences();
+
+  // Notification preferences stored in localStorage
+  const [notifPrefs, setNotifPrefs] = useState(() => {
+    try {
+      const stored = localStorage.getItem('asr-notification-prefs');
+      return stored ? JSON.parse(stored) : { documentProcessed: true, classificationFailed: true, manualReviewRequired: true };
+    } catch {
+      return { documentProcessed: true, classificationFailed: true, manualReviewRequired: true };
+    }
+  });
+
+  useEffect(() => {
+    try { localStorage.setItem('asr-notification-prefs', JSON.stringify(notifPrefs)); } catch { /* noop */ }
+  }, [notifPrefs]);
 
   const isLoading = statusLoading || infoLoading;
 
@@ -170,6 +187,79 @@ export const Settings: React.FC = () => {
               label="Audit Trails"
               value={capabilities?.billing_router?.audit_trails ? 'Enabled' : 'Disabled'}
             />
+          </div>
+        </div>
+
+        {/* User Preferences */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center space-x-2">
+              <Palette className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <h3 className="card-title">User Preferences</h3>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Theme</span>
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value as 'light' | 'dark')}
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                aria-label="Theme selector"
+              >
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+              <span className="text-sm text-gray-500 dark:text-gray-400">Items per Page</span>
+              <select
+                value={preferences.itemsPerPage}
+                onChange={(e) => updatePreference('itemsPerPage', Number(e.target.value))}
+                className="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                aria-label="Items per page selector"
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Notification Preferences */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center space-x-2">
+              <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <h3 className="card-title">Notification Preferences</h3>
+            </div>
+          </div>
+          <div className="space-y-4">
+            {([
+              ['documentProcessed', 'Document Processed'],
+              ['classificationFailed', 'Classification Failed'],
+              ['manualReviewRequired', 'Manual Review Required'],
+            ] as const).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+                <button
+                  role="switch"
+                  aria-checked={notifPrefs[key]}
+                  aria-label={label}
+                  onClick={() => setNotifPrefs((prev: Record<string, boolean>) => ({ ...prev, [key]: !prev[key] }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    notifPrefs[key] ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      notifPrefs[key] ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       </div>
