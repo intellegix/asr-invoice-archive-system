@@ -238,7 +238,7 @@ class GLAccountService:
             # Try multiple classification approaches
             results = []
 
-            # Method 1: Vendor-specific mapping (DB-backed + hardcoded fallback)
+            # Method 1: Vendor-specific mapping (DB-backed)
             if vendor_name:
                 vendor_result = await self._classify_by_vendor(vendor_name, tenant_id)
                 if vendor_result:
@@ -307,85 +307,25 @@ class GLAccountService:
     async def _classify_by_vendor(
         self, vendor_name: str, tenant_id: Optional[str] = None
     ) -> Optional[GLClassificationResult]:
-        """Classify based on DB vendor lookup, then fall back to hardcoded patterns."""
-        # --- DB lookup (via VendorService) ---
-        if self._vendor_service:
-            try:
-                matched = await self._vendor_service.match_vendor(
-                    vendor_name, tenant_id
-                )
-                if matched and matched.get("default_gl_account"):
-                    gl_code = matched["default_gl_account"]
-                    account = self.gl_accounts.get(gl_code)
-                    if account:
-                        logger.info(
-                            "Vendor DB match: vendor=%s gl=%s method=database",
-                            vendor_name,
-                            gl_code,
-                        )
-                        return GLClassificationResult(
-                            gl_account_code=gl_code,
-                            gl_account_name=account.name,
-                            category=account.category,
-                            confidence=0.95,
-                            reasoning=(
-                                f"Vendor '{vendor_name}' matched DB vendor "
-                                f"'{matched['name']}' (id={matched['id']})"
-                            ),
-                            keywords_matched=[matched["name"]],
-                            classification_method="vendor_database",
-                        )
-            except Exception:
-                logger.exception("Vendor DB lookup failed for '%s'", vendor_name)
+        """Classify based on DB vendor lookup.
 
-        # --- Hardcoded fallback ---
-        vendor_lower = vendor_name.lower()
+        All vendor→GL mappings live in the vendors table (seeded by Alembic
+        migration 0003). No hardcoded fallback.
+        """
+        if not self._vendor_service:
+            logger.debug(
+                "No vendor_service configured — skipping vendor classification"
+            )
+            return None
 
-        vendor_mappings = {
-            # Materials/Supplies
-            "home depot": "5000",
-            "lowes": "5000",
-            "lowe's": "5000",
-            "abc supply": "5000",
-            "beacon": "5000",
-            "ferguson": "5000",
-            # Utilities
-            "sdge": "6600",
-            "san diego gas": "6600",
-            "cox": "6600",
-            "verizon": "6600",
-            "at&t": "6600",
-            "att": "6600",
-            # Waste Management
-            "usa waste": "6600",
-            "waste management": "6600",
-            "republic": "6600",
-            "edco": "6600",
-            # Fuel
-            "shell": "6900",
-            "chevron": "6900",
-            "mobil": "6900",
-            "exxon": "6900",
-            "arco": "6900",
-            # Professional Services
-            "attorney": "5700",
-            "law firm": "5700",
-            "legal": "5700",
-            "accountant": "5700",
-            "cpa": "5700",
-            # Insurance
-            "insurance": "5500",
-            "farmers": "5500",
-            "state farm": "5500",
-            "allstate": "5500",
-        }
-
-        for vendor_pattern, gl_code in vendor_mappings.items():
-            if vendor_pattern in vendor_lower:
+        try:
+            matched = await self._vendor_service.match_vendor(vendor_name, tenant_id)
+            if matched and matched.get("default_gl_account"):
+                gl_code = matched["default_gl_account"]
                 account = self.gl_accounts.get(gl_code)
                 if account:
                     logger.info(
-                        "Vendor hardcoded match: vendor=%s gl=%s method=hardcoded",
+                        "Vendor DB match: vendor=%s gl=%s method=database",
                         vendor_name,
                         gl_code,
                     )
@@ -393,11 +333,22 @@ class GLAccountService:
                         gl_account_code=gl_code,
                         gl_account_name=account.name,
                         category=account.category,
-                        confidence=0.85,
-                        reasoning=f"Vendor '{vendor_name}' matches known pattern '{vendor_pattern}'",
-                        keywords_matched=[vendor_pattern],
-                        classification_method="vendor_mapping",
+                        confidence=0.95,
+                        reasoning=(
+                            f"Vendor '{vendor_name}' matched DB vendor "
+                            f"'{matched['name']}' (id={matched['id']})"
+                        ),
+                        keywords_matched=[matched["name"]],
+                        classification_method="vendor_database",
                     )
+            else:
+                logger.debug(
+                    "No vendor DB match for '%s' (tenant=%s)",
+                    vendor_name,
+                    tenant_id,
+                )
+        except Exception:
+            logger.exception("Vendor DB lookup failed for '%s'", vendor_name)
 
         return None
 

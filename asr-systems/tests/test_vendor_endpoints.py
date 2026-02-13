@@ -161,23 +161,35 @@ class TestVendorStats:
 class TestVendorAuditLogging:
     """Verify CRUD operations produce structured log messages."""
 
-    def test_create_vendor_logs_action(self, client, caplog):
+    def test_create_vendor_logs_action(self, client):
         """Vendor creation should emit a vendor_crud log entry."""
-        import logging
+        import sys
+        from unittest.mock import patch
 
-        with caplog.at_level(logging.INFO):
+        mod = sys.modules.get(
+            "production_server.services.vendor_service",
+            sys.modules.get("services.vendor_service"),
+        )
+        with patch.object(mod, "logger") as mock_logger:
+            mock_logger.info = mock_logger.info
             _create_vendor(client, "LogTestVendor")
         assert any(
-            "vendor_crud" in r.message and "action=create" in r.message
-            for r in caplog.records
+            "vendor_crud" in str(c) and "action=create" in str(c)
+            for c in mock_logger.info.call_args_list
         )
 
-    def test_update_vendor_logs_action(self, client, caplog):
+    def test_update_vendor_logs_action(self, client):
         """Vendor update should emit a vendor_crud log entry."""
-        import logging
+        import sys
+        from unittest.mock import patch
 
         vendor = _create_vendor(client, "LogUpdateVendor")
-        with caplog.at_level(logging.INFO):
+        mod = sys.modules.get(
+            "production_server.services.vendor_service",
+            sys.modules.get("services.vendor_service"),
+        )
+        with patch.object(mod, "logger") as mock_logger:
+            mock_logger.info = mock_logger.info
             client.put(
                 f"/vendors/{vendor['id']}",
                 json={"notes": "updated"},
@@ -185,24 +197,30 @@ class TestVendorAuditLogging:
                 cookies=CSRF_COOKIES,
             )
         assert any(
-            "vendor_crud" in r.message and "action=update" in r.message
-            for r in caplog.records
+            "vendor_crud" in str(c) and "action=update" in str(c)
+            for c in mock_logger.info.call_args_list
         )
 
-    def test_delete_vendor_logs_action(self, client, caplog):
+    def test_delete_vendor_logs_action(self, client):
         """Vendor deletion should emit a vendor_crud log entry."""
-        import logging
+        import sys
+        from unittest.mock import patch
 
         vendor = _create_vendor(client, "LogDeleteVendor")
-        with caplog.at_level(logging.INFO):
+        mod = sys.modules.get(
+            "production_server.services.vendor_service",
+            sys.modules.get("services.vendor_service"),
+        )
+        with patch.object(mod, "logger") as mock_logger:
+            mock_logger.info = mock_logger.info
             client.delete(
                 f"/vendors/{vendor['id']}",
                 headers=WRITE_HEADERS,
                 cookies=CSRF_COOKIES,
             )
         assert any(
-            "vendor_crud" in r.message and "action=delete" in r.message
-            for r in caplog.records
+            "vendor_crud" in str(c) and "action=delete" in str(c)
+            for c in mock_logger.info.call_args_list
         )
 
 

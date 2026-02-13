@@ -59,6 +59,28 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate Alembic migrations (pre-deploy)
+        working-directory: asr-systems
+        run: |
+          pip install -q alembic sqlalchemy
+          echo "Checking migration chain linearity..."
+          python -c "
+          from alembic.config import Config
+          from alembic.script import ScriptDirectory
+          cfg = Config('alembic.ini')
+          script = ScriptDirectory.from_config(cfg)
+          heads = script.get_heads()
+          assert len(heads) == 1, f'Multiple heads detected: {heads}'
+          revs = list(script.walk_revisions())
+          print(f'  {len(revs)} migrations, head={heads[0]}')
+          print('Migration chain is linear — OK')
+          "
+
       - name: Build and push backend image
         working-directory: asr-systems
         env:
@@ -69,6 +91,16 @@ jobs:
             -t $ECR_REGISTRY/asr-records-backend-dev:latest .
           docker push $ECR_REGISTRY/asr-records-backend-dev:$IMAGE_TAG
           docker push $ECR_REGISTRY/asr-records-backend-dev:latest
+
+      - name: Validate task definition (pre-deploy)
+        run: |
+          echo "Checking backend-task-def.json for duplicate env vars..."
+          DUPES=$(jq -r '.containerDefinitions[0].environment // [] | map(.name) | group_by(.) | map(select(length > 1)) | flatten | unique | .[]' asr-systems/backend-task-def.json 2>/dev/null || echo "")
+          if [ -n "$DUPES" ]; then
+            echo "ERROR: Duplicate env vars found: $DUPES"
+            exit 1
+          fi
+          echo "No duplicate env vars — task definition valid."
 
       - name: Update ECS backend service
         env:
@@ -88,16 +120,6 @@ jobs:
             --service backend-service \
             --task-definition "$NEW_TASK_DEF" \
             --force-new-deployment
-
-      - name: Validate task definition (pre-deploy)
-        run: |
-          echo "Checking backend-task-def.json for duplicate env vars..."
-          DUPES=$(jq -r '.containerDefinitions[0].environment // [] | map(.name) | group_by(.) | map(select(length > 1)) | flatten | unique | .[]' asr-systems/backend-task-def.json 2>/dev/null || echo "")
-          if [ -n "$DUPES" ]; then
-            echo "ERROR: Duplicate env vars found: $DUPES"
-            exit 1
-          fi
-          echo "No duplicate env vars — task definition valid."
 
       - name: Post-deploy health check (backend)
         run: |

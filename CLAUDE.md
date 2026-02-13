@@ -33,8 +33,8 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (291 pytest tests) ---
-python -m pytest asr-systems/tests/ -v                        # All 291 tests
+# --- Backend (499 pytest tests) ---
+python -m pytest asr-systems/tests/ -v                        # All 499 tests
 python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # GL account tests only
 python asr-systems/integration_test.py                        # Integration tests
@@ -56,7 +56,7 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 ```
 
-### Backend Test Files (291 tests)
+### Backend Test Files (492 tests)
 
 | File | Tests | Coverage |
 |------|-------|----------|
@@ -67,9 +67,9 @@ npm run test:e2e:report                                       # View HTML report
 | `test_config_loading.py` | 15 | GL accounts + routing rules YAML + Pydantic v2 settings |
 | `test_csrf_middleware.py` | 7 | CSRF double-submit cookie validation |
 | `test_dashboard_routes.py` | 17 | /metrics/* endpoint shapes |
-| `test_database_migrations.py` | 6 | Alembic config + DB URL validation |
+| `test_database_migrations.py` | 13 | Alembic config, DB URL validation, migration chain, seed data |
 | `test_document_processor_service.py` | 10 | Pipeline orchestration + text extraction |
-| `test_gl_account_service.py` | 14 | GL classification + vendor DB integration |
+| `test_gl_account_service.py` | 15 | GL classification + vendor DB integration |
 | `test_health_endpoints.py` | 9 | Liveness/readiness probes + shutdown flag |
 | `test_multi_tenant_isolation.py` | 8 | Storage/API/scanner tenant scoping |
 | `test_openapi_tags.py` | 4 | OpenAPI schema tag validation |
@@ -80,6 +80,10 @@ npm run test:e2e:report                                       # View HTML report
 | `test_scanner_manager_service.py` | 15 | Scanner registration/heartbeat |
 | `test_security_hardening.py` | 13 | CSRF secure flag, auth, tenant isolation, doc ID validation |
 | `test_service_error_scenarios.py` | 22 | GL/payment/router/processor/storage edge cases |
+| `test_shared_api_client.py` | 19 | HTTP client, retry logic, error classification |
+| `test_shared_exceptions.py` | 37 | Exception constructors, to_dict(), handle_exception() |
+| `test_shared_file_utils.py` | 45 | File hash, copy/move/delete, archive, JSON I/O |
+| `test_shared_validation.py` | 99 | 14 validation/sanitization functions |
 | `test_storage_service.py` | 16 | Local CRUD + tenant isolation + path traversal + search |
 | `test_tenant_middleware.py` | 10 | Header extraction, query param ignored, response headers |
 | `test_vendor_endpoints.py` | 19 | Vendor CRUD, validation, stats, DB persistence, audit logging |
@@ -150,7 +154,7 @@ Client → FastAPI (api/main.py)
 
 **Hyphenated directory imports**: `production-server/` and `document-scanner/` use hyphens but Python needs underscores. `start_server.py` and `main_server.py` handle this via `importlib.util.spec_from_file_location()` to register modules as `production_server.*`. Never try to `import production-server` directly.
 
-**GL accounts are static constants**: The 79 QB accounts live in `shared/core/constants.py` as an in-memory dict indexed by keyword. No database lookup. To add accounts, edit that dict. However, vendor→GL classification now also checks the VendorService DB (via `default_gl_account` field) before falling back to the hardcoded vendor mapping.
+**GL accounts are static constants**: The 79 QB accounts live in `shared/core/constants.py` as an in-memory dict indexed by keyword. No database lookup. To add accounts, edit that dict. Vendor→GL classification is DB-only: `GLAccountService._classify_by_vendor()` queries VendorService for `default_gl_account` (seeded by Alembic migration 0003). No hardcoded fallback.
 
 **Payment consensus is mean confidence, not majority vote**: `PaymentDetectionService` averages confidence scores across enabled methods. Method order and thresholds matter.
 
@@ -181,7 +185,7 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 60% on Python 3.11 + 3.12 (291 tests)
+- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 65% on Python 3.11 + 3.12 (499 tests)
 - **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (493 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
@@ -204,7 +208,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 883 tests | — |
+| Full-Stack Tests | 1091 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
