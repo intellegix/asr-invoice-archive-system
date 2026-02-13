@@ -14,13 +14,13 @@ export const Settings: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="mt-2 text-gray-600">Loading system information...</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading system information...</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="card animate-pulse">
-              <div className="h-32 bg-gray-200 rounded"></div>
+              <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </div>
           ))}
         </div>
@@ -36,8 +36,8 @@ export const Settings: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Settings</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           System configuration and status overview.
         </p>
       </div>
@@ -47,7 +47,7 @@ export const Settings: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Server className="h-5 w-5 text-gray-600" />
+              <Server className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               <h3 className="card-title">System Information</h3>
             </div>
           </div>
@@ -81,31 +81,31 @@ export const Settings: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Activity className="h-5 w-5 text-gray-600" />
+              <Activity className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               <h3 className="card-title">API Status</h3>
             </div>
             <div className="flex items-center space-x-2 mt-2">
               <div className={`h-3 w-3 rounded-full ${isOperational ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className={`text-sm font-medium ${isOperational ? 'text-green-700' : 'text-red-700'}`}>
+              <span className={`text-sm font-medium ${isOperational ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                 {isOperational ? 'All Systems Operational' : 'Degraded Performance'}
               </span>
             </div>
           </div>
           <div className="space-y-3">
             {Object.entries(services).map(([name, service]) => (
-              <div key={name} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <span className="text-sm text-gray-700 capitalize">
+              <div key={name} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
                   {name.replace(/_/g, ' ')}
                 </span>
                 <div className="flex items-center space-x-2">
                   {service.count != null && (
-                    <span className="text-xs text-gray-500">({service.count})</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({service.count})</span>
                   )}
                   {service.methods != null && (
-                    <span className="text-xs text-gray-500">({service.methods} methods)</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({service.methods} methods)</span>
                   )}
                   {service.destinations != null && (
-                    <span className="text-xs text-gray-500">({service.destinations} destinations)</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">({service.destinations} destinations)</span>
                   )}
                   {service.status === 'active' ? (
                     <CheckCircle className="h-4 w-4 text-green-500" />
@@ -116,7 +116,7 @@ export const Settings: React.FC = () => {
               </div>
             ))}
             {Object.keys(services).length === 0 && (
-              <p className="text-sm text-gray-500">No service data available</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">No service data available</p>
             )}
           </div>
         </div>
@@ -125,7 +125,7 @@ export const Settings: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Database className="h-5 w-5 text-gray-600" />
+              <Database className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               <h3 className="card-title">Configuration</h3>
             </div>
           </div>
@@ -158,7 +158,7 @@ export const Settings: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <div className="flex items-center space-x-2">
-              <Shield className="h-5 w-5 text-gray-600" />
+              <Shield className="h-5 w-5 text-gray-600 dark:text-gray-400" />
               <h3 className="card-title">Security</h3>
             </div>
           </div>
@@ -178,8 +178,8 @@ export const Settings: React.FC = () => {
 };
 
 const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-    <span className="text-sm text-gray-500">{label}</span>
-    <span className="text-sm font-medium text-gray-900">{value}</span>
+  <div className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+    <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{value}</span>
   </div>
 );

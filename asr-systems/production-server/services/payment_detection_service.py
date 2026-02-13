@@ -699,9 +699,6 @@ class PaymentDetectionService:
         )
 
     async def cleanup(self):
-        """Cleanup payment detection service"""
+        """Reset service state. Claude client is stateless — no connections to close."""
         logger.info("Cleaning up Payment Detection Service...")
-        if self.claude_client:
-            # Close Claude client if needed
-            pass
         self.initialized = False

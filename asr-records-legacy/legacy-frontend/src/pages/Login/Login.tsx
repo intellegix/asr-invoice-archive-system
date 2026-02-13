@@ -49,23 +49,23 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8">
           {/* Brand */}
           <div className="flex items-center justify-center space-x-3 mb-8">
             <div className="h-12 w-12 bg-primary-600 rounded-lg flex items-center justify-center">
               <Folder className="h-7 w-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">ASR Records</h1>
-              <p className="text-sm text-gray-500">Legacy Edition</p>
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">ASR Records</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Legacy Edition</p>
             </div>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-6 flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">
+            <div className="mb-6 flex items-center gap-2 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300" role="alert">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -75,7 +75,7 @@ export const Login: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* API Key */}
             <div>
-              <label htmlFor="api-key" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="api-key" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 API Key
               </label>
               <div className="relative">
@@ -97,7 +97,7 @@ export const Login: React.FC = () => {
 
             {/* Tenant ID */}
             <div>
-              <label htmlFor="tenant-id" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="tenant-id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Tenant ID
               </label>
               <div className="relative">

@@ -176,4 +176,48 @@ describe('MetricCard', () => {
     fireEvent.click(card);
     expect(handleClick).toHaveBeenCalledTimes(1);
   });
+
+  // --- Dark mode variants ---
+
+  it('includes dark variant classes for blue color', () => {
+    const { container } = render(
+      <MetricCard title="Docs" value="100" color="blue" />
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).toContain('dark:bg-blue-950');
+    expect(card.className).toContain('dark:border-blue-800');
+  });
+
+  it('includes dark variant classes for green color', () => {
+    const { container } = render(
+      <MetricCard title="Docs" value="100" color="green" />
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).toContain('dark:bg-green-950');
+  });
+
+  it('includes dark variant on icon container', () => {
+    const { container } = render(
+      <MetricCard title="Docs" value="100" icon={MockIcon} color="blue" />
+    );
+    const iconContainer = container.querySelector('.bg-white.dark\\:bg-gray-700');
+    expect(iconContainer).toBeInTheDocument();
+  });
+
+  it('includes dark variant on loading skeleton', () => {
+    const { container } = render(
+      <MetricCard title="Docs" value="100" isLoading />
+    );
+    const skeletonBars = container.querySelectorAll('.dark\\:bg-gray-700');
+    expect(skeletonBars.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('includes dark variant on error state', () => {
+    const { container } = render(
+      <MetricCard title="Docs" value="100" error="Failed" />
+    );
+    const card = container.firstElementChild as HTMLElement;
+    expect(card.className).toContain('dark:bg-red-950');
+    expect(card.className).toContain('dark:border-red-800');
+  });
 });

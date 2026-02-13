@@ -83,4 +83,62 @@ describe('FilterPanel', () => {
     expect(options[4].textContent).toBe('Void');
     expect(options[5].textContent).toBe('Unknown');
   });
+
+  // --- Dark mode variants ---
+
+  it('includes dark variant on container', () => {
+    const { container } = renderFilterPanel();
+    const panel = container.querySelector('.bg-gray-50.dark\\:bg-gray-800');
+    expect(panel).toBeInTheDocument();
+  });
+
+  it('includes dark variant on label text', () => {
+    const { container } = renderFilterPanel();
+    const labels = container.querySelectorAll('.dark\\:text-gray-400');
+    expect(labels.length).toBeGreaterThanOrEqual(6);
+  });
+
+  // --- Accessibility: label associations ---
+
+  it('associates Date From label with input via htmlFor', () => {
+    renderFilterPanel();
+    const label = screen.getByText('Date From');
+    expect(label).toHaveAttribute('for', 'filter-date-from');
+    expect(document.getElementById('filter-date-from')).toBeInTheDocument();
+  });
+
+  it('associates Date To label with input via htmlFor', () => {
+    renderFilterPanel();
+    const label = screen.getByText('Date To');
+    expect(label).toHaveAttribute('for', 'filter-date-to');
+    expect(document.getElementById('filter-date-to')).toBeInTheDocument();
+  });
+
+  it('associates Vendor label with input via htmlFor', () => {
+    renderFilterPanel();
+    const label = screen.getByText('Vendor');
+    expect(label).toHaveAttribute('for', 'filter-vendor');
+    expect(document.getElementById('filter-vendor')).toBeInTheDocument();
+  });
+
+  it('associates Min Amount label with input via htmlFor', () => {
+    renderFilterPanel();
+    const label = screen.getByText('Min Amount ($)');
+    expect(label).toHaveAttribute('for', 'filter-min-amount');
+    expect(document.getElementById('filter-min-amount')).toBeInTheDocument();
+  });
+
+  it('associates Max Amount label with input via htmlFor', () => {
+    renderFilterPanel();
+    const label = screen.getByText('Max Amount ($)');
+    expect(label).toHaveAttribute('for', 'filter-max-amount');
+    expect(document.getElementById('filter-max-amount')).toBeInTheDocument();
+  });
+
+  it('associates Payment Status label with select via htmlFor', () => {
+    renderFilterPanel();
+    const label = screen.getByText('Payment Status');
+    expect(label).toHaveAttribute('for', 'filter-payment-status');
+    expect(document.getElementById('filter-payment-status')).toBeInTheDocument();
+  });
 });

@@ -15,6 +15,7 @@ import {
   Filler,
 } from 'chart.js';
 import { MetricCard } from '@/components/common/MetricCard';
+import { useTheme } from '@/stores/ui/uiStore';
 import {
   useDashboardMetrics,
   usePaymentStatusDistribution,
@@ -37,10 +38,15 @@ ChartJS.register(
 );
 
 export const Reports: React.FC = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const { data: metrics, isLoading: metricsLoading } = useDashboardMetrics();
   const { data: paymentDistribution } = usePaymentStatusDistribution();
   const { data: glUsage } = useGLAccountUsage();
   const { data: trends } = useTrendData('30d');
+
+  const chartTextColor = isDark ? '#d1d5db' : '#374151';
+  const chartGridColor = isDark ? '#374151' : '#e5e7eb';
 
   const glChartData = React.useMemo(() => {
     const accounts = (glUsage as GLAccountUsage | undefined)?.accounts?.slice(0, 10) ?? [];
@@ -111,13 +117,13 @@ export const Reports: React.FC = () => {
     return (
       <div className="space-y-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
-          <p className="mt-2 text-gray-600">Loading reports...</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Reports</h1>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading reports...</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="card animate-pulse">
-              <div className="h-20 bg-gray-200 rounded"></div>
+              <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </div>
           ))}
         </div>
@@ -129,8 +135,8 @@ export const Reports: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Reports</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Reports</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Analytics and insights from your document processing pipeline.
         </p>
       </div>
@@ -186,13 +192,13 @@ export const Reports: React.FC = () => {
                     legend: { display: false },
                   },
                   scales: {
-                    x: { ticks: { maxRotation: 45, minRotation: 25 } },
-                    y: { beginAtZero: true },
+                    x: { ticks: { maxRotation: 45, minRotation: 25, color: chartTextColor }, grid: { color: chartGridColor } },
+                    y: { beginAtZero: true, ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
                   },
                 }}
               />
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
                 No GL account data available
               </div>
             )}
@@ -213,12 +219,12 @@ export const Reports: React.FC = () => {
                   responsive: true,
                   maintainAspectRatio: false,
                   plugins: {
-                    legend: { position: 'right' },
+                    legend: { position: 'right', labels: { color: chartTextColor } },
                   },
                 }}
               />
             ) : (
-              <div className="text-gray-500">No payment data available</div>
+              <div className="text-gray-500 dark:text-gray-400">No payment data available</div>
             )}
           </div>
         </div>
@@ -238,15 +244,16 @@ export const Reports: React.FC = () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                  legend: { position: 'top' },
+                  legend: { position: 'top', labels: { color: chartTextColor } },
                 },
                 scales: {
-                  y: { beginAtZero: true },
+                  x: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
+                  y: { beginAtZero: true, ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
                 },
               }}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
               No trend data available
             </div>
           )}
@@ -260,29 +267,29 @@ export const Reports: React.FC = () => {
           <p className="card-description">Document routing across 4 billing destinations</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">
+          <div className="text-center p-4 bg-orange-50 dark:bg-orange-950 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
               {metrics?.openPayable || 0}
             </div>
-            <div className="text-sm text-gray-600">Open Payable</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Open Payable</div>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">
+          <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
               {metrics?.closedPayable || 0}
             </div>
-            <div className="text-sm text-gray-600">Closed Payable</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Closed Payable</div>
           </div>
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">
+          <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
               {metrics?.openReceivable || 0}
             </div>
-            <div className="text-sm text-gray-600">Open Receivable</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Open Receivable</div>
           </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">
+          <div className="text-center p-4 bg-purple-50 dark:bg-purple-950 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
               {metrics?.closedReceivable || 0}
             </div>
-            <div className="text-sm text-gray-600">Closed Receivable</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Closed Receivable</div>
           </div>
         </div>
       </div>

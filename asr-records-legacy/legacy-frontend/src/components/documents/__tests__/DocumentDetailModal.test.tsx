@@ -105,4 +105,55 @@ describe('DocumentDetailModal', () => {
     fireEvent.click(backdrop);
     expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
   });
+
+  // --- Dark mode variants ---
+
+  it('includes dark variant on modal container', () => {
+    const { container } = renderModal();
+    const modal = container.querySelector('.bg-white.dark\\:bg-gray-800');
+    expect(modal).toBeInTheDocument();
+  });
+
+  it('includes dark variant on sticky header', () => {
+    const { container } = renderModal();
+    const header = container.querySelector('.sticky.top-0.bg-white.dark\\:bg-gray-800');
+    expect(header).toBeInTheDocument();
+  });
+
+  it('includes dark variant on sticky footer', () => {
+    const { container } = renderModal();
+    const footer = container.querySelector('.sticky.bottom-0.bg-white.dark\\:bg-gray-800');
+    expect(footer).toBeInTheDocument();
+  });
+
+  // --- Accessibility ---
+
+  it('has role="dialog" on modal', () => {
+    renderModal();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('has aria-modal="true" on dialog', () => {
+    renderModal();
+    expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
+  });
+
+  it('has aria-labelledby pointing to modal-title', () => {
+    renderModal();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-labelledby', 'modal-title');
+    expect(document.getElementById('modal-title')).toHaveTextContent('Document Details');
+  });
+
+  it('has aria-hidden on backdrop', () => {
+    const { container } = renderModal();
+    const backdrop = container.querySelector('.bg-black.bg-opacity-50');
+    expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('closes on Escape key', () => {
+    renderModal();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1);
+  });
 });

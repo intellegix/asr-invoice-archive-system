@@ -251,4 +251,18 @@ describe('Login page', () => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
+
+  // --- Dark mode variants ---
+
+  it('includes dark variant on outer wrapper', () => {
+    const { container } = renderLogin();
+    const wrapper = container.querySelector('.bg-gray-50.dark\\:bg-gray-950');
+    expect(wrapper).toBeInTheDocument();
+  });
+
+  it('includes dark variant on card', () => {
+    const { container } = renderLogin();
+    const card = container.querySelector('.bg-white.dark\\:bg-gray-800');
+    expect(card).toBeInTheDocument();
+  });
 });

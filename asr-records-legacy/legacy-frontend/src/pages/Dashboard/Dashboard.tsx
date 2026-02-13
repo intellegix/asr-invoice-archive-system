@@ -28,8 +28,8 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-2 text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Welcome back! Here's what's happening with your document processing.
         </p>
       </div>
@@ -87,7 +87,7 @@ export const Dashboard: React.FC = () => {
             {(metrics?.recentDocuments || []).map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
               >
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
@@ -95,48 +95,49 @@ export const Dashboard: React.FC = () => {
                       <FileText className="h-5 w-5 text-gray-400" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {doc.filename}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {doc.vendor} • ${doc.amount.toLocaleString()}
                       </p>
                     </div>
                   </div>
                   <div className="mt-2 flex items-center space-x-4 text-xs">
-                    <span className="text-gray-600">{doc.glAccount}</span>
+                    <span className="text-gray-600 dark:text-gray-400">{doc.glAccount}</span>
                     <span
+                      aria-label={`Payment status: ${doc.status}`}
                       className={`px-2 py-1 rounded-full ${
                         doc.status === 'paid'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
+                          ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
+                          : 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-300'
                       }`}
                     >
                       {doc.status}
                     </span>
-                    <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded-md">
+                    <span className="px-2 py-1 text-xs bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-300 rounded-md">
                       {doc.billingDestination?.replace('_', ' ')}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="flex items-center space-x-1">
-                    <span className="text-xs text-gray-500">{doc.confidence}%</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{doc.confidence}%</span>
                     {doc.confidence > 95 ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="h-4 w-4 text-green-500" aria-label="High confidence" />
                     ) : (
-                      <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      <AlertCircle className="h-4 w-4 text-yellow-500" aria-label="Low confidence" />
                     )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                     {new Date(doc.processedAt).toLocaleTimeString()}
                   </p>
                 </div>
               </div>
             ))}
             {(!metrics?.recentDocuments || metrics.recentDocuments.length === 0) && (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <FileText className="mx-auto h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
                 <p>No recent documents processed</p>
               </div>
             )}
@@ -164,14 +165,14 @@ export const Dashboard: React.FC = () => {
               return (
                 <div key={item.status} className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 capitalize">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">
                       {item.status}
                     </span>
-                    <span className="text-sm text-gray-600">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
                       {item.count} documents
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full ${colors[item.status as keyof typeof colors]}`}
                       style={{ width: `${item.percentage}%` }}
@@ -182,15 +183,15 @@ export const Dashboard: React.FC = () => {
             })}
 
             {(!(paymentDistribution as PaymentStatusDistribution | undefined)?.distribution || (paymentDistribution as PaymentStatusDistribution | undefined)?.distribution?.length === 0) && (
-              <div className="text-center py-4 text-gray-500">
+              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
                 <p>No payment status data available</p>
               </div>
             )}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">5-Method Consensus Accuracy</span>
+              <span className="text-gray-600 dark:text-gray-400">5-Method Consensus Accuracy</span>
               <span className="font-semibold text-green-600">
                 {metrics?.paymentAccuracy || 0}%
               </span>
@@ -208,26 +209,26 @@ export const Dashboard: React.FC = () => {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button onClick={() => navigate('/upload')} className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
-            <FileText className="h-6 w-6 text-primary-600 mb-2" />
-            <h4 className="font-medium text-gray-900">Upload Documents</h4>
-            <p className="text-sm text-gray-600">
+          <button onClick={() => navigate('/upload')} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors text-left">
+            <FileText className="h-6 w-6 text-primary-600 dark:text-primary-400 mb-2" />
+            <h4 className="font-medium text-gray-900 dark:text-gray-100">Upload Documents</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Add new documents for processing
             </p>
           </button>
 
-          <button onClick={() => navigate('/reports')} className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
-            <TrendingUp className="h-6 w-6 text-primary-600 mb-2" />
-            <h4 className="font-medium text-gray-900">View Reports</h4>
-            <p className="text-sm text-gray-600">
+          <button onClick={() => navigate('/reports')} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors text-left">
+            <TrendingUp className="h-6 w-6 text-primary-600 dark:text-primary-400 mb-2" />
+            <h4 className="font-medium text-gray-900 dark:text-gray-100">View Reports</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Generate analytics and insights
             </p>
           </button>
 
-          <button onClick={() => navigate('/documents')} className="p-4 border border-gray-200 rounded-lg hover:border-primary-300 hover:bg-primary-50 transition-colors text-left">
-            <AlertCircle className="h-6 w-6 text-primary-600 mb-2" />
-            <h4 className="font-medium text-gray-900">Review Queue</h4>
-            <p className="text-sm text-gray-600">
+          <button onClick={() => navigate('/documents')} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-950 transition-colors text-left">
+            <AlertCircle className="h-6 w-6 text-primary-600 dark:text-primary-400 mb-2" />
+            <h4 className="font-medium text-gray-900 dark:text-gray-100">Review Queue</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Check items needing manual review
             </p>
           </button>

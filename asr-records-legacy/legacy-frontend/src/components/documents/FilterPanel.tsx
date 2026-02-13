@@ -59,10 +59,10 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 mt-4">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800 mt-4">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-sm font-semibold text-gray-700">Filters</h4>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filters</h4>
+        <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -70,8 +70,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Date Range */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Date From</label>
+          <label htmlFor="filter-date-from" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date From</label>
           <input
+            id="filter-date-from"
             type="date"
             className="input text-sm"
             value={dateStart}
@@ -79,8 +80,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Date To</label>
+          <label htmlFor="filter-date-to" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Date To</label>
           <input
+            id="filter-date-to"
             type="date"
             className="input text-sm"
             value={dateEnd}
@@ -90,8 +92,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
 
         {/* Vendor */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Vendor</label>
+          <label htmlFor="filter-vendor" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Vendor</label>
           <input
+            id="filter-vendor"
             type="text"
             className="input text-sm"
             placeholder="Filter by vendor..."
@@ -102,8 +105,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
 
         {/* Amount Range */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Min Amount ($)</label>
+          <label htmlFor="filter-min-amount" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Min Amount ($)</label>
           <input
+            id="filter-min-amount"
             type="number"
             className="input text-sm"
             placeholder="0"
@@ -112,8 +116,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Max Amount ($)</label>
+          <label htmlFor="filter-max-amount" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Max Amount ($)</label>
           <input
+            id="filter-max-amount"
             type="number"
             className="input text-sm"
             placeholder="No limit"
@@ -124,8 +129,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({ onApply, onClose, curr
 
         {/* Payment Status */}
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Payment Status</label>
+          <label htmlFor="filter-payment-status" className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Payment Status</label>
           <select
+            id="filter-payment-status"
             className="input text-sm"
             value={paymentStatus}
             onChange={(e) => setPaymentStatus(e.target.value)}

@@ -1,22 +1,50 @@
-import React from 'react';
-import { Bell, User, Settings, Sun, Moon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Bell, User, Settings, Sun, Moon, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/common/Button';
-import { useUserInfo, useTenantId } from '@/stores/auth';
-import { useTheme } from '@/stores/ui/uiStore';
+import { useUserInfo, useTenantId, useAuthStore } from '@/stores/auth';
+import { useTheme, useNotifications } from '@/stores/ui/uiStore';
 
 interface HeaderProps {
   className?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ className }) => {
+  const navigate = useNavigate();
   const userInfo = useUserInfo();
   const tenantId = useTenantId();
+  const logout = useAuthStore((s) => s.logout);
   const { theme, toggle: toggleTheme } = useTheme();
+  const { notifications } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const currentUser = {
     name: userInfo?.name || 'Guest',
     email: userInfo?.email || '',
     tenant: tenantId || 'Default Tenant',
+  };
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSignOut = () => {
+    logout();
+    setShowUserMenu(false);
+    navigate('/login');
   };
 
   return (
@@ -35,16 +63,41 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
         {/* Right side - User actions */}
         <div className="flex items-center space-x-3">
           {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="relative p-2"
-            aria-label="Notifications"
-          >
-            <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            {/* Notification indicator */}
-            <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
-          </Button>
+          <div className="relative" ref={notifRef}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="relative p-2"
+              aria-label="Notifications"
+              onClick={() => setShowNotifications(!showNotifications)}
+            >
+              <Bell className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              {notifications.length > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                  {notifications.length > 9 ? '9+' : notifications.length}
+                </span>
+              )}
+            </Button>
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.length === 0 ? (
+                    <p className="px-4 py-6 text-sm text-gray-500 dark:text-gray-400 text-center">No notifications</p>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{n.title}</p>
+                        {n.message && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{n.message}</p>}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Theme toggle */}
           <Button
@@ -67,6 +120,7 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
             size="sm"
             className="p-2"
             aria-label="Settings"
+            onClick={() => navigate('/settings')}
           >
             <Settings className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </Button>
@@ -81,14 +135,28 @@ export const Header: React.FC<HeaderProps> = ({ className }) => {
                 {currentUser.email}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-2"
-              aria-label="User menu"
-            >
-              <User className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-            </Button>
+            <div className="relative" ref={userMenuRef}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2"
+                aria-label="User menu"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+              >
+                <User className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              </Button>
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50">
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center space-x-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

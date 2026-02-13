@@ -42,7 +42,7 @@ python asr-systems/tests/load_test.py                         # Load tests (50+ 
 python asr-systems/performance_validation.py                  # Performance benchmarks
 python asr-systems/system_verification.py                     # Deployment readiness check
 
-# --- Frontend (392 vitest tests) ---
+# --- Frontend (422 vitest tests) ---
 cd asr-records-legacy/legacy-frontend
 npm run test                                                  # All 392 tests
 npx vitest run                                                # Single run (no watch)
@@ -82,15 +82,15 @@ npm run test:e2e:report                                       # View HTML report
 | `test_storage_service.py` | 14 | Local CRUD + tenant isolation + path traversal |
 | `test_tenant_middleware.py` | 12 | Header extraction, fallback, response headers |
 
-### Frontend Test Files (392 vitest tests)
+### Frontend Test Files (422 vitest tests)
 
 | Category | Files | Tests | Coverage |
 |----------|-------|-------|----------|
-| Zustand Stores | 4 | 75 | auth (14), documents (33), ui (23), themePersistence (5) |
+| Zustand Stores | 4 | 75 | auth (15), documents (33), ui (23), themePersistence (4) |
 | API Services | 6 | 59 | ApiClient (21), queryClient (7), documents (10), metrics (10), vendors (6), AuthService (5) |
 | Custom Hooks | 5 | 51 | useDashboard (12), useDocuments (16), useVendors (6), useFileUpload (14), useSystemStatus (3) |
-| Components | 8 | 90 | Button (20), MetricCard (20), Header (12), Navigation (13), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10) |
-| Pages + App | 7 | 114 | Dashboard (21), Upload (18), Documents (25), Login (13), Settings (8), Reports (8), App routing (10), DocumentDetailModal (5), FilterPanel (5) |
+| Components | 8 | 115 | Button (20), MetricCard (25), Header (19), Navigation (13), ProtectedRoute (4), Skeleton (11), ErrorBoundary (10), DocumentDetailModal (13) |
+| Pages + App | 7 | 131 | Dashboard (21), Upload (18), Documents (25), Login (15), Settings (8), Reports (8), App routing (10), FilterPanel (13), exportCsv (4) |
 | Infrastructure | 2 | — | renderWithProviders wrapper, mock data fixtures |
 
 ### E2E Playwright Tests (73 tests)
@@ -174,7 +174,7 @@ Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uv
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 - **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (advisory), pytest with coverage >= 60% on Python 3.11 + 3.12 (234 tests)
-- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (392 tests) on Node 18
+- **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest (422 tests) on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
@@ -193,7 +193,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | CI Pipeline | Green | `8749d85` |
 | Deploy Pipeline | Green | `8749d85` |
 | System Review | Complete | `a35dfb5` |
-| Full-Stack Tests | 699 tests | — |
+| Full-Stack Tests | 729 tests | — |
 | P1-P6 Feature Pass | Complete | `6abf88e` |
 | P7-P9 Type Safety | Complete | `7702a6c` |
 | P10-P12 Metrics+Hardening | Complete | `cabc69d` |
@@ -201,6 +201,7 @@ Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` af
 | P14-P18 Plan | Complete | — |
 | P20-P25 Infra+Quality | Complete | — |
 | P26-P31 Housekeeping+Hardening | Complete | — |
+| P32-P37 DarkMode+A11y+Polish | Complete | — |
 
 ## Operational Runbook (AWS ECS)
 
