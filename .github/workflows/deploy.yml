@@ -42,6 +42,14 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 15
 
+      - name: Wait for PostgreSQL tests
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'test-pg'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
   deploy-backend:
     runs-on: ubuntu-latest
     needs: ci-check

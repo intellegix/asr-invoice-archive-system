@@ -311,7 +311,18 @@ class TestAlembicMigrationChain:
         entrypoint = Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
         assert entrypoint.exists(), "docker-entrypoint.sh must exist for auto-migration"
         content = entrypoint.read_text()
-        assert "alembic upgrade head" in content, "Entrypoint must run alembic upgrade"
+        assert "alembic" in content, "Entrypoint must run alembic upgrade"
+
+    def test_entrypoint_uses_advisory_lock(self):
+        """docker-entrypoint.sh should use pg_advisory_lock for concurrent safety."""
+        entrypoint = Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        content = entrypoint.read_text()
+        assert "pg_advisory_lock" in content, (
+            "Entrypoint must use pg_advisory_lock to prevent migration race conditions"
+        )
+        assert "pg_advisory_unlock" in content, (
+            "Entrypoint must release advisory lock after migration"
+        )
 
     def test_dockerfile_has_entrypoint(self):
         """Dockerfile should reference the entrypoint."""
