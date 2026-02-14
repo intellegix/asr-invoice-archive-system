@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "production_server"))
 
 from production_server.services.scanner_manager_service import (
     ScannerManagerService,

@@ -5,7 +5,7 @@ Tracks HTTP request count, duration, and in-progress gauge.
 
 import re
 import time
-from typing import Set
+from typing import Any, Awaitable, Callable, Set, cast
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -69,13 +69,15 @@ def _normalize_path(path: str) -> str:
 class PrometheusMiddleware(BaseHTTPMiddleware):
     """Starlette middleware that records Prometheus HTTP metrics."""
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         if not _HAS_PROM:
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         path = request.url.path
         if path in SKIP_PATHS:
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         method = request.method
         path_template = _normalize_path(path)
@@ -83,7 +85,7 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
         asr_http_requests_in_progress.labels(method=method).inc()
         start = time.perf_counter()
         try:
-            response = await call_next(request)
+            response = cast(Response, await call_next(request))
         except Exception:
             asr_http_requests_total.labels(
                 method=method, path_template=path_template, status_code=500

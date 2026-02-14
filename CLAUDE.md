@@ -33,9 +33,9 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (650 pytest tests) ---
+# --- Backend (672 pytest tests) ---
 python -m pytest asr-systems/tests/ -v                        # All tests
-python -m pytest asr-systems/tests/ -v --cov=production-server --cov=shared  # With coverage
+python -m pytest asr-systems/tests/ -v --cov=production_server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # Single file
 python -m pytest asr-systems/tests/test_vendor_service.py::TestVendorCRUD -v  # Single class
 python -m pytest asr-systems/tests/test_vendor_service.py::TestVendorCRUD::test_create -v  # Single test
@@ -57,10 +57,10 @@ npm run test:e2e:headed                                       # With visible bro
 npm run test:e2e:report                                       # View HTML report
 
 # --- Linting & Formatting ---
-python -m black asr-systems/production-server/ asr-systems/tests/   # Format Python
-python -m isort asr-systems/production-server/ asr-systems/tests/   # Sort imports
-python -m mypy asr-systems/production-server/                       # Type check (may warn on hyphenated dir)
-python -m bandit -r asr-systems/production-server/ -ll              # Security scan
+python -m black asr-systems/production_server/ asr-systems/tests/   # Format Python
+python -m isort asr-systems/production_server/ asr-systems/tests/   # Sort imports
+python -m mypy asr-systems/production_server/                       # Type check (blocking in CI)
+python -m bandit -r asr-systems/production_server/ -ll              # Security scan
 ```
 
 ## Architecture
@@ -86,7 +86,7 @@ Client → FastAPI (api/main.py)
 
 ### Key Directories
 
-- `asr-systems/production-server/` — Main FastAPI app
+- `asr-systems/production_server/` — Main FastAPI app
   - `api/main.py` — FastAPI app with lifespan manager, all route definitions (~1650 lines)
   - `config/production_settings.py` — Pydantic BaseSettings (env-driven, ~480 lines)
   - `config/database.py` — SQLAlchemy async engine, session factory, connectivity check
@@ -115,11 +115,11 @@ The system uses a **dual-scoping model** for tenant isolation:
 - `middleware/metrics_middleware.py` — HTTP Counter/Histogram/Gauge with path normalization (`/vendors/abc123` → `/vendors/{id}`)
 - `services/metrics_service.py` — Business metrics (documents, GL, payments, vendors)
 - `/metrics` endpoint gated by `METRICS_ENABLED` setting (default: False)
-- Both modules use `_get_or_create()` guard to handle the dual-import problem (hyphenated directory loads module twice)
+- Both modules use `_get_or_create()` guard (originally needed for dual-import, kept as defense-in-depth after P88 rename)
 
 ### Important Gotchas
 
-**Hyphenated directory imports**: `production-server/` uses hyphens but Python needs underscores. `start_server.py` and `main_server.py` handle this via `importlib.util.spec_from_file_location()`. This causes **dual-import**: modules load as both `services.X` and `production_server.services.X`. Prometheus metrics and any module-level singletons must guard against this.
+**Directory renamed (P88)**: `production-server/` was renamed to `production_server/` to fix the dual-import bug. The `importlib` hack in `start_server.py` and `main_server.py` is no longer needed for this reason. Prometheus `_get_or_create()` guards are kept as defense-in-depth.
 
 **Route order matters for FastAPI**: Static routes (`/vendors/export`) MUST be defined before path param routes (`/vendors/{vendor_id}`), or FastAPI matches "export" as a vendor_id. The export route is intentionally placed before the `{vendor_id}` route in api/main.py.
 
@@ -149,12 +149,12 @@ Key optional vars: `DEBUG` (false), `API_PORT` (8000), `DATABASE_URL` (sqlite de
 
 ## Dependencies
 
-Install from `asr-systems/production-server/requirements.txt`. Core: FastAPI, uvicorn, anthropic, pydantic + pydantic-settings, SQLAlchemy, PyPDF2, pdfplumber, Pillow, structlog, python-jose, aiofiles, boto3, prometheus-client. Dev: pytest, pytest-asyncio, pytest-cov, black, isort, mypy, bandit, pip-audit.
+Install from `asr-systems/production_server/requirements.txt`. Core: FastAPI, uvicorn, anthropic, pydantic + pydantic-settings, SQLAlchemy, PyPDF2, pdfplumber, Pillow, structlog, python-jose, aiofiles, boto3, prometheus-client. Dev: pytest, pytest-asyncio, pytest-cov, black, isort, mypy, bandit, pip-audit.
 
 ## CI Pipeline
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
-- **Backend tests** (`test` job): black, isort, mypy (continue-on-error), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 72% on Python 3.11 + 3.12
+- **Backend tests** (`test` job): black, isort, mypy (blocking), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 72% on Python 3.11 + 3.12
 - **PostgreSQL tests** (`test-pg` job, continue-on-error): migrations, DB health, tenant isolation against PostgreSQL 15
 - **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest on Node 18
 - **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
@@ -173,7 +173,7 @@ aws logs tail /ecs/asr-records-legacy-backend-dev --follow --region us-west-2
 
 # Manual deployment
 aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 206362095382.dkr.ecr.us-west-2.amazonaws.com
-docker build -f production-server/Dockerfile -t 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest .
+docker build -f production_server/Dockerfile -t 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest .
 docker push 206362095382.dkr.ecr.us-west-2.amazonaws.com/asr-records-backend-dev:latest
 aws ecs register-task-definition --cli-input-json file://backend-task-def.json --region us-west-2
 aws ecs update-service --cluster asr-records-legacy-cluster-dev --service backend-service --force-new-deployment --region us-west-2

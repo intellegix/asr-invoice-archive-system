@@ -42,6 +42,8 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 15
 
+      # TODO(P90): Add test-pg to deploy gate once PG CRUD tests pass
+
   deploy-backend:
     runs-on: ubuntu-latest
     needs: ci-check
@@ -86,7 +88,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -f production-server/Dockerfile \
+          docker build -f production_server/Dockerfile \
             -t $ECR_REGISTRY/asr-records-backend-dev:$IMAGE_TAG \
             -t $ECR_REGISTRY/asr-records-backend-dev:latest .
           docker push $ECR_REGISTRY/asr-records-backend-dev:$IMAGE_TAG

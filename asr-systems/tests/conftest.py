@@ -15,10 +15,10 @@ import pytest
 # ---------------------------------------------------------------------------
 _root = Path(__file__).resolve().parent.parent  # asr-systems/
 _shared = _root / "shared"
-_prod_server = _root / "production-server"
+_prod_server = _root / "production_server"
 _tests = _root / "tests"
 
-# Add shared + production-server + tests to sys.path so absolute imports work
+# Add shared + production_server + tests to sys.path so absolute imports work
 for p in (_shared, _prod_server, _root, _tests):
     _p = str(p)
     if _p not in sys.path:

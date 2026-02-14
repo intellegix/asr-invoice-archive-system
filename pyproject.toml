@@ -12,8 +12,6 @@ skips = ["B104", "B110"]
 [tool.mypy]
 python_version = "3.11"
 ignore_missing_imports = true
-# Hyphenated production-server is not a valid package name.
-# CI creates a production_server symlink; point mypy there.
 mypy_path = "asr-systems"
 warn_return_any = true
 warn_unused_configs = true

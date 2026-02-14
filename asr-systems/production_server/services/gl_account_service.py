@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 # Import shared components
 from shared.core.constants import GL_ACCOUNT_CATEGORIES, GL_ACCOUNTS
@@ -166,9 +166,9 @@ class GLAccountService:
         for code, account_data in accounts_data.items():
             self.gl_accounts[str(code)] = GLAccount(
                 code=str(code),
-                name=account_data["name"],
-                category=account_data["category"],
-                keywords=account_data["keywords"],
+                name=str(account_data["name"]),
+                category=str(account_data["category"]),
+                keywords=list(account_data["keywords"]),
                 active=True,
             )
 
@@ -414,7 +414,7 @@ class GLAccountService:
 
     def _classify_by_keywords(self, text: str) -> Optional[GLClassificationResult]:
         """Classify based on keyword matching in document text"""
-        keyword_matches = {}
+        keyword_matches: Dict[str, Dict[str, Any]] = {}
 
         for keyword, gl_codes in self.keyword_index.items():
             if keyword in text:
@@ -426,22 +426,22 @@ class GLAccountService:
 
         if keyword_matches:
             # Get best match by score
-            best_match = max(keyword_matches.items(), key=lambda x: x[1]["score"])
+            best_match = max(keyword_matches.items(), key=lambda x: int(x[1]["score"]))
             gl_code = best_match[0]
             match_data = best_match[1]
 
             account = self.gl_accounts.get(gl_code)
             if account:
                 # Calculate confidence based on number of keyword matches
-                confidence = min(0.9, 0.6 + (match_data["score"] * 0.1))
+                confidence = min(0.9, 0.6 + (int(match_data["score"]) * 0.1))
 
                 return GLClassificationResult(
                     gl_account_code=gl_code,
                     gl_account_name=account.name,
                     category=account.category,
                     confidence=confidence,
-                    reasoning=f"Keywords matched: {', '.join(match_data['keywords'])}",
-                    keywords_matched=match_data["keywords"],
+                    reasoning=f"Keywords matched: {', '.join(list(match_data['keywords']))}",
+                    keywords_matched=list(match_data["keywords"]),
                     classification_method="keyword_matching",
                 )
 

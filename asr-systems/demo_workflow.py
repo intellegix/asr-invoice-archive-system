@@ -12,7 +12,7 @@ from datetime import datetime
 def load_system_config():
     """Load system configuration"""
     # Load GL accounts
-    with open('production-server/config/gl_accounts.json') as f:
+    with open('production_server/config/gl_accounts.json') as f:
         gl_data = json.load(f)
     gl_accounts = gl_data.get('gl_accounts', [])
 

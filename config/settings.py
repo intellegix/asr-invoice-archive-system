@@ -24,71 +24,60 @@ class Settings(BaseSettings):
     # Environment Detection
     DEBUG: bool = Field(
         default=False,
-        env="DEBUG",
         description="Debug mode (false for production)"
     )
 
     IS_PRODUCTION: bool = Field(
         default=False,
-        env="RENDER",
         description="Render production environment detection"
     )
 
     # Database Configuration
     DATABASE_URL: str = Field(
         default="sqlite:///./data/invoice_archive.db",
-        env="DATABASE_URL",
         description="Database connection string"
     )
 
     DB_POOL_SIZE: int = Field(
         default=20,
-        env="DB_POOL_SIZE",
         description="Database connection pool size"
     )
 
     DB_POOL_OVERFLOW: int = Field(
         default=0,
-        env="DB_POOL_OVERFLOW",
         description="Database pool overflow connections"
     )
 
     DB_POOL_RECYCLE: int = Field(
         default=3600,
-        env="DB_POOL_RECYCLE",
         description="Database connection recycle time (seconds)"
     )
 
     # API Configuration
     API_HOST: str = Field(
         default="127.0.0.1",
-        env="API_HOST",
         description="API host binding (0.0.0.0 for production)"
     )
 
     API_PORT: int = Field(
         default=8000,
-        env="PORT",
         description="API port (from Render $PORT variable)"
     )
 
     # Claude AI Configuration
     ANTHROPIC_API_KEY: Optional[str] = Field(
         default=None,
-        env="ANTHROPIC_API_KEY",
         description="Anthropic API key for Claude AI integration"
     )
 
     # Storage Configuration
     STORAGE_BACKEND: str = Field(
         default="local",
-        env="STORAGE_BACKEND",
         description="Storage backend type (local, render_disk)"
     )
 
     RENDER_DISK_MOUNT: str = Field(
         default="/data",
-        env="RENDER_DISK_MOUNT",
         description="Render persistent disk mount path"
     )
 
@@ -98,39 +87,33 @@ class Settings(BaseSettings):
     # Logging Configuration
     LOG_LEVEL: str = Field(
         default="INFO",
-        env="LOG_LEVEL",
         description="Logging level"
     )
 
     # Relay Server Configuration
     RELAY_ENABLED: bool = Field(
         default=False,
-        env="RELAY_ENABLED",
         description="Enable relay server for team collaboration"
     )
 
     RELAY_PORT: int = Field(
         default=8001,
-        env="RELAY_PORT",
         description="Port for relay server (team file uploads)"
     )
 
     SHARED_DROPBOX_PATH: str = Field(
         default="./shared_dropbox",
-        env="SHARED_DROPBOX_PATH",
         description="Path to shared Dropbox folders for team collaboration"
     )
 
     # Legacy QB Organized Billing Directory Configuration
     LEGACY_OPEN_BILLING_DIR: Optional[str] = Field(
         default=None,
-        env="LEGACY_OPEN_BILLING_DIR",
         description="Legacy path for open billing documents (QB Organized structure)"
     )
 
     LEGACY_CLOSED_BILLING_DIR: Optional[str] = Field(
         default=None,
-        env="LEGACY_CLOSED_BILLING_DIR",
         description="Legacy path for closed billing documents (QB Organized structure)"
     )
 
@@ -138,65 +121,55 @@ class Settings(BaseSettings):
     CONSOLIDATION_SOURCE_DIRS: List[str] = Field(
         default_factory=lambda: [
             "C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell/08_Financial_PayrollOperations/Digital Billing Records",
-            "C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell/08_Financial_PayrollOperations/Digital Billing Apps/ASR Records APP 2.0/ASR Records App/Digital Billing Records"
+            "C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell\08_Financial_PayrollOperations/Digital Billing Apps/ASR Records APP 2.0/ASR Records App/Digital Billing Records"
         ],
-        env="CONSOLIDATION_SOURCE_DIRS",
         description="Source directories to consolidate (comma-separated list)"
     )
 
     CONSOLIDATION_TARGET_DIR: str = Field(
         default="C:/Users/AustinKidwell/ASR Dropbox/Austin Kidwell/08_Financial_PayrollOperations/Digital Billing Records (QB Organized)",
-        env="CONSOLIDATION_TARGET_DIR",
         description="Target directory for consolidated documents (QB Organized structure)"
     )
 
     CONSOLIDATION_BATCH_SIZE: int = Field(
         default=50,
-        env="CONSOLIDATION_BATCH_SIZE",
         description="Number of documents to process in each consolidation batch"
     )
 
     CONSOLIDATION_BACKUP_DIR: str = Field(
         default="./consolidation_backups",
-        env="CONSOLIDATION_BACKUP_DIR",
         description="Directory for consolidation safety backups"
     )
 
     CONSOLIDATION_MAX_WORKERS: int = Field(
         default=4,
-        env="CONSOLIDATION_MAX_WORKERS",
         description="Maximum parallel workers for consolidation processing"
     )
 
     CONSOLIDATION_SAMPLE_SIZE: int = Field(
         default=100,
-        env="CONSOLIDATION_SAMPLE_SIZE",
         description="Sample size for verification quality assurance testing"
     )
 
     # Network Discovery Configuration
     DISCOVERY_PORT: int = Field(
         default=8002,
-        env="DISCOVERY_PORT",
         description="Port for network discovery broadcasts"
     )
 
     BROADCAST_INTERVAL: int = Field(
         default=30,
-        env="BROADCAST_INTERVAL",
         description="Interval between discovery broadcasts (seconds)"
     )
 
     # Relay Integration Settings
     RELAY_TIMEOUT: int = Field(
         default=30,
-        env="RELAY_TIMEOUT",
         description="Timeout for relay server operations (seconds)"
     )
 
     MAIN_APP_PORT: int = Field(
         default=8000,
-        env="MAIN_APP_PORT",
         description="Port of main ASR application for relay integration"
     )
 
@@ -263,10 +236,11 @@ class Settings(BaseSettings):
 
         return self
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"  # Allow extra fields for backwards compatibility
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",  # Allow extra fields for backwards compatibility
+    }
 
 
 # Global settings instance

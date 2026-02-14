@@ -203,11 +203,15 @@ class ScannerManagerService:
                 metadata = DocumentMetadata(
                     filename=upload_request.filename,
                     file_size=len(upload_request.file_content),
-                    content_type=self._detect_content_type(upload_request.filename),
+                    mime_type=self._detect_content_type(upload_request.filename),
                     tenant_id=scanner.tenant_id or "default",
-                    upload_source="scanner_client",
                     scanner_id=scanner_id,
-                    scanner_metadata=upload_request.scanner_info or {},
+                    gl_account=None,
+                    vendor_name=None,
+                    amount=None,
+                    invoice_date=None,
+                    routing_confidence=None,
+                    storage_path=None,
                 )
 
                 # Process document using document processor service
@@ -236,7 +240,7 @@ class ScannerManagerService:
                 else:
                     logger.error(f"❌ Scanner upload failed: {result.error_message}")
 
-                return result
+                return result  # type: ignore[no-any-return]
 
             except Exception as e:
                 # Update upload session with error
@@ -247,7 +251,12 @@ class ScannerManagerService:
 
         except Exception as e:
             logger.error(f"❌ Scanner upload processing failed: {e}")
-            return UploadResult(success=False, error_message=str(e), document_id=None)
+            return UploadResult(
+                success=False,
+                error_message=str(e),
+                document_id=None,
+                classification_result=None,
+            )
 
     async def process_batch_upload(
         self,
@@ -276,16 +285,19 @@ class ScannerManagerService:
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Convert exceptions to failed results
-            processed_results = []
+            processed_results: List[UploadResult] = []
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     processed_results.append(
                         UploadResult(
-                            success=False, error_message=str(result), document_id=None
+                            success=False,
+                            error_message=str(result),
+                            document_id=None,
+                            classification_result=None,
                         )
                     )
                 else:
-                    processed_results.append(result)
+                    processed_results.append(result)  # type: ignore[arg-type]
 
             successful_uploads = len([r for r in processed_results if r.success])
             logger.info(
@@ -297,7 +309,12 @@ class ScannerManagerService:
         except Exception as e:
             logger.error(f"❌ Batch upload processing failed: {e}")
             return [
-                UploadResult(success=False, error_message=str(e), document_id=None)
+                UploadResult(
+                    success=False,
+                    error_message=str(e),
+                    document_id=None,
+                    classification_result=None,
+                )
                 for _ in upload_requests
             ]
 

@@ -70,7 +70,7 @@ def detect_mime_type(file_path: str) -> str:
         if magic is not None:
             mime_type = magic.from_file(file_path, mime=True)
             if mime_type and mime_type in SUPPORTED_DOCUMENT_TYPES:
-                return mime_type
+                return str(mime_type)
     except Exception:
         pass
 
@@ -89,7 +89,7 @@ def detect_mime_type(file_path: str) -> str:
     if mime_type not in SUPPORTED_DOCUMENT_TYPES:
         raise ValidationError(f"Unsupported MIME type: {mime_type}")
 
-    return mime_type
+    return str(mime_type)
 
 
 def validate_file_for_upload(

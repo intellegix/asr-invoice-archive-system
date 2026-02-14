@@ -32,7 +32,7 @@ if exist "venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat
 
     echo Installing dependencies...
-    pip install -r production-server\requirements.txt
+    pip install -r production_server\requirements.txt
 )
 
 :: Check for .env file
@@ -57,7 +57,7 @@ if exist "start_server.py" (
     echo.
     echo Starting ASR Production Server via uvicorn...
     echo.
-    python -m uvicorn production-server.api.main:app --host 0.0.0.0 --port 8000
+    python -m uvicorn production_server.api.main:app --host 0.0.0.0 --port 8000
 )
 
 if errorlevel 1 (

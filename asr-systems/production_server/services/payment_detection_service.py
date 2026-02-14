@@ -15,7 +15,7 @@ import statistics
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Pattern, Tuple
 
 from shared.core.constants import CONFIDENCE_THRESHOLDS, PAYMENT_INDICATORS
 from shared.core.exceptions import CLAUDEAPIError, PaymentDetectionError
@@ -23,7 +23,7 @@ from shared.core.exceptions import CLAUDEAPIError, PaymentDetectionError
 try:
     from ..utils.retry import CircuitBreaker, async_retry
 except (ImportError, SystemError):
-    from utils.retry import CircuitBreaker, async_retry
+    from utils.retry import CircuitBreaker, async_retry  # type: ignore[no-redef]
 
 # Import shared components
 from shared.core.models import (
@@ -60,13 +60,13 @@ class PaymentDetectionService:
         self.initialized = False
 
         # Pattern compilations for efficiency
-        self.paid_patterns = []
-        self.unpaid_patterns = []
-        self.partial_patterns = []
-        self.void_patterns = []
+        self.paid_patterns: List[Pattern[str]] = []
+        self.unpaid_patterns: List[Pattern[str]] = []
+        self.partial_patterns: List[Pattern[str]] = []
+        self.void_patterns: List[Pattern[str]] = []
 
         # Claude client (will be initialized if available)
-        self.claude_client = None
+        self.claude_client: Optional[Any] = None
         self._claude_circuit = CircuitBreaker(failure_threshold=5, reset_timeout=30.0)
 
     async def initialize(self):
@@ -155,7 +155,7 @@ class PaymentDetectionService:
             for keyword in void_keywords
         ]
 
-    async def _initialize_claude_client(self):
+    async def _initialize_claude_client(self) -> None:
         """Initialize Claude AI client"""
         try:
             import anthropic
@@ -639,7 +639,7 @@ class PaymentDetectionService:
             )
 
         # Group results by status
-        status_groups = {}
+        status_groups: Dict[PaymentStatus, List[MethodResult]] = {}
         for result in method_results:
             status = result.payment_status
             if status not in status_groups:

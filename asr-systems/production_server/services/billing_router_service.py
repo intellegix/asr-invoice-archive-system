@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from shared.core.constants import BILLING_DESTINATION_RULES, CONFIDENCE_THRESHOLDS
 from shared.core.exceptions import RoutingError, ValidationError
 
@@ -79,7 +79,7 @@ class BillingRouterService:
         self.audit_trail_service = audit_trail_service
         self.config_path = config_path
         self.routing_rules = self._load_routing_rules()
-        self.routing_stats = {}
+        self.routing_stats: Dict[str, Any] = {}
         self.initialized = False
 
     async def initialize(self):
@@ -380,7 +380,7 @@ class BillingRouterService:
         rules = self.routing_rules.get(destination, {})
         criteria = rules.get("criteria", {})
 
-        factors = {}
+        factors: Dict[str, Any] = {}
         total_score = 0.0
         reasoning_parts = []
 

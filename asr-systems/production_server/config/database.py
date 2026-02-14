@@ -78,7 +78,11 @@ async def init_database(
             VendorRecord,
         )
     except (ImportError, SystemError):
-        from models import AuditTrailRecord, GLAccountRecord, VendorRecord  # noqa: F401
+        from models import (  # type: ignore[no-redef, attr-defined]  # noqa: F401
+            AuditTrailRecord,
+            GLAccountRecord,
+            VendorRecord,
+        )
 
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

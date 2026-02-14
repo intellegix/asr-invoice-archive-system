@@ -20,7 +20,7 @@ import subprocess
 
 # Add shared modules to path
 sys.path.insert(0, str(Path(__file__).parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent / "production_server"))
 sys.path.insert(0, str(Path(__file__).parent / "document-scanner"))
 
 logging.basicConfig(level=logging.INFO)

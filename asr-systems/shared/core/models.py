@@ -138,7 +138,7 @@ class DocumentUploadRequest(BaseModel):
     file_data: bytes
     tenant_id: str
     scanner_id: str
-    metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    metadata: Optional[Dict[str, Any]] = Field(default_factory=lambda: {})
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

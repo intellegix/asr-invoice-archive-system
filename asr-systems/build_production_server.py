@@ -14,7 +14,7 @@ from typing import Any, Dict, List
 
 # Add the shared modules to the path
 sys.path.insert(0, str(Path(__file__).parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent / "production_server"))
 
 import PyInstaller.__main__
 
@@ -42,7 +42,7 @@ def _get_git_commit_hash() -> str:
 class ProductionServerBuilder:
     """Build ASR Production Server executable"""
 
-    def __init__(self, build_dir: str = "dist/production-server"):
+    def __init__(self, build_dir: str = "dist/production_server"):
         self.build_dir = Path(build_dir)
         self.spec_file = Path("asr_production_server.spec")
         self.project_root = Path(__file__).parent
@@ -75,7 +75,7 @@ import os
 from pathlib import Path
 
 project_root = Path(SPECPATH)
-production_server_path = project_root / "production-server"
+production_server_path = project_root / "production_server"
 shared_path = project_root / "shared"
 
 a = Analysis(

@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "production_server"))
 
 from config.database import close_database, init_database
 from services.vendor_service import VendorService

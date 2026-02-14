@@ -6,7 +6,7 @@ Supports in-memory (default) and Redis-backed sliding window rate limiting.
 import logging
 import time
 from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -80,7 +80,7 @@ class _RedisBackend:
         now = time.time()
         window_start = now - self.period
 
-        pipe = self._redis.pipeline(transaction=True)
+        pipe = self._redis.pipeline(transaction=True)  # type: ignore[attr-defined]
         try:
             pipe.zremrangebyscore(key, "-inf", window_start)
             pipe.zcard(key)
@@ -112,6 +112,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.calls = calls
         self.period = period
 
+        self._backend: Union[_MemoryBackend, _RedisBackend]
         if backend == "redis" and redis_url:
             self._backend = _RedisBackend(calls, period, redis_url)
         else:

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "production_server"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
 
 
@@ -105,7 +105,7 @@ class TestAlembicMigrationChain:
         cfg = self._get_alembic_config(f"sqlite:///{db_path}")
         command.upgrade(cfg, "head")
 
-        # Verify tables were created
+        # Verify tables were created (0005 renames audit_events → audit_trail)
         import sqlite3
 
         conn = sqlite3.connect(str(db_path))
@@ -116,7 +116,8 @@ class TestAlembicMigrationChain:
             ).fetchall()
         }
         conn.close()
-        assert "audit_events" in tables
+        assert "audit_trail" in tables
+        assert "audit_events" not in tables
         assert "vendors" in tables
         assert "alembic_version" in tables
 
@@ -140,6 +141,7 @@ class TestAlembicMigrationChain:
         }
         conn.close()
         assert "audit_events" not in tables
+        assert "audit_trail" not in tables
         assert "vendors" not in tables
 
     def test_upgrade_is_idempotent(self, tmp_path):
@@ -160,7 +162,7 @@ class TestAlembicMigrationChain:
         cfg.set_main_option("script_location", str(self._alembic_root / "alembic"))
         script = ScriptDirectory.from_config(cfg)
         revisions = list(script.walk_revisions())
-        assert len(revisions) == 4  # 0001, 0002, 0003, 0004
+        assert len(revisions) == 5  # 0001, 0002, 0003, 0004, 0005
 
         # Verify linear chain: each revision (except first) has exactly one down_revision
         heads = script.get_heads()
@@ -216,3 +218,123 @@ class TestAlembicMigrationChain:
         cfg = self._get_alembic_config(f"sqlite:///{db_path}")
         # Generate SQL for schema-only migrations (0001 + 0002)
         command.upgrade(cfg, "0002", sql=True)
+
+    # --- P87: Migration 0005 tests ---
+
+    def test_migration_0005_renames_audit_events(self, tmp_path):
+        """After upgrade to 0005, audit_trail exists and audit_events does not."""
+        from alembic import command
+
+        db_path = tmp_path / "test.db"
+        cfg = self._get_alembic_config(f"sqlite:///{db_path}")
+        command.upgrade(cfg, "head")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        conn.close()
+        assert "audit_trail" in tables, "audit_trail table should exist after 0005"
+        assert "audit_events" not in tables, "audit_events should be renamed"
+
+    def test_migration_0005_downgrade_restores_audit_events(self, tmp_path):
+        """Downgrading from 0005 to 0004 should restore audit_events name."""
+        from alembic import command
+
+        db_path = tmp_path / "test.db"
+        cfg = self._get_alembic_config(f"sqlite:///{db_path}")
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "0004")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        conn.close()
+        assert (
+            "audit_events" in tables
+        ), "audit_events should be restored after downgrade"
+        assert "audit_trail" not in tables
+
+    def test_migration_0005_indices_renamed(self, tmp_path):
+        """After 0005, indices should use audit_trail prefix."""
+        from alembic import command
+
+        db_path = tmp_path / "test.db"
+        cfg = self._get_alembic_config(f"sqlite:///{db_path}")
+        command.upgrade(cfg, "head")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        indices = {
+            row[1]
+            for row in conn.execute("PRAGMA index_list('audit_trail')").fetchall()
+        }
+        conn.close()
+        assert "ix_audit_trail_entity_id" in indices
+        assert "ix_audit_trail_tenant_id" in indices
+        assert "ix_audit_trail_created_at" in indices
+
+    def test_migration_0005_upgrade_downgrade_upgrade(self, tmp_path):
+        """0005 should be idempotent through upgrade→downgrade→upgrade cycle."""
+        from alembic import command
+
+        db_path = tmp_path / "test.db"
+        cfg = self._get_alembic_config(f"sqlite:///{db_path}")
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "0004")
+        command.upgrade(cfg, "head")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        conn.close()
+        assert "audit_trail" in tables
+
+    def test_docker_entrypoint_exists(self):
+        """docker-entrypoint.sh should exist in production_server/."""
+        entrypoint = (
+            Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        )
+        assert entrypoint.exists(), "docker-entrypoint.sh must exist for auto-migration"
+        content = entrypoint.read_text()
+        assert "alembic" in content, "Entrypoint must run alembic upgrade"
+
+    def test_entrypoint_uses_advisory_lock(self):
+        """docker-entrypoint.sh should use pg_advisory_lock for concurrent safety."""
+        entrypoint = (
+            Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        )
+        content = entrypoint.read_text()
+        assert (
+            "pg_advisory_lock" in content
+        ), "Entrypoint must use pg_advisory_lock to prevent migration race conditions"
+        assert (
+            "pg_advisory_unlock" in content
+        ), "Entrypoint must release advisory lock after migration"
+
+    def test_dockerfile_has_entrypoint(self):
+        """Dockerfile should reference the entrypoint."""
+        dockerfile = Path(__file__).parent.parent / "production_server" / "Dockerfile"
+        content = dockerfile.read_text()
+        assert (
+            "ENTRYPOINT" in content
+        ), "Dockerfile must have ENTRYPOINT for auto-migration"
+        assert "docker-entrypoint.sh" in content

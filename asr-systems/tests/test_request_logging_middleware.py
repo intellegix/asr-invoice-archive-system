@@ -17,7 +17,7 @@ from starlette.responses import JSONResponse
 # ---------------------------------------------------------------------------
 
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "production_server"))
 
 from middleware.request_logging_middleware import (
     RequestLoggingMiddleware,

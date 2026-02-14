@@ -14,7 +14,7 @@ os.chdir(root)
 # Register the hyphenated directory as a Python package with underscore name
 import importlib.util
 
-pkg_path = root / "production-server"
+pkg_path = root / "production_server"
 spec = importlib.util.spec_from_file_location(
     "production_server",
     str(pkg_path / "__init__.py"),

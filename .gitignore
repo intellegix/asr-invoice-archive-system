@@ -48,9 +48,6 @@ Thumbs.db
 DELETE/
 test-invoice.pdf
 
-# mypy symlink (created by CI and local dev)
-asr-systems/production_server
-
 # Claude Code metadata
 .claude/
 

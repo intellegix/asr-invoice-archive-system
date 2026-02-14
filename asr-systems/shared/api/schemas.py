@@ -77,7 +77,7 @@ class DocumentUploadSchema(BaseModel):
     tenant_id: str = Field(..., description="Tenant identifier")
     scanner_id: Optional[str] = Field(None, description="Scanner client ID")
     metadata: Optional[Dict[str, Any]] = Field(
-        default_factory=dict, description="Additional metadata"
+        default_factory=lambda: {}, description="Additional metadata"
     )
 
     @field_validator("file_size")
@@ -142,7 +142,7 @@ class ScannerHeartbeatSchema(BaseModel):
         None, description="Last successful upload timestamp"
     )
     metrics: Optional[Dict[str, Any]] = Field(
-        default_factory=dict, description="Scanner metrics"
+        default_factory=lambda: {}, description="Scanner metrics"
     )
 
 
@@ -336,7 +336,7 @@ class PaymentDetectionResponseSchema(BaseModel):
 class AuditLogEntrySchema(BaseModel):
     """Schema for a single audit log entry."""
 
-    id: Optional[int] = Field(None, description="Audit entry ID")
+    id: Optional[str] = Field(None, description="Audit entry ID")
     document_id: str = Field(..., description="Associated document ID")
     event_type: str = Field(..., description="Type of audit event")
     event_data: Optional[Dict[str, Any]] = Field(None, description="Event payload data")
@@ -499,7 +499,7 @@ class APIErrorResponseSchema(BaseModel):
         default_factory=datetime.utcnow, description="Error timestamp"
     )
     request_id: Optional[str] = Field(
-        None, description="Request identifier for tracking"
+        default=None, description="Request identifier for tracking"
     )
 
 
@@ -526,12 +526,12 @@ class APISuccessResponseSchema(BaseModel):
 
     success: bool = Field(default=True, description="Request success status")
     message: str = Field(..., description="Success message")
-    data: Optional[Any] = Field(None, description="Response data")
+    data: Optional[Any] = Field(default=None, description="Response data")
     timestamp: datetime = Field(
         default_factory=datetime.utcnow, description="Response timestamp"
     )
     request_id: Optional[str] = Field(
-        None, description="Request identifier for tracking"
+        default=None, description="Request identifier for tracking"
     )
 
 

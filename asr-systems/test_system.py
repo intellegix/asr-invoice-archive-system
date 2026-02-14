@@ -14,7 +14,7 @@ def test_configuration():
 
     # Test GL Accounts
     try:
-        gl_config_path = Path('production-server/config/gl_accounts.json')
+        gl_config_path = Path('production_server/config/gl_accounts.json')
         with open(gl_config_path) as f:
             gl_accounts = json.load(f)
         print(f"  [PASS] GL Accounts: {len(gl_accounts)} accounts loaded")
@@ -78,7 +78,7 @@ def test_directory_structure():
 
     required_dirs = [
         ('shared', 'Shared Components'),
-        ('production-server', 'Production Server'),
+        ('production_server', 'Production Server'),
         ('document-scanner', 'Document Scanner'),
         ('dist', 'Distribution Files'),
         ('build', 'Build Artifacts')
@@ -100,7 +100,7 @@ def test_gl_account_functionality():
 
     try:
         # Load GL accounts
-        with open('production-server/config/gl_accounts.json') as f:
+        with open('production_server/config/gl_accounts.json') as f:
             gl_accounts = json.load(f)
 
         # Test keyword matching logic (simplified)

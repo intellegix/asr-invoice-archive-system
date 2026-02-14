@@ -6,7 +6,7 @@ Adds correlation IDs and structured request/response logging for production obse
 import logging
 import time
 import uuid
-from typing import Optional
+from typing import Awaitable, Callable, Optional, cast
 
 import structlog
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -25,7 +25,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.log_format = log_format
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         # Use caller-provided ID or generate one
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         request.state.request_id = request_id
@@ -39,7 +41,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         try:
             # Skip noisy health-check logging
             if path in SKIP_LOGGING_PATHS:
-                response = await call_next(request)
+                response = cast(Response, await call_next(request))
                 response.headers["X-Request-ID"] = request_id
                 return response
 
@@ -58,7 +60,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             )
 
             try:
-                response = await call_next(request)
+                response = cast(Response, await call_next(request))
             except Exception:
                 duration_ms = (time.perf_counter() - start_time) * 1000
                 logger.error(

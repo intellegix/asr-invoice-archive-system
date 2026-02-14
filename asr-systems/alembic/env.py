@@ -15,7 +15,7 @@ from sqlalchemy import engine_from_config, pool
 # Path setup so we can import the ORM Base
 # ---------------------------------------------------------------------------
 _root = Path(__file__).resolve().parent.parent  # asr-systems/
-sys.path.insert(0, str(_root / "production-server"))
+sys.path.insert(0, str(_root / "production_server"))
 sys.path.insert(0, str(_root / "shared"))
 
 from config.database import Base  # noqa: E402

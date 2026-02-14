@@ -37,7 +37,7 @@ else
     source venv/bin/activate
 
     echo "Installing dependencies..."
-    pip install -r production-server/requirements.txt
+    pip install -r production_server/requirements.txt
 fi
 
 # Check for .env file
@@ -62,5 +62,5 @@ else
     echo ""
     echo "Starting ASR Production Server via uvicorn..."
     echo ""
-    python -m uvicorn production-server.api.main:app --host 0.0.0.0 --port 8000
+    python -m uvicorn production_server.api.main:app --host 0.0.0.0 --port 8000
 fi

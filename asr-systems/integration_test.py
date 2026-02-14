@@ -15,7 +15,7 @@ from datetime import datetime
 # Add the shared modules to the path
 sys.path.insert(0, str(Path(__file__).parent / "shared"))
 sys.path.insert(0, str(Path(__file__).parent / "document-scanner"))
-sys.path.insert(0, str(Path(__file__).parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent / "production_server"))
 
 # Import shared components
 from shared.core.models import DocumentMetadata

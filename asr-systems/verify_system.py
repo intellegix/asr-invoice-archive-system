@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 # Add paths for module imports
 sys.path.insert(0, str(Path(__file__).parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent / "production_server"))
 sys.path.insert(0, str(Path(__file__).parent / "document-scanner"))
 
 def test_shared_components():
@@ -72,7 +72,7 @@ def test_production_server():
         print("  ✅ Production server services imported successfully")
 
         # Test configuration loading
-        config_path = Path(__file__).parent / "production-server" / "config" / "gl_accounts.json"
+        config_path = Path(__file__).parent / "production_server" / "config" / "gl_accounts.json"
         if config_path.exists():
             with open(config_path) as f:
                 gl_accounts = json.load(f)
@@ -118,7 +118,7 @@ def test_configuration_files():
     print("⚙️ Testing Configuration Files...")
 
     # Test GL accounts configuration
-    gl_config = Path(__file__).parent / "production-server" / "config" / "gl_accounts.json"
+    gl_config = Path(__file__).parent / "production_server" / "config" / "gl_accounts.json"
     if gl_config.exists():
         try:
             with open(gl_config) as f:
