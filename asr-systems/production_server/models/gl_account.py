@@ -27,12 +27,12 @@ class GLAccountRecord(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     tenant_id: Mapped[str] = mapped_column(String(255), default="default")
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc)
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        onupdate=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
     )
 
     __table_args__ = (Index("ix_gl_accounts_tenant_category", "tenant_id", "category"),)

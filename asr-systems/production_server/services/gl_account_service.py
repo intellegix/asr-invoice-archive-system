@@ -603,7 +603,7 @@ class GLAccountService:
             for key, value in updates.items():
                 if key in allowed:
                     setattr(row, key, value)
-            row.updated_at = datetime.now(timezone.utc)
+            row.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
             await session.commit()
             await session.refresh(row)
 

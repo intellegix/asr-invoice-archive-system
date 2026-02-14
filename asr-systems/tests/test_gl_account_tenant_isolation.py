@@ -6,6 +6,7 @@ Verifies that CRUD operations enforce tenant ownership:
 - Classification remains globally shared (intentional)
 """
 
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -25,7 +26,9 @@ from services.gl_account_service import GLAccountService
 
 @pytest.fixture
 async def db():
-    await init_database("sqlite:///")
+    """Initialize database — uses DATABASE_URL if set (PG in CI), else SQLite."""
+    db_url = os.environ.get("DATABASE_URL", "sqlite:///")
+    await init_database(db_url)
     yield
     await close_database()
 

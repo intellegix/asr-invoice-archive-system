@@ -42,7 +42,13 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 15
 
-      # TODO(P90): Add test-pg to deploy gate once PG CRUD tests pass
+      - name: Wait for PostgreSQL tests
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'test-pg'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
 
   deploy-backend:
     runs-on: ubuntu-latest
