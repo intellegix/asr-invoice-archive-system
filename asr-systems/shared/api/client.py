@@ -124,7 +124,7 @@ class APIClient:
                     if data:
                         kwargs["json"] = data
 
-                response = await self.client.request(method, url, **kwargs)
+                response = await self.client.request(method, url, **kwargs)  # type: ignore[arg-type]
 
                 # Check if we should retry based on status code
                 if response.status_code >= 500 or response.status_code == 429:
@@ -215,7 +215,7 @@ class APIClient:
     async def check_health(self) -> Dict[str, Any]:
         """Check system health"""
         response = await self._make_request("GET", "/health")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     # Document operations
 
@@ -240,6 +240,7 @@ class APIClient:
             content_type="application/octet-stream",  # Will be detected by server
             file_size=file_size,
             tenant_id=self.tenant_id,
+            scanner_id=None,
             metadata=metadata or {},
         )
 
@@ -252,7 +253,7 @@ class APIClient:
                 "POST", "/api/v1/documents/upload", data=data, files=files
             )
 
-        return await self._parse_response(response, DocumentUploadResponseSchema)
+        return await self._parse_response(response, DocumentUploadResponseSchema)  # type: ignore[no-any-return]
 
     async def upload_document_bytes(
         self,
@@ -267,6 +268,7 @@ class APIClient:
             content_type=content_type,
             file_size=len(file_data),
             tenant_id=self.tenant_id,
+            scanner_id=None,
             metadata=metadata or {},
         )
 
@@ -277,7 +279,7 @@ class APIClient:
             "POST", "/api/v1/documents/upload", data=data, files=files
         )
 
-        return await self._parse_response(response, DocumentUploadResponseSchema)
+        return await self._parse_response(response, DocumentUploadResponseSchema)  # type: ignore[no-any-return]
 
     async def classify_document(
         self,
@@ -291,6 +293,7 @@ class APIClient:
             tenant_id=self.tenant_id,
             force_reclassification=force_reclassification,
             preferred_gl_accounts=preferred_gl_accounts,
+            payment_detection_methods=None,
         )
 
         response = await self._make_request(
@@ -299,19 +302,19 @@ class APIClient:
             data=request_data.dict(),
         )
 
-        return await self._parse_response(response, ClassificationResponseSchema)
+        return await self._parse_response(response, ClassificationResponseSchema)  # type: ignore[no-any-return]
 
     async def get_document_status(self, document_id: str) -> Dict[str, Any]:
         """Get document processing status"""
         response = await self._make_request(
             "GET", f"/api/v1/documents/{document_id}/status"
         )
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     async def get_document_metadata(self, document_id: str) -> Dict[str, Any]:
         """Get document metadata"""
         response = await self._make_request("GET", f"/api/v1/documents/{document_id}")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     # Scanner operations
 
@@ -329,7 +332,7 @@ class APIClient:
         response = await self._make_request(
             "POST", "/api/v1/scanner/register", data=data
         )
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     async def send_heartbeat(
         self,
@@ -350,13 +353,13 @@ class APIClient:
         response = await self._make_request(
             "POST", "/api/v1/scanner/heartbeat", data=data
         )
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     async def discover_servers(self) -> List[Dict[str, Any]]:
         """Discover available production servers"""
         response = await self._make_request("GET", "/api/v1/scanner/discovery")
         data = await self._parse_response(response)
-        return data.get("servers", [])
+        return data.get("servers", [])  # type: ignore[no-any-return]
 
     # Batch operations
 
@@ -382,14 +385,14 @@ class APIClient:
     async def get_gl_accounts(self) -> Dict[str, Any]:
         """Get available GL accounts for tenant"""
         response = await self._make_request("GET", "/api/v1/gl-accounts")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     # System information
 
     async def get_system_info(self) -> Dict[str, Any]:
         """Get system information and capabilities"""
         response = await self._make_request("GET", "/api/v1/system/info")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
 
 class ProductionServerClient(APIClient):
@@ -425,17 +428,17 @@ class DocumentScannerClient(APIClient):
     async def get_scanner_status(self) -> Dict[str, Any]:
         """Get scanner status"""
         response = await self._make_request("GET", "/status")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     async def get_scanner_queue(self) -> Dict[str, Any]:
         """Get scanner queue status"""
         response = await self._make_request("GET", "/queue")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
     async def trigger_scanner_upload(self) -> Dict[str, Any]:
         """Trigger scanner to process its queue"""
         response = await self._make_request("POST", "/upload")
-        return await self._parse_response(response)
+        return await self._parse_response(response)  # type: ignore[no-any-return]
 
 
 # Export classes

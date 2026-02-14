@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 try:
     from ..config.database import Base
 except (ImportError, SystemError):
-    from config.database import Base
+    from config.database import Base  # type: ignore[no-redef]
 
 
 class VendorRecord(Base):

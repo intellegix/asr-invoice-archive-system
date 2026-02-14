@@ -16,19 +16,25 @@ try:
     from .main_server import ASRProductionServerLauncher, main
 except (ImportError, SystemError):
     try:
-        from main_server import ASRProductionServerLauncher, main
+        from main_server import (  # type: ignore[no-redef]
+            ASRProductionServerLauncher,
+            main,
+        )
     except ImportError:
-        ASRProductionServerLauncher = None
-        main = None
+        ASRProductionServerLauncher = None  # type: ignore[assignment, misc]
+        main = None  # type: ignore[assignment, misc]
 
 try:
     from .config.production_settings import ProductionSettings, production_settings
 except (ImportError, SystemError):
     try:
-        from config.production_settings import ProductionSettings, production_settings
+        from config.production_settings import (  # type: ignore[no-redef]
+            ProductionSettings,
+            production_settings,
+        )
     except ImportError:
-        ProductionSettings = None
-        production_settings = None
+        ProductionSettings = None  # type: ignore[assignment, misc]
+        production_settings = None  # type: ignore[assignment, misc]
 
 __all__ = [
     "ASRProductionServerLauncher",

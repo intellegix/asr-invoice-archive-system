@@ -423,7 +423,7 @@ class ProductionSettings(BaseSettings):
         if self.STORAGE_BACKEND == "s3":
             config.update(
                 {
-                    "bucket": self.S3_BUCKET,
+                    "bucket": self.S3_BUCKET,  # type: ignore[dict-item]
                     "region": self.S3_REGION,
                     "prefix": self.S3_PREFIX,
                 }
@@ -432,7 +432,7 @@ class ProductionSettings(BaseSettings):
             config.update({"mount_path": self.RENDER_DISK_MOUNT})
 
         if self.MULTI_TENANT_ENABLED:
-            config["tenant_isolation"] = True
+            config["tenant_isolation"] = True  # type: ignore[assignment]
 
         return config
 

@@ -1,7 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
+# ASR Production Server — PyInstaller spec template
+# Build script substitutes 9678df7 at build time.
 
 import os
 from pathlib import Path
+
+GIT_COMMIT = "9678df7"
 
 project_root = Path(SPECPATH)
 production_server_path = project_root / "production_server"
@@ -144,8 +148,8 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,  # Add icon path if available
-    version_file=None,  # Add version info if available
+    icon=None,
+    version_file=None,
 )
 
 coll = COLLECT(

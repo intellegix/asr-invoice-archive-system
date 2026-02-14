@@ -14,8 +14,8 @@ try:
     from ..config.database import get_async_session
     from ..models.vendor import VendorRecord
 except (ImportError, SystemError):
-    from config.database import get_async_session
-    from models.vendor import VendorRecord
+    from config.database import get_async_session  # type: ignore[no-redef]
+    from models.vendor import VendorRecord  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 

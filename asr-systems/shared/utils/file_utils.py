@@ -174,7 +174,7 @@ def safe_delete_file(file_path: str, missing_ok: bool = True) -> bool:
 
 
 def create_temp_file(
-    suffix: str = None, prefix: str = "asr_", delete: bool = False
+    suffix: Optional[str] = None, prefix: str = "asr_", delete: bool = False
 ) -> Tuple[str, Any]:
     """
     Create a temporary file
@@ -334,7 +334,10 @@ def get_file_info(file_path: str) -> Dict[str, Any]:
 
 
 def find_files(
-    directory: str, pattern: str = "*", recursive: bool = True, max_depth: int = None
+    directory: str,
+    pattern: str = "*",
+    recursive: bool = True,
+    max_depth: Optional[int] = None,
 ) -> List[str]:
     """
     Find files matching pattern in directory
@@ -531,7 +534,8 @@ def load_json_file(file_path: str) -> Dict[str, Any]:
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data: Dict[str, Any] = json.load(f)
+            return data
 
     except FileNotFoundError:
         raise FileSystemError(

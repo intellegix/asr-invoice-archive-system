@@ -6,6 +6,7 @@ automatically get JSON rendering, timestamps, and context variables.
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -23,6 +24,7 @@ def configure_logging(log_level: str = "INFO", log_format: str = "text") -> None
     level = getattr(logging, log_level.upper(), logging.INFO)
 
     # Choose renderer based on format
+    renderer: Any
     if log_format == "json":
         renderer = structlog.processors.JSONRenderer()
     else:

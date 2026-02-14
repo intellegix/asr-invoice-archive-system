@@ -15,8 +15,8 @@ try:
     from ..config.database import get_async_session
     from ..models.audit_trail import AuditTrailRecord
 except (ImportError, SystemError):
-    from config.database import get_async_session
-    from models.audit_trail import AuditTrailRecord
+    from config.database import get_async_session  # type: ignore[no-redef]
+    from models.audit_trail import AuditTrailRecord  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ class AuditTrailService:
                 )
                 result = await session.execute(stmt)
                 await session.commit()
-                deleted = result.rowcount  # type: ignore[union-attr]
+                deleted: int = result.rowcount if result.rowcount is not None else 0  # type: ignore[attr-defined]
                 logger.info("Purged %d expired audit trail records", deleted)
                 return deleted
         except Exception:

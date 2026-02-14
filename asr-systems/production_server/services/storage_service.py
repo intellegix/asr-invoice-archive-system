@@ -94,6 +94,7 @@ class ProductionStorageService:
                     "s3", region_name=self.storage_config.get("region", "us-west-2")
                 )
                 # Verify bucket access
+                assert self.s3_client is not None  # nosec B101
                 self.s3_client.head_bucket(Bucket=self.s3_bucket)
                 logger.info(f"☁️ S3 storage initialized: s3://{self.s3_bucket}")
 
@@ -153,7 +154,7 @@ class ProductionStorageService:
             document_path = tenant_path / document_filename
 
             # Store document content
-            import aiofiles
+            import aiofiles  # type: ignore[import-untyped]
 
             async with aiofiles.open(document_path, "wb") as f:
                 await f.write(file_content)
@@ -208,6 +209,7 @@ class ProductionStorageService:
             )
 
             # Upload document
+            assert self.s3_client is not None  # nosec B101
             self.s3_client.put_object(
                 Bucket=self.s3_bucket,
                 Key=doc_key,
@@ -322,6 +324,13 @@ class ProductionStorageService:
                 file_size=metadata_dict["file_size"],
                 mime_type=metadata_dict.get("content_type", "application/octet-stream"),
                 tenant_id=metadata_dict["tenant_id"],
+                scanner_id=metadata_dict.get("scanner_id"),
+                gl_account=metadata_dict.get("gl_account"),
+                vendor_name=metadata_dict.get("vendor_name"),
+                amount=metadata_dict.get("amount"),
+                invoice_date=metadata_dict.get("invoice_date"),
+                routing_confidence=metadata_dict.get("routing_confidence"),
+                storage_path=metadata_dict.get("storage_path"),
             )
 
             return DocumentData(
@@ -348,6 +357,7 @@ class ProductionStorageService:
                     f"{self.s3_prefix}/tenants/{tenant_id}"
                     f"/metadata/{document_id}.json"
                 )
+                assert self.s3_client is not None  # nosec B101
                 try:
                     meta_resp = self.s3_client.get_object(
                         Bucket=self.s3_bucket, Key=meta_key
@@ -361,6 +371,7 @@ class ProductionStorageService:
                     return None
             else:
                 # Unscoped: list across all tenants
+                assert self.s3_client is not None  # nosec B101
                 prefix = f"{self.s3_prefix}/tenants/"
                 paginator = self.s3_client.get_paginator("list_objects_v2")
                 meta_key = None
@@ -399,6 +410,7 @@ class ProductionStorageService:
             doc_key = s3_path.replace(f"s3://{self.s3_bucket}/", "")
 
             # Download document
+            assert self.s3_client is not None  # nosec B101
             doc_resp = self.s3_client.get_object(Bucket=self.s3_bucket, Key=doc_key)
             content = doc_resp["Body"].read()
 
@@ -407,6 +419,13 @@ class ProductionStorageService:
                 file_size=metadata_dict["file_size"],
                 mime_type=metadata_dict.get("content_type", "application/octet-stream"),
                 tenant_id=metadata_dict["tenant_id"],
+                scanner_id=metadata_dict.get("scanner_id"),
+                gl_account=metadata_dict.get("gl_account"),
+                vendor_name=metadata_dict.get("vendor_name"),
+                amount=metadata_dict.get("amount"),
+                invoice_date=metadata_dict.get("invoice_date"),
+                routing_confidence=metadata_dict.get("routing_confidence"),
+                storage_path=metadata_dict.get("storage_path"),
             )
 
             return DocumentData(
@@ -502,6 +521,7 @@ class ProductionStorageService:
         try:
             if tenant_id:
                 # Scoped: construct exact keys instead of substring match
+                assert self.s3_client is not None  # nosec B101
                 keys_to_delete = []
                 for suffix in [
                     f"/documents/{document_id}",
@@ -520,6 +540,7 @@ class ProductionStorageService:
                         keys_to_delete.append({"Key": key})
             else:
                 # Unscoped: list across all tenants (exact document_id match)
+                assert self.s3_client is not None  # nosec B101
                 prefix = f"{self.s3_prefix}/tenants/"
                 paginator = self.s3_client.get_paginator("list_objects_v2")
                 keys_to_delete = []
@@ -641,6 +662,7 @@ class ProductionStorageService:
     async def _get_s3_stats(self) -> Dict[str, Any]:
         """Get S3 storage statistics"""
         try:
+            assert self.s3_client is not None  # nosec B101
             prefix = f"{self.s3_prefix}/tenants/"
             paginator = self.s3_client.get_paginator("list_objects_v2")
             total_size = 0

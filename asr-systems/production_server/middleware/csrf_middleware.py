@@ -7,7 +7,7 @@ state-changing request (POST/PUT/DELETE/PATCH).
 
 import logging
 import secrets
-from typing import Set
+from typing import Awaitable, Callable, Set, cast
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -60,9 +60,11 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             secure=self.secure,
         )
 
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         if not self.enabled:
-            return await call_next(request)
+            return cast(Response, await call_next(request))
 
         # Always ensure a CSRF cookie exists
         csrf_cookie = request.cookies.get(CSRF_COOKIE_NAME)
@@ -73,7 +75,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         # Safe methods and exempt paths skip validation
         if request.method in SAFE_METHODS or self._is_exempt(request.url.path):
-            response = await call_next(request)
+            response = cast(Response, await call_next(request))
             if new_token:
                 self._set_csrf_cookie(response, new_token)
             return response
@@ -92,7 +94,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 content={"message": "CSRF token missing or invalid"},
             )
 
-        response = await call_next(request)
+        response = cast(Response, await call_next(request))
         if new_token:
             self._set_csrf_cookie(response, new_token)
         return response

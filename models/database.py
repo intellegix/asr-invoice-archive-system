@@ -4,9 +4,11 @@ PostgreSQL/SQLite compatible database setup with SQLAlchemy
 """
 
 import os
+from typing import Optional
+
 from sqlalchemy import create_engine, MetaData
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Database configuration
@@ -18,7 +20,7 @@ engine = None
 SessionFactory = None
 
 
-def init_db(database_url: str = None) -> None:
+def init_db(database_url: Optional[str] = None) -> None:
     """Initialize database connection and create tables"""
     global engine, SessionFactory
 
