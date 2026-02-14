@@ -86,7 +86,7 @@ jobs:
         env:
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -f production-server/Dockerfile \
+          docker build -f production_server/Dockerfile \
             -t $ECR_REGISTRY/asr-records-backend-dev:$IMAGE_TAG \
             -t $ECR_REGISTRY/asr-records-backend-dev:latest .
           docker push $ECR_REGISTRY/asr-records-backend-dev:$IMAGE_TAG

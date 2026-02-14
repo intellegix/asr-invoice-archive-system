@@ -29,7 +29,7 @@ class ASRDeployment:
         self.deploy_dir.mkdir(exist_ok=True)
 
         # Create subdirectories
-        (self.deploy_dir / "production-server").mkdir()
+        (self.deploy_dir / "production_server").mkdir()
         (self.deploy_dir / "document-scanner").mkdir()
         (self.deploy_dir / "shared").mkdir()
         (self.deploy_dir / "config").mkdir()
@@ -49,8 +49,8 @@ class ASRDeployment:
 
         # Copy production server
         shutil.copytree(
-            self.project_root / "production-server",
-            self.deploy_dir / "production-server",
+            self.project_root / "production_server",
+            self.deploy_dir / "production_server",
             dirs_exist_ok=True
         )
 
@@ -118,7 +118,7 @@ from pathlib import Path
 # Add paths for imports
 sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent / "production_server"))
 
 def main():
     print("🚀 Starting ASR Production Server...")
@@ -398,7 +398,7 @@ open http://localhost:8000/docs
 
 1. **Configure API Keys**: Add your Anthropic API key to .env
 2. **Test Document Processing**: Upload sample invoice through scanner
-3. **Customize GL Accounts**: Modify production-server/config/gl_accounts.json
+3. **Customize GL Accounts**: Modify production_server/config/gl_accounts.json
 4. **Set Up Monitoring**: Configure logging and health checks
 5. **Production Database**: Switch to PostgreSQL for production use
 

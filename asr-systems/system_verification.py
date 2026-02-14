@@ -77,9 +77,9 @@ class ASRSystemVerifier:
                 "shared/core",
                 "shared/api",
                 "shared/utils",
-                "production-server/api",
-                "production-server/services",
-                "production-server/config",
+                "production_server/api",
+                "production_server/services",
+                "production_server/config",
                 "document-scanner/services",
                 "document-scanner/gui",
                 "document-scanner/config",
@@ -92,11 +92,11 @@ class ASRSystemVerifier:
                 "shared/api/schemas.py",
 
                 # Production server
-                "production-server/main_server.py",
-                "production-server/api/main.py",
-                "production-server/services/gl_account_service.py",
-                "production-server/services/payment_detection_service.py",
-                "production-server/services/billing_router_service.py",
+                "production_server/main_server.py",
+                "production_server/api/main.py",
+                "production_server/services/gl_account_service.py",
+                "production_server/services/payment_detection_service.py",
+                "production_server/services/billing_router_service.py",
 
                 # Document scanner
                 "document-scanner/main_scanner.py",
@@ -419,7 +419,7 @@ class ASRSystemVerifier:
                 "description": "Shared data models"
             },
             {
-                "path": "production-server/config/production_settings.py",
+                "path": "production_server/config/production_settings.py",
                 "required_content": ["DATABASE_URL", "ANTHROPIC_API_KEY"],
                 "description": "Production server configuration"
             },

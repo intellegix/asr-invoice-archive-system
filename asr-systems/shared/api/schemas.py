@@ -336,7 +336,7 @@ class PaymentDetectionResponseSchema(BaseModel):
 class AuditLogEntrySchema(BaseModel):
     """Schema for a single audit log entry."""
 
-    id: Optional[int] = Field(None, description="Audit entry ID")
+    id: Optional[str] = Field(None, description="Audit entry ID")
     document_id: str = Field(..., description="Associated document ID")
     event_type: str = Field(..., description="Type of audit event")
     event_data: Optional[Dict[str, Any]] = Field(None, description="Event payload data")

@@ -313,7 +313,9 @@ class DocumentProcessorService:
             logger.warning(f"⚠️ Image OCR failed: {e}")
             return ""
 
-    async def get_processing_status(self, document_id: str) -> Optional[Dict[str, Any]]:
+    async def get_processing_status(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
         """Get processing status for a document"""
         try:
             # This would query a processing status database/cache
@@ -331,11 +333,15 @@ class DocumentProcessorService:
             logger.error(f"❌ Failed to get processing status: {e}")
             return None
 
-    async def reprocess_document(self, document_id: str) -> UploadResult:
+    async def reprocess_document(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> UploadResult:
         """Reprocess an existing document"""
         try:
-            # Retrieve document from storage
-            document_data = await self.storage_service.retrieve_document(document_id)
+            # Retrieve document from storage — scoped to tenant
+            document_data = await self.storage_service.retrieve_document(
+                document_id, tenant_id=tenant_id
+            )
 
             if not document_data:
                 raise DocumentError(f"Document not found: {document_id}")

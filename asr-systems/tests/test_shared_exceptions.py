@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "production_server"))
 
 from shared.core.exceptions import (
     APIError,

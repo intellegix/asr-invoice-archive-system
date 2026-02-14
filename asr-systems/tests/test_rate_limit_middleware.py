@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "shared"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "production-server"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "production_server"))
 
 from middleware.rate_limit_middleware import RateLimitMiddleware
 

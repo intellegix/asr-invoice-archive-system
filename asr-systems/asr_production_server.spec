@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 project_root = Path(SPECPATH)
-production_server_path = project_root / "production-server"
+production_server_path = project_root / "production_server"
 shared_path = project_root / "shared"
 
 a = Analysis(

@@ -169,9 +169,8 @@ class ProductionStorageService:
                 "document_id": document_id,
                 "filename": metadata.filename,
                 "file_size": len(file_content),
-                "content_type": metadata.content_type,
+                "content_type": metadata.mime_type,
                 "tenant_id": metadata.tenant_id,
-                "upload_source": metadata.upload_source,
                 "scanner_id": getattr(metadata, "scanner_id", None),
                 "scanner_metadata": getattr(metadata, "scanner_metadata", {}),
                 "stored_at": datetime.now().isoformat(),
@@ -213,9 +212,7 @@ class ProductionStorageService:
                 Bucket=self.s3_bucket,
                 Key=doc_key,
                 Body=file_content,
-                ContentType=getattr(
-                    metadata, "content_type", "application/octet-stream"
-                ),
+                ContentType=getattr(metadata, "mime_type", "application/octet-stream"),
                 Metadata={
                     "tenant_id": metadata.tenant_id,
                     "filename": metadata.filename,
@@ -227,9 +224,8 @@ class ProductionStorageService:
                 "document_id": document_id,
                 "filename": metadata.filename,
                 "file_size": len(file_content),
-                "content_type": getattr(metadata, "content_type", ""),
+                "content_type": getattr(metadata, "mime_type", ""),
                 "tenant_id": metadata.tenant_id,
-                "upload_source": getattr(metadata, "upload_source", "unknown"),
                 "scanner_id": getattr(metadata, "scanner_id", None),
                 "stored_at": datetime.now().isoformat(),
                 "storage_path": f"s3://{self.s3_bucket}/{doc_key}",
@@ -248,16 +244,25 @@ class ProductionStorageService:
         except Exception as e:
             raise StorageError(f"S3 storage failed: {e}")
 
-    async def retrieve_document(self, document_id: str) -> Optional[DocumentData]:
-        """Retrieve document by ID"""
+    async def retrieve_document(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[DocumentData]:
+        """Retrieve document by ID, optionally scoped to a tenant.
+
+        Args:
+            document_id: The document identifier.
+            tenant_id: When provided, only returns the document if it belongs to
+                this tenant. When None (internal/admin call), searches across all
+                tenants.
+        """
         try:
             if not self.initialized:
                 raise StorageError("Storage service not initialized")
 
             if self.storage_backend == "local":
-                return await self._retrieve_local(document_id)
+                return await self._retrieve_local(document_id, tenant_id=tenant_id)
             elif self.storage_backend == "s3":
-                return await self._retrieve_s3(document_id)
+                return await self._retrieve_s3(document_id, tenant_id=tenant_id)
             else:
                 raise StorageError(
                     f"Unsupported storage backend: {self.storage_backend}"
@@ -267,14 +272,21 @@ class ProductionStorageService:
             logger.error(f"❌ Document retrieval failed: {e}")
             return None
 
-    async def _retrieve_local(self, document_id: str) -> Optional[DocumentData]:
+    async def _retrieve_local(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[DocumentData]:
         """Retrieve document from local filesystem"""
         try:
-            # Find metadata file
+            # Find metadata file — scope to tenant when provided
             metadata_pattern = f"{document_id}.json"
-            metadata_files = list(
-                self.base_path.glob(f"metadata/**/{metadata_pattern}")
-            )
+            if tenant_id:
+                metadata_files = list(
+                    self.base_path.glob(f"metadata/{tenant_id}/{metadata_pattern}")
+                )
+            else:
+                metadata_files = list(
+                    self.base_path.glob(f"metadata/**/{metadata_pattern}")
+                )
 
             if not metadata_files:
                 logger.warning(f"⚠️ Metadata not found for document: {document_id}")
@@ -288,6 +300,16 @@ class ProductionStorageService:
             with metadata_file.open("r") as f:
                 metadata_dict = json.load(f)
 
+            # Defense-in-depth: verify metadata tenant matches requested tenant
+            if tenant_id and metadata_dict.get("tenant_id") != tenant_id:
+                logger.warning(
+                    "⚠️ Tenant mismatch for document %s: expected %s, got %s",
+                    document_id,
+                    tenant_id,
+                    metadata_dict.get("tenant_id"),
+                )
+                return None
+
             storage_path = metadata_dict["storage_path"]
 
             # Load document content
@@ -298,9 +320,8 @@ class ProductionStorageService:
             metadata = DocumentMetadata(
                 filename=metadata_dict["filename"],
                 file_size=metadata_dict["file_size"],
-                content_type=metadata_dict["content_type"],
+                mime_type=metadata_dict.get("content_type", "application/octet-stream"),
                 tenant_id=metadata_dict["tenant_id"],
-                upload_source=metadata_dict.get("upload_source", "unknown"),
             )
 
             return DocumentData(
@@ -314,30 +335,64 @@ class ProductionStorageService:
             logger.error(f"❌ Local retrieval failed: {e}")
             return None
 
-    async def _retrieve_s3(self, document_id: str) -> Optional[DocumentData]:
+    async def _retrieve_s3(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> Optional[DocumentData]:
         """Retrieve document from S3"""
         try:
             import json
 
-            # List metadata objects matching document_id
-            prefix = f"{self.s3_prefix}/tenants/"
-            paginator = self.s3_client.get_paginator("list_objects_v2")
-            meta_key = None
-            for page in paginator.paginate(Bucket=self.s3_bucket, Prefix=prefix):
-                for obj in page.get("Contents", []):
-                    if obj["Key"].endswith(f"/metadata/{document_id}.json"):
-                        meta_key = obj["Key"]
+            if tenant_id:
+                # Scoped: construct exact key
+                meta_key = (
+                    f"{self.s3_prefix}/tenants/{tenant_id}"
+                    f"/metadata/{document_id}.json"
+                )
+                try:
+                    meta_resp = self.s3_client.get_object(
+                        Bucket=self.s3_bucket, Key=meta_key
+                    )
+                except self.s3_client.exceptions.NoSuchKey:
+                    logger.warning(
+                        "⚠️ S3 metadata not found for document: %s (tenant: %s)",
+                        document_id,
+                        tenant_id,
+                    )
+                    return None
+            else:
+                # Unscoped: list across all tenants
+                prefix = f"{self.s3_prefix}/tenants/"
+                paginator = self.s3_client.get_paginator("list_objects_v2")
+                meta_key = None
+                for page in paginator.paginate(Bucket=self.s3_bucket, Prefix=prefix):
+                    for obj in page.get("Contents", []):
+                        if obj["Key"].endswith(f"/metadata/{document_id}.json"):
+                            meta_key = obj["Key"]
+                            break
+                    if meta_key:
                         break
-                if meta_key:
-                    break
 
-            if not meta_key:
-                logger.warning(f"⚠️ S3 metadata not found for document: {document_id}")
-                return None
+                if not meta_key:
+                    logger.warning(
+                        "⚠️ S3 metadata not found for document: %s", document_id
+                    )
+                    return None
 
-            # Download metadata
-            meta_resp = self.s3_client.get_object(Bucket=self.s3_bucket, Key=meta_key)
+                meta_resp = self.s3_client.get_object(
+                    Bucket=self.s3_bucket, Key=meta_key
+                )
+
             metadata_dict = json.loads(meta_resp["Body"].read().decode())
+
+            # Defense-in-depth: verify metadata tenant matches
+            if tenant_id and metadata_dict.get("tenant_id") != tenant_id:
+                logger.warning(
+                    "⚠️ S3 tenant mismatch for document %s: expected %s, got %s",
+                    document_id,
+                    tenant_id,
+                    metadata_dict.get("tenant_id"),
+                )
+                return None
 
             # Derive doc key from storage_path
             s3_path = metadata_dict["storage_path"]
@@ -350,11 +405,8 @@ class ProductionStorageService:
             metadata = DocumentMetadata(
                 filename=metadata_dict["filename"],
                 file_size=metadata_dict["file_size"],
-                content_type=metadata_dict.get(
-                    "content_type", "application/octet-stream"
-                ),
+                mime_type=metadata_dict.get("content_type", "application/octet-stream"),
                 tenant_id=metadata_dict["tenant_id"],
-                upload_source=metadata_dict.get("upload_source", "unknown"),
             )
 
             return DocumentData(
@@ -368,16 +420,25 @@ class ProductionStorageService:
             logger.error(f"❌ S3 retrieval failed: {e}")
             return None
 
-    async def delete_document(self, document_id: str) -> bool:
-        """Delete document and metadata"""
+    async def delete_document(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> bool:
+        """Delete document and metadata, optionally scoped to a tenant.
+
+        Args:
+            document_id: The document identifier.
+            tenant_id: When provided, only deletes the document if it belongs to
+                this tenant. When None (internal/admin call), deletes across all
+                tenants.
+        """
         try:
             if not self.initialized:
                 raise StorageError("Storage service not initialized")
 
             if self.storage_backend == "local":
-                return await self._delete_local(document_id)
+                return await self._delete_local(document_id, tenant_id=tenant_id)
             elif self.storage_backend == "s3":
-                return await self._delete_s3(document_id)
+                return await self._delete_s3(document_id, tenant_id=tenant_id)
             else:
                 raise StorageError(
                     f"Unsupported storage backend: {self.storage_backend}"
@@ -387,14 +448,21 @@ class ProductionStorageService:
             logger.error(f"❌ Document deletion failed: {e}")
             return False
 
-    async def _delete_local(self, document_id: str) -> bool:
+    async def _delete_local(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> bool:
         """Delete document from local filesystem"""
         try:
-            # Find and delete metadata
+            # Find and delete metadata — scope to tenant when provided
             metadata_pattern = f"{document_id}.json"
-            metadata_files = list(
-                self.base_path.glob(f"metadata/**/{metadata_pattern}")
-            )
+            if tenant_id:
+                metadata_files = list(
+                    self.base_path.glob(f"metadata/{tenant_id}/{metadata_pattern}")
+                )
+            else:
+                metadata_files = list(
+                    self.base_path.glob(f"metadata/**/{metadata_pattern}")
+                )
 
             deleted_files = 0
 
@@ -404,6 +472,10 @@ class ProductionStorageService:
 
                 with metadata_file.open("r") as f:
                     metadata_dict = json.load(f)
+
+                # Defense-in-depth: verify tenant ownership
+                if tenant_id and metadata_dict.get("tenant_id") != tenant_id:
+                    continue
 
                 storage_path = Path(metadata_dict["storage_path"])
 
@@ -423,16 +495,42 @@ class ProductionStorageService:
             logger.error(f"❌ Local deletion failed: {e}")
             return False
 
-    async def _delete_s3(self, document_id: str) -> bool:
+    async def _delete_s3(
+        self, document_id: str, tenant_id: Optional[str] = None
+    ) -> bool:
         """Delete document and metadata from S3"""
         try:
-            prefix = f"{self.s3_prefix}/tenants/"
-            paginator = self.s3_client.get_paginator("list_objects_v2")
-            keys_to_delete = []
-            for page in paginator.paginate(Bucket=self.s3_bucket, Prefix=prefix):
-                for obj in page.get("Contents", []):
-                    if document_id in obj["Key"]:
-                        keys_to_delete.append({"Key": obj["Key"]})
+            if tenant_id:
+                # Scoped: construct exact keys instead of substring match
+                keys_to_delete = []
+                for suffix in [
+                    f"/documents/{document_id}",
+                    f"/metadata/{document_id}.json",
+                ]:
+                    key = f"{self.s3_prefix}/tenants/{tenant_id}{suffix}"
+                    # Check for document files with any extension
+                    if "/documents/" in suffix:
+                        prefix = key
+                        resp = self.s3_client.list_objects_v2(
+                            Bucket=self.s3_bucket, Prefix=prefix
+                        )
+                        for obj in resp.get("Contents", []):
+                            keys_to_delete.append({"Key": obj["Key"]})
+                    else:
+                        keys_to_delete.append({"Key": key})
+            else:
+                # Unscoped: list across all tenants (exact document_id match)
+                prefix = f"{self.s3_prefix}/tenants/"
+                paginator = self.s3_client.get_paginator("list_objects_v2")
+                keys_to_delete = []
+                for page in paginator.paginate(Bucket=self.s3_bucket, Prefix=prefix):
+                    for obj in page.get("Contents", []):
+                        key = obj["Key"]
+                        # Match exact document_id in path segments
+                        if f"/documents/{document_id}." in key or key.endswith(
+                            f"/metadata/{document_id}.json"
+                        ):
+                            keys_to_delete.append({"Key": key})
 
             if not keys_to_delete:
                 return False
@@ -451,9 +549,16 @@ class ProductionStorageService:
             return False
 
     async def search_documents(
-        self, query: str, limit: int = 20
+        self, query: str, limit: int = 20, tenant_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Search stored documents by filename or vendor substring match."""
+        """Search stored documents by filename or vendor substring match.
+
+        Args:
+            query: Search term to match against filename, vendor name, or doc ID.
+            limit: Maximum number of results.
+            tenant_id: When provided, only searches within this tenant's documents.
+                When None (internal/admin call), searches across all tenants.
+        """
         results: List[Dict[str, Any]] = []
         if not self.initialized or self.storage_backend != "local":
             return results
@@ -465,10 +570,21 @@ class ProductionStorageService:
 
         import json
 
-        for meta_file in metadata_dir.glob("**/*.json"):
+        # Scope glob pattern to tenant when provided
+        if tenant_id:
+            glob_pattern = f"{tenant_id}/*.json"
+        else:
+            glob_pattern = "**/*.json"
+
+        for meta_file in metadata_dir.glob(glob_pattern):
             try:
                 with meta_file.open("r") as f:
                     meta = json.load(f)
+
+                # Defense-in-depth: verify tenant ownership
+                if tenant_id and meta.get("tenant_id") != tenant_id:
+                    continue
+
                 filename = meta.get("filename", "").lower()
                 vendor = meta.get("vendor_name", "").lower()
                 doc_id = meta.get("document_id", "")

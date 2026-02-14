@@ -3,7 +3,7 @@
 # Edit this file to adjust routing logic without code changes.
 #
 # Source: Externalized from BillingRouterService._load_routing_rules()
-# in production-server/services/billing_router_service.py (enhanced_rules dict)
+# in production_server/services/billing_router_service.py (enhanced_rules dict)
 # and shared/core/constants.py (BILLING_DESTINATION_RULES dict).
 #
 # Scoring weights (hardcoded in _calculate_destination_score):

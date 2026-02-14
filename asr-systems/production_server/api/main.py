@@ -925,7 +925,9 @@ async def delete_document(
                 detail="Storage service not available",
             )
 
-        deleted = await storage_service.delete_document(document_id)
+        deleted = await storage_service.delete_document(
+            document_id, tenant_id=user.get("tenant_id")
+        )
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -934,11 +936,16 @@ async def delete_document(
 
         # Log to audit trail
         if audit_trail_service:
-            await audit_trail_service.log_event(
-                document_id=document_id,
-                event_type="document_deleted",
-                event_data={"deleted_by": user.get("tenant_id")},
-                tenant_id=user.get("tenant_id"),
+            from shared.core.models import AuditTrailEntry
+
+            await audit_trail_service.record(
+                AuditTrailEntry(
+                    document_id=document_id,
+                    event_type="document_deleted",
+                    event_data={"deleted_by": user.get("tenant_id")},
+                    system_component="api",
+                    tenant_id=user.get("tenant_id", "unknown"),
+                )
             )
 
         return APISuccessResponseSchema(
@@ -1220,6 +1227,7 @@ async def reprocess_document(
 
         result = await document_processor_service.reprocess_document(
             document_id=document_id,
+            tenant_id=user.get("tenant_id"),
         )
 
         return APISuccessResponseSchema(
@@ -1256,6 +1264,7 @@ async def get_extract_details(
 
         status_info = await document_processor_service.get_processing_status(
             document_id=document_id,
+            tenant_id=user.get("tenant_id"),
         )
 
         if not status_info:
@@ -1292,7 +1301,9 @@ async def quick_search(
     try:
         results = []
         if q.strip() and storage_service:
-            results = await storage_service.search_documents(q.strip(), limit=limit)
+            results = await storage_service.search_documents(
+                q.strip(), limit=limit, tenant_id=user.get("tenant_id")
+            )
 
         return APISuccessResponseSchema(
             message="Search results",

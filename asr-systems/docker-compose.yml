@@ -14,7 +14,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: production-server/Dockerfile
+      dockerfile: production_server/Dockerfile
     container_name: asr-backend
     ports:
       - "${API_PORT:-8000}:8000"

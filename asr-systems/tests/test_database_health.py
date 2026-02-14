@@ -11,10 +11,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-# Ensure shared/ and production-server/ are on sys.path
+# Ensure shared/ and production_server/ are on sys.path
 _asr = Path(__file__).parent.parent
 sys.path.insert(0, str(_asr / "shared"))
-sys.path.insert(0, str(_asr / "production-server"))
+sys.path.insert(0, str(_asr / "production_server"))
 
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
