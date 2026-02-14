@@ -261,7 +261,9 @@ class TestAlembicMigrationChain:
             ).fetchall()
         }
         conn.close()
-        assert "audit_events" in tables, "audit_events should be restored after downgrade"
+        assert (
+            "audit_events" in tables
+        ), "audit_events should be restored after downgrade"
         assert "audit_trail" not in tables
 
     def test_migration_0005_indices_renamed(self, tmp_path):
@@ -308,25 +310,31 @@ class TestAlembicMigrationChain:
 
     def test_docker_entrypoint_exists(self):
         """docker-entrypoint.sh should exist in production_server/."""
-        entrypoint = Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        entrypoint = (
+            Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        )
         assert entrypoint.exists(), "docker-entrypoint.sh must exist for auto-migration"
         content = entrypoint.read_text()
         assert "alembic" in content, "Entrypoint must run alembic upgrade"
 
     def test_entrypoint_uses_advisory_lock(self):
         """docker-entrypoint.sh should use pg_advisory_lock for concurrent safety."""
-        entrypoint = Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        entrypoint = (
+            Path(__file__).parent.parent / "production_server" / "docker-entrypoint.sh"
+        )
         content = entrypoint.read_text()
-        assert "pg_advisory_lock" in content, (
-            "Entrypoint must use pg_advisory_lock to prevent migration race conditions"
-        )
-        assert "pg_advisory_unlock" in content, (
-            "Entrypoint must release advisory lock after migration"
-        )
+        assert (
+            "pg_advisory_lock" in content
+        ), "Entrypoint must use pg_advisory_lock to prevent migration race conditions"
+        assert (
+            "pg_advisory_unlock" in content
+        ), "Entrypoint must release advisory lock after migration"
 
     def test_dockerfile_has_entrypoint(self):
         """Dockerfile should reference the entrypoint."""
         dockerfile = Path(__file__).parent.parent / "production_server" / "Dockerfile"
         content = dockerfile.read_text()
-        assert "ENTRYPOINT" in content, "Dockerfile must have ENTRYPOINT for auto-migration"
+        assert (
+            "ENTRYPOINT" in content
+        ), "Dockerfile must have ENTRYPOINT for auto-migration"
         assert "docker-entrypoint.sh" in content

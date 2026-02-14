@@ -88,6 +88,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r asr-systems/production_server/requirements-dev.txt
 
+      - name: Run Alembic migrations
+        working-directory: asr-systems
+        env:
+          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/asr_test
+          PYTHONPATH: .
+        run: python -m alembic upgrade head
+
       - name: Run PostgreSQL subset tests
         working-directory: asr-systems
         env:
