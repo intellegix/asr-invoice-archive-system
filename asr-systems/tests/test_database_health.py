@@ -19,12 +19,15 @@ sys.path.insert(0, str(_asr / "production_server"))
 os.environ.setdefault("DEBUG", "true")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
 
+_is_pg = "postgresql" in os.environ.get("DATABASE_URL", "")
+
 
 # ---------------------------------------------------------------------------
 # check_database_connectivity tests
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(_is_pg, reason="Tests SQLite-specific dialect behavior")
 @pytest.mark.asyncio
 async def test_db_connectivity_returns_connected_after_init():
     """After init_database(), check returns connected + dialect + latency."""
@@ -243,6 +246,7 @@ def test_require_postgresql_allows_postgresql():
     assert s.database_dialect == "postgresql"
 
 
+@pytest.mark.skipif(_is_pg, reason="Tests SQLite-specific is_production_ready=False")
 @pytest.mark.asyncio
 async def test_connectivity_returns_production_ready_flag():
     """check_database_connectivity should include is_production_ready."""

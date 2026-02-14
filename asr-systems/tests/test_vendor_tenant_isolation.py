@@ -4,6 +4,7 @@ Verifies that get/update/delete/stats are scoped by tenant_id,
 preventing cross-tenant data access at both service and API levels.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -22,8 +23,9 @@ from services.vendor_service import VendorService
 
 @pytest.fixture
 async def db():
-    """Initialize an in-memory SQLite database for each test."""
-    await init_database("sqlite:///")
+    """Initialize database — uses DATABASE_URL if set (PG in CI), else SQLite."""
+    db_url = os.environ.get("DATABASE_URL", "sqlite:///")
+    await init_database(db_url)
     yield
     await close_database()
 
