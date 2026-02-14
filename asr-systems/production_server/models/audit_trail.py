@@ -29,7 +29,7 @@ class AuditTrailRecord(Base):
     user_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     system_component: Mapped[str] = mapped_column(String(100))
     timestamp: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(timezone.utc), index=True
+        DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None), index=True
     )
     tenant_id: Mapped[str] = mapped_column(String(255), index=True)
 
