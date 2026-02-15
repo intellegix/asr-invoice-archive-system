@@ -162,7 +162,7 @@ class TestAlembicMigrationChain:
         cfg.set_main_option("script_location", str(self._alembic_root / "alembic"))
         script = ScriptDirectory.from_config(cfg)
         revisions = list(script.walk_revisions())
-        assert len(revisions) == 5  # 0001, 0002, 0003, 0004, 0005
+        assert len(revisions) == 6  # 0001, 0002, 0003, 0004, 0005, 0006
 
         # Verify linear chain: each revision (except first) has exactly one down_revision
         heads = script.get_heads()
@@ -267,12 +267,12 @@ class TestAlembicMigrationChain:
         assert "audit_trail" not in tables
 
     def test_migration_0005_indices_renamed(self, tmp_path):
-        """After 0005, indices should use audit_trail prefix."""
+        """After 0005 (up to 0005 only), indices should use audit_trail prefix."""
         from alembic import command
 
         db_path = tmp_path / "test.db"
         cfg = self._get_alembic_config(f"sqlite:///{db_path}")
-        command.upgrade(cfg, "head")
+        command.upgrade(cfg, "0005")
 
         import sqlite3
 
@@ -338,3 +338,47 @@ class TestAlembicMigrationChain:
             "ENTRYPOINT" in content
         ), "Dockerfile must have ENTRYPOINT for auto-migration"
         assert "docker-entrypoint.sh" in content
+
+    # --- P91: Migration 0006 tests ---
+
+    def test_migration_0006_is_noop_on_sqlite(self, tmp_path):
+        """Migration 0006 should be a no-op on SQLite (columns unchanged)."""
+        from alembic import command
+
+        db_path = tmp_path / "test.db"
+        cfg = self._get_alembic_config(f"sqlite:///{db_path}")
+        command.upgrade(cfg, "head")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        columns = {
+            row[1]
+            for row in conn.execute("PRAGMA table_info('audit_trail')").fetchall()
+        }
+        conn.close()
+        # SQLite still has 0001 columns since 0006 is a no-op
+        assert "entity_id" in columns
+        assert "created_at" in columns
+
+    def test_migration_0006_upgrade_downgrade_cycle(self, tmp_path):
+        """0006 should survive upgrade → downgrade → upgrade on SQLite."""
+        from alembic import command
+
+        db_path = tmp_path / "test.db"
+        cfg = self._get_alembic_config(f"sqlite:///{db_path}")
+        command.upgrade(cfg, "head")
+        command.downgrade(cfg, "0005")
+        command.upgrade(cfg, "head")
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        conn.close()
+        assert "audit_trail" in tables

@@ -121,7 +121,9 @@ class AuditTrailService:
 
     async def purge_expired(self) -> int:
         """Delete records older than retention_days. Returns count deleted."""
-        cutoff = datetime.now(timezone.utc) - timedelta(days=self.retention_days)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+            days=self.retention_days
+        )
         try:
             async with get_async_session() as session:
                 stmt = delete(AuditTrailRecord).where(
