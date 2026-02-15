@@ -33,7 +33,7 @@ python build_document_scanner.py          # Build scanner → dist/ASR_Document_
 ## Testing
 
 ```bash
-# --- Backend (672 pytest tests) ---
+# --- Backend (675 pytest tests) ---
 python -m pytest asr-systems/tests/ -v                        # All tests
 python -m pytest asr-systems/tests/ -v --cov=production_server --cov=shared  # With coverage
 python -m pytest asr-systems/tests/test_gl_account_service.py -v  # Single file
@@ -133,6 +133,10 @@ The system uses a **dual-scoping model** for tenant isolation:
 
 **Swagger docs require DEBUG=true**: `/docs` and `/redoc` are disabled when `DEBUG=false` (production default).
 
+**asyncpg rejects timezone-aware datetimes**: ORM model defaults use `datetime.now(timezone.utc).replace(tzinfo=None)` to produce naive UTC datetimes. asyncpg strictly enforces `TIMESTAMP WITHOUT TIME ZONE` — do NOT use `datetime.now(timezone.utc)` directly for DB columns.
+
+**Audit trail schema aligned (P91)**: Migration 0006 aligns the `audit_trail` table columns with the ORM model on PostgreSQL (renames entity_id→document_id, created_at→timestamp, adds event_data/system_component, drops legacy columns). SQLite is a no-op since `create_all()` already uses correct ORM columns. 6 Alembic migrations total.
+
 **Git Bash path mangling**: On Windows, Git Bash converts `/health` to a Windows path. Use double-slash: `curl http://localhost:8000//health`.
 
 **Docker Compose requires JWT_SECRET_KEY**: `docker-compose.yml` uses `${JWT_SECRET_KEY:?...}` — the container will fail to start without it.
@@ -155,9 +159,9 @@ Install from `asr-systems/production_server/requirements.txt`. Core: FastAPI, uv
 
 CI runs on push/PR to `master` via `.github/workflows/ci.yml`:
 - **Backend tests** (`test` job): black, isort, mypy (blocking), bandit (blocks on medium+), pip-audit (blocking), pytest with coverage >= 72% on Python 3.11 + 3.12
-- **PostgreSQL tests** (`test-pg` job, continue-on-error): migrations, DB health, tenant isolation against PostgreSQL 15
+- **PostgreSQL tests** (`test-pg` job, **required**): migrations, DB health, tenant isolation against PostgreSQL 15 (110 pass, 2 skipped)
 - **Frontend tests** (`frontend-test` job): TypeScript type check (`tsc --noEmit`), vitest on Node 18
-- **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after both test jobs pass
+- **Docker**: builds backend + frontend images, backend smoke test (`/health/live`), after all test jobs pass (including test-pg)
 
 Deploy pipeline (`.github/workflows/deploy.yml`) triggers on push to `master` after CI passes:
 - Builds + pushes backend/frontend images to ECR

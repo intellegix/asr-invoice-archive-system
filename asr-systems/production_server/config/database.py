@@ -139,12 +139,19 @@ async def check_database_connectivity() -> dict:
         }
 
         # Include pool metrics for PostgreSQL (pooled engines only)
+        # Note: QueuePool.size/checkedout/overflow are methods (callables),
+        # not properties.  getattr returns the bound method; we must call it
+        # to get the integer value, otherwise model_dump(mode="json") fails
+        # with a ValueError that the global handler converts to HTTP 422.
         if is_pg and hasattr(_engine, "pool"):
             pool = _engine.pool
+            _size = getattr(pool, "size", None)
+            _cout = getattr(pool, "checkedout", None)
+            _over = getattr(pool, "overflow", None)
             result["pool_status"] = {
-                "size": getattr(pool, "size", None),
-                "checked_out": getattr(pool, "checkedout", None),
-                "overflow": getattr(pool, "overflow", None),
+                "size": _size() if callable(_size) else _size,
+                "checked_out": _cout() if callable(_cout) else _cout,
+                "overflow": _over() if callable(_over) else _over,
             }
 
         return result
